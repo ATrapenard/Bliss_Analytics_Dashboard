@@ -11,3 +11,5 @@ pip-log.txt
 
 # VSCode
 .vscode/
+# Environment variables
+.env

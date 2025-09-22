@@ -1,0 +1,117 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Recipe Dashboard</title>
+    <style>
+        body { font-family: sans-serif; margin: 20px 40px; }
+        h1 { color: #333; }
+        a { color: #007BFF; text-decoration: none; }
+        a:hover { text-decoration: underline; }
+        .add-link { display: inline-block; background-color: #28a745; color: white; padding: 10px 15px; border-radius: 5px; margin: 20px 0; }
+        
+        /* --- Style for the Collapsible Card --- */
+        .collapsible {
+            background-color: #f2f2f2;
+            color: #444;
+            cursor: pointer;
+            padding: 18px;
+            width: 100%;
+            border: none;
+            text-align: left;
+            outline: none;
+            font-size: 1.2em;
+            border-radius: 8px;
+            margin-top: 10px;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+        }
+
+        .active, .collapsible:hover {
+            background-color: #ddd;
+        }
+
+        .collapsible:after {
+            content: '\002B'; /* Plus sign */
+            color: #777;
+            font-weight: bold;
+        }
+
+        .active:after {
+            content: "\2212"; /* Minus sign */
+        }
+
+        .content {
+            padding: 0 18px;
+            max-height: 0;
+            overflow: hidden;
+            transition: max-height 0.2s ease-out;
+            background-color: #f9f9f9;
+            border-radius: 0 0 8px 8px;
+            border: 1px solid #ddd;
+            border-top: none;
+        }
+        
+        table { width: 100%; border-collapse: collapse; margin: 15px 0; }
+        th, td { border: 1px solid #ddd; padding: 8px; text-align: left; }
+        th { background-color: #e9e9e9; }
+    </style>
+</head>
+<body>
+    <h1>Recipe Dashboard</h1>
+    <a href="/">← Back to Home</a>
+    
+    <hr>
+    
+    <a href="{{ url_for('new_recipe_form') }}" class="add-link">＋ Add New Recipe</a>
+
+    <h2>Existing Recipes</h2>
+    
+    {% for recipe in recipes %}
+        <button type="button" class="collapsible">
+            <span>{{ recipe['name'] }}</span>
+            <a href="{{ url_for('edit_recipe_form', recipe_id=recipe['id']) }}" style="font-size: 0.6em; margin-left: 10px;" onclick="event.stopPropagation()">✏️ Edit</a>
+        </button>
+        <div class="content">
+            <table>
+                <thead>
+                    <tr>
+                        <th>Ingredient</th>
+                        <th>Quantity</th>
+                        <th>Unit</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    {% for ingredient in recipe['ingredients'] %}
+                    <tr>
+                        <td>{{ ingredient['name'] }}</td>
+                        <td>{{ ingredient['quantity'] }}</td>
+                        <td>{{ ingredient['unit'] }}</td>
+                    </tr>
+                    {% endfor %}
+                </tbody>
+            </table>
+        </div>
+    {% else %}
+        <p>No recipes found. Add one!</p>
+    {% endfor %}
+
+    <script>
+        const coll = document.getElementsByClassName("collapsible");
+        for (let i = 0; i < coll.length; i++) {
+            coll[i].addEventListener("click", function() {
+                this.classList.toggle("active");
+                const content = this.nextElementSibling;
+                if (content.style.maxHeight) {
+                    content.style.maxHeight = null;
+                } else {
+                    content.style.maxHeight = content.scrollHeight + "px";
+                } 
+            });
+        }
+    </script>
+
+</body>
+</html>

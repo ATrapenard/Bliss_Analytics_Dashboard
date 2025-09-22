@@ -1,0 +1,56 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <title>Edit Recipe</title>
+    <style>
+        body { font-family: sans-serif; margin: 20px 40px; }
+        .ingredient-row { display: flex; gap: 10px; margin-bottom: 10px; }
+        input, button { padding: 8px; font-size: 1em; }
+        button { cursor: pointer; }
+        .add-btn { background-color: #007BFF; color: white; border: none; }
+        .submit-btn { background-color: #28a745; color: white; border: none; margin-top: 20px; }
+    </style>
+</head>
+<body>
+    <h1>Edit Recipe</h1>
+
+    <form action="{{ url_for('update_recipe', recipe_id=recipe['id']) }}" method="post">
+        <p>
+            <label for="recipe_name">Recipe Name</label><br>
+            <input type="text" id="recipe_name" name="recipe_name" required size="50" value="{{ recipe['name'] }}">
+        </p>
+
+        <h3>Ingredients</h3>
+        <div id="ingredients-container">
+            {% for ingredient in ingredients %}
+            <div class="ingredient-row">
+                <input type="text" name="ingredient_name" placeholder="Ingredient Name" required value="{{ ingredient['name'] }}">
+                <input type="number" name="quantity" placeholder="Quantity" step="any" required value="{{ ingredient['quantity'] }}">
+                <input type="text" name="unit" placeholder="Unit (e.g., cups)" required value="{{ ingredient['unit'] }}">
+                <button type="button" onclick="this.parentElement.remove()">Remove</button>
+            </div>
+            {% endfor %}
+        </div>
+
+        <button type="button" class="add-btn" onclick="addIngredient()">＋ Add Ingredient</button>
+        <br>
+        <button type="submit" class="submit-btn">Save Changes</button>
+    </form>
+
+    <script>
+        function addIngredient() {
+            const container = document.getElementById('ingredients-container');
+            const newRow = document.createElement('div');
+            newRow.className = 'ingredient-row';
+            newRow.innerHTML = `
+                <input type="text" name="ingredient_name" placeholder="Ingredient Name" required>
+                <input type="number" name="quantity" placeholder="Quantity" step="any" required>
+                <input type="text" name="unit" placeholder="Unit (e.g., cups)" required>
+                <button type="button" onclick="this.parentElement.remove()">Remove</button>
+            `;
+            container.appendChild(newRow);
+        }
+    </script>
+</body>
+</html>

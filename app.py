@@ -117,5 +117,15 @@ def update_recipe(recipe_id):
     conn.close()
     return redirect(url_for('recipe_dashboard'))
 
+@app.route('/delete/<int:recipe_id>', methods=['POST'])
+def delete_recipe(recipe_id):
+    conn = get_db_connection()
+    with conn.cursor() as cur:
+        # The ON DELETE CASCADE in our table schema handles deleting the ingredients
+        cur.execute('DELETE FROM recipes WHERE id = %s;', (recipe_id,))
+    conn.commit()
+    conn.close()
+    return redirect(url_for('recipe_dashboard'))
+
 if __name__ == '__main__':
     app.run(debug=True)

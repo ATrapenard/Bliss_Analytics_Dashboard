@@ -26,15 +26,40 @@ def recipe_dashboard():
     recipes_list = []
     conn = get_db_connection()
     with conn.cursor(cursor_factory=DictCursor) as cur:
+        # Get all base recipes
         cur.execute('SELECT * FROM recipes ORDER BY name;')
         recipes_from_db = cur.fetchall()
-
+        
         for recipe in recipes_from_db:
             recipe_dict = dict(recipe)
+            
+            # Get the list of individual ingredients for the collapsible view
             cur.execute('SELECT name, quantity, unit FROM ingredients WHERE recipe_id = %s;', (recipe['id'],))
             ingredients = cur.fetchall()
             recipe_dict['ingredients'] = [dict(ing) for ing in ingredients]
+
+            # --- NEW: Calculate totals for grams and mLs ---
+            cur.execute("""
+                SELECT unit, SUM(quantity) as total_quantity
+                FROM ingredients
+                WHERE recipe_id = %s AND unit IN ('grams', 'mLs')
+                GROUP BY unit;
+            """, (recipe['id'],))
+            
+            totals_data = cur.fetchall()
+            # Initialize totals and then fill with data from the query
+            totals = {'grams': 0, 'mLs': 0}
+            for row in totals_data:
+                if row['unit'] == 'grams':
+                    totals['grams'] = round(row['total_quantity'], 2)
+                elif row['unit'] == 'mLs':
+                    totals['mLs'] = round(row['total_quantity'], 2)
+            
+            recipe_dict['totals'] = totals
+            # --- END OF NEW CODE ---
+
             recipes_list.append(recipe_dict)
+            
     conn.close()
     return render_template('recipes.html', recipes=recipes_list)
 

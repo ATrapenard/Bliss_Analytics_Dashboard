@@ -11,7 +11,6 @@
         a:hover { text-decoration: underline; }
         .add-link { display: inline-block; background-color: #28a745; color: white; padding: 10px 15px; border-radius: 5px; margin: 20px 0; }
         
-        /* --- Style for the Collapsible Card --- */
         .collapsible {
             background-color: #f2f2f2;
             color: #444;
@@ -24,9 +23,22 @@
             font-size: 1.2em;
             border-radius: 8px;
             margin-top: 10px;
+        }
+
+        .card-header {
             display: flex;
             justify-content: space-between;
             align-items: center;
+            width: 100%;
+        }
+        .recipe-info {
+            display: flex;
+            flex-direction: column;
+        }
+        .recipe-totals {
+            font-size: 0.7em;
+            color: #555;
+            margin-top: 5px;
         }
 
         .active, .collapsible:hover {
@@ -34,13 +46,14 @@
         }
 
         .collapsible:after {
-            content: '\002B'; /* Plus sign */
+            content: '\002B';
             color: #777;
             font-weight: bold;
+            align-self: flex-start;
         }
 
         .active:after {
-            content: "\2212"; /* Minus sign */
+            content: "\2212";
         }
 
         .content {
@@ -71,8 +84,15 @@
     
     {% for recipe in recipes %}
         <button type="button" class="collapsible">
-            <span>{{ recipe['name'] }}</span>
-            <a href="{{ url_for('edit_recipe_form', recipe_id=recipe['id']) }}" style="font-size: 0.6em; margin-left: 10px;" onclick="event.stopPropagation()">✏️ Edit</a>
+            <div class="card-header">
+                <div class="recipe-info">
+                    <span>{{ recipe['name'] }}</span>
+                    <span class="recipe-totals">
+                        Grams: {{ recipe.totals.grams }}g, mLs: {{ recipe.totals.mLs }}mL
+                    </span>
+                </div>
+                <a href="{{ url_for('edit_recipe_form', recipe_id=recipe['id']) }}" style="font-size: 0.6em; margin-left: 10px;" onclick="event.stopPropagation()">✏️ Edit</a>
+            </div>
         </button>
         <div class="content">
             <table>
@@ -101,7 +121,9 @@
     <script>
         const coll = document.getElementsByClassName("collapsible");
         for (let i = 0; i < coll.length; i++) {
-            coll[i].addEventListener("click", function() {
+            coll[i].addEventListener("click", function(event) {
+                if (event.target.tagName === 'A' || event.target.parentElement.tagName === 'A') return;
+                
                 this.classList.toggle("active");
                 const content = this.nextElementSibling;
                 if (content.style.maxHeight) {

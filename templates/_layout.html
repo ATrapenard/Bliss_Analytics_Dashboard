@@ -8,6 +8,7 @@
         body { 
             font-family: sans-serif; 
             margin: 0;
+            background-color: #f9fafb; /* Set a light background for all pages */
         }
         .navbar {
             background-color: #333;
@@ -26,6 +27,13 @@
         .navbar a.logo {
             font-size: 1.5em;
             font-weight: bold;
+            display: flex;
+            align-items: center;
+            gap: 10px;
+        }
+        .navbar img.logo-img {
+            height: 40px;
+            width: auto;
         }
         .nav-links {
             display: flex;
@@ -56,6 +64,7 @@
                 top: 60px; /* Adjust based on navbar height */
                 left: 0;
                 background-color: #333;
+                z-index: 10;
             }
             .nav-links.active {
                 display: flex;
@@ -69,7 +78,10 @@
 <body>
 
     <nav class="navbar">
-        <a href="{{ url_for('home') }}" class="logo">Bliss Energetics</a>
+        <a href="{{ url_for('home') }}" class="logo">
+            <img src="{{ url_for('static', filename='logo.png') }}" alt="Bliss Energetics Logo" class="logo-img">
+            <span>Bliss Energetics</span>
+        </a>
         <div class="nav-links">
             <a href="{{ url_for('recipe_dashboard') }}">Recipes</a>
             <a href="{{ url_for('ingredient_totals') }}">Ingredient Totals</a>

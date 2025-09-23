@@ -4,14 +4,12 @@
 
 {% block content %}
     <style>
-        /* Styles for this form page */
-        .ingredient-row { display: flex; gap: 10px; margin-bottom: 10px; }
-        input, button, textarea { padding: 8px; font-size: 1em; border-radius: 4px; border: 1px solid #ccc; }
-        textarea { width: 100%; max-width: 400px; }
-        input[type="text"] { width: 100%; max-width: 400px; }
+        .ingredient-row { display: grid; grid-template-columns: 2fr 1fr 1fr 2fr 0.5fr; gap: 10px; margin-bottom: 10px; align-items: center; }
+        input, select, button { padding: 8px; font-size: 1em; border-radius: 4px; border: 1px solid #ccc; width: 100%; }
         button { cursor: pointer; }
-        .add-btn { background-color: #007BFF; color: white; border: none; }
-        .submit-btn { background-color: #28a745; color: white; border: none; margin-top: 20px; }
+        .add-btn { background-color: #007BFF; color: white; border: none; max-width: 200px; }
+        .submit-btn { background-color: #28a745; color: white; border: none; margin-top: 20px; max-width: 200px; }
+        .remove-btn { background-color: #dc3545; color: white; border: none; }
     </style>
 
     <h1>Add a New Recipe</h1>
@@ -19,7 +17,7 @@
     <form action="{{ url_for('create_recipe') }}" method="post">
         <p>
             <label for="recipe_name">Recipe Name</label><br>
-            <input type="text" id="recipe_name" name="recipe_name" required>
+            <input type="text" id="recipe_name" name="recipe_name" required style="max-width: 400px;">
         </p>
 
         <h3>Ingredients</h3>
@@ -40,7 +38,13 @@
                 <input type="text" name="ingredient_name" placeholder="Ingredient Name" required>
                 <input type="number" name="quantity" placeholder="Quantity" step="any" required>
                 <input type="text" name="unit" placeholder="Unit (e.g., grams)" required>
-                <button type="button" onclick="this.parentElement.remove()">Remove</button>
+                <select name="sub_recipe_id">
+                    <option value="">-- Raw Material --</option>
+                    {% for r in recipes %}
+                        <option value="{{ r.id }}">{{ r.name }}</option>
+                    {% endfor %}
+                </select>
+                <button type="button" class="remove-btn" onclick="this.parentElement.remove()">X</button>
             `;
             container.appendChild(newRow);
         }

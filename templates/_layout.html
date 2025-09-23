@@ -8,7 +8,7 @@
         body { 
             font-family: sans-serif; 
             margin: 0;
-            background-color: #f9fafb; /* Set a light background for all pages */
+            background-color: #f9fafb;
         }
         .navbar {
             background-color: #333;
@@ -54,14 +54,13 @@
             padding: 20px 40px;
         }
 
-        /* Responsive styles for mobile */
         @media screen and (max-width: 768px) {
             .nav-links {
                 display: none;
                 flex-direction: column;
                 width: 100%;
                 position: absolute;
-                top: 60px; /* Adjust based on navbar height */
+                top: 60px;
                 left: 0;
                 background-color: #333;
                 z-index: 10;
@@ -79,11 +78,12 @@
 
     <nav class="navbar">
         <a href="{{ url_for('home') }}" class="logo">
-            <img src="{{ url_for('static', filename='logo.png') }}" alt="Bliss Energetics Logo" class="logo-img">
+            <img src="{{ url_for('static', filename='bliss_logo.jpg') }}" alt="Bliss Energetics Logo" class="logo-img">
             <span>Bliss Energetics</span>
         </a>
         <div class="nav-links">
             <a href="{{ url_for('recipe_dashboard') }}">Recipes</a>
+            <a href="{{ url_for('products_page') }}">Products</a>  
             <a href="{{ url_for('ingredient_totals') }}">Ingredient Totals</a>
         </div>
         <div class="hamburger">

@@ -142,5 +142,39 @@ def ingredient_totals():
     conn.close()
     return render_template('totals.html', totals=totals)
 
+@app.route('/products')
+def products_page():
+    conn = get_db_connection()
+    with conn.cursor(cursor_factory=DictCursor) as cur:
+        # Join products with recipes to get the recipe name
+        cur.execute("""
+            SELECT p.id, p.sku, r.name as recipe_name
+            FROM products p
+            LEFT JOIN recipes r ON p.recipe_id = r.id
+            ORDER BY p.sku;
+        """)
+        products = cur.fetchall()
+        
+        # Also fetch all recipes for the "Add New Product" dropdown
+        cur.execute("SELECT id, name FROM recipes ORDER BY name;")
+        recipes = cur.fetchall()
+        
+    conn.close()
+    return render_template('products.html', products=products, recipes=recipes)
+
+@app.route('/products/add', methods=['POST'])
+def add_product():
+    sku = request.form['sku']
+    recipe_id = request.form['recipe_id']
+    
+    conn = get_db_connection()
+    with conn.cursor() as cur:
+        cur.execute('INSERT INTO products (sku, recipe_id) VALUES (%s, %s);',
+                     (sku, recipe_id))
+    conn.commit()
+    conn.close()
+    
+    return redirect(url_for('products_page'))
+
 if __name__ == '__main__':
     app.run(debug=True)

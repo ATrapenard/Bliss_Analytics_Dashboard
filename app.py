@@ -127,5 +127,20 @@ def delete_recipe(recipe_id):
     conn.close()
     return redirect(url_for('recipe_dashboard'))
 
+@app.route('/totals')
+def ingredient_totals():
+    conn = get_db_connection()
+    with conn.cursor(cursor_factory=DictCursor) as cur:
+        # This query groups by both name and unit to get the total for each
+        cur.execute("""
+            SELECT name, unit, SUM(quantity) as total_quantity
+            FROM ingredients
+            GROUP BY name, unit
+            ORDER BY name, unit;
+        """)
+        totals = cur.fetchall()
+    conn.close()
+    return render_template('totals.html', totals=totals)
+
 if __name__ == '__main__':
     app.run(debug=True)

@@ -1,0 +1,42 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Ingredient Totals</title>
+    <style>
+        body { font-family: sans-serif; margin: 20px 40px; }
+        h1 { color: #333; }
+        a { color: #007BFF; text-decoration: none; }
+        a:hover { text-decoration: underline; }
+        table { width: 100%; max-width: 600px; border-collapse: collapse; margin-top: 20px; }
+        th, td { border: 1px solid #ddd; padding: 12px; text-align: left; }
+        th { background-color: #f2f2f2; }
+    </style>
+</head>
+<body>
+    <h1>Aggregated Ingredient Totals</h1>
+    <p>This page shows the total amount of each ingredient needed for all recipes.</p>
+    <a href="/">← Back to Home</a>
+
+    <table>
+        <thead>
+            <tr>
+                <th>Ingredient</th>
+                <th>Total Quantity</th>
+                <th>Unit</th>
+            </tr>
+        </thead>
+        <tbody>
+            {% for item in totals %}
+            <tr>
+                <td>{{ item['name'] }}</td>
+                <td>{{ item['total_quantity'] | round(2) }}</td>
+                <td>{{ item['unit'] }}</td>
+            </tr>
+            {% endfor %}
+        </tbody>
+    </table>
+
+</body>
+</html>

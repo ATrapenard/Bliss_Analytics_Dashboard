@@ -4,16 +4,47 @@ from psycopg2.extras import DictCursor
 from dotenv import load_dotenv
 from flask import Flask, render_template, request, redirect, url_for
 
-# Load environment variables from .env file
 load_dotenv()
-
 app = Flask(__name__)
 
 def get_db_connection():
-    """Establishes a connection to the PostgreSQL database."""
     conn_string = os.getenv("DATABASE_URL")
     conn = psycopg2.connect(conn_string)
     return conn
+
+resolved_cache = {}
+
+def get_base_ingredients(recipe_id, conn):
+    if recipe_id in resolved_cache:
+        return resolved_cache[recipe_id]
+
+    with conn.cursor(cursor_factory=DictCursor) as cur:
+        cur.execute("SELECT * FROM ingredients WHERE recipe_id = %s;", (recipe_id,))
+        ingredients = cur.fetchall()
+        
+        base_ingredients = []
+        for ing in ingredients:
+            if ing['sub_recipe_id']:
+                # Get the yield of the sub-recipe
+                cur.execute("SELECT yield_quantity FROM recipes WHERE id = %s;", (ing['sub_recipe_id'],))
+                sub_recipe_yield = cur.fetchone()['yield_quantity']
+                
+                # If yield is not set or zero, we can't scale. Treat as 1 to avoid division by zero.
+                if not sub_recipe_yield or sub_recipe_yield == 0:
+                    scaling_ratio = 1.0
+                else:
+                    scaling_ratio = float(ing['quantity']) / float(sub_recipe_yield)
+
+                sub_ingredients = get_base_ingredients(ing['sub_recipe_id'], conn)
+                for sub_ing in sub_ingredients:
+                    scaled_ing = dict(sub_ing)
+                    scaled_ing['quantity'] *= scaling_ratio
+                    base_ingredients.append(scaled_ing)
+            else:
+                base_ingredients.append(dict(ing))
+    
+    resolved_cache[recipe_id] = base_ingredients
+    return base_ingredients
 
 @app.route('/')
 def home():
@@ -23,6 +54,8 @@ def home():
 def recipe_dashboard():
     recipes_list = []
     conn = get_db_connection()
+    resolved_cache.clear()
+
     with conn.cursor(cursor_factory=DictCursor) as cur:
         cur.execute('SELECT * FROM recipes ORDER BY name;')
         recipes_from_db = cur.fetchall()
@@ -30,25 +63,22 @@ def recipe_dashboard():
         for recipe in recipes_from_db:
             recipe_dict = dict(recipe)
             cur.execute('SELECT name, quantity, unit FROM ingredients WHERE recipe_id = %s;', (recipe['id'],))
-            ingredients = cur.fetchall()
-            recipe_dict['ingredients'] = [dict(ing) for ing in ingredients]
+            recipe_dict['ingredients'] = [dict(ing) for ing in cur.fetchall()]
 
-            cur.execute("""
-                SELECT unit, SUM(quantity) as total_quantity
-                FROM ingredients
-                WHERE recipe_id = %s AND unit IN ('grams', 'mLs') AND sub_recipe_id IS NULL
-                GROUP BY unit;
-            """, (recipe['id'],))
+            base_ingredients = get_base_ingredients(recipe['id'], conn)
             
-            totals_data = cur.fetchall()
             totals = {'grams': 0, 'mLs': 0}
-            for row in totals_data:
-                if row['unit'] == 'grams':
-                    totals['grams'] = round(row['total_quantity'], 2)
-                elif row['unit'] == 'mLs':
-                    totals['mLs'] = round(row['total_quantity'], 2)
+            for ing in base_ingredients:
+                unit = ing.get('unit', '').lower()
+                if unit == 'grams':
+                    totals['grams'] += float(ing['quantity'])
+                elif unit == 'mls':
+                    totals['mLs'] += float(ing['quantity'])
             
-            recipe_dict['totals'] = totals
+            recipe_dict['totals'] = {
+                'grams': round(totals['grams'], 2),
+                'mLs': round(totals['mLs'], 2)
+            }
             recipes_list.append(recipe_dict)
             
     conn.close()
@@ -68,7 +98,11 @@ def create_recipe():
     conn = get_db_connection()
     with conn.cursor() as cur:
         recipe_name = request.form['recipe_name']
-        cur.execute('INSERT INTO recipes (name) VALUES (%s) RETURNING id;', (recipe_name,))
+        yield_quantity = request.form['yield_quantity'] or None
+        yield_unit = request.form['yield_unit'] or None
+
+        cur.execute('INSERT INTO recipes (name, yield_quantity, yield_unit) VALUES (%s, %s, %s) RETURNING id;', 
+                    (recipe_name, yield_quantity, yield_unit))
         recipe_id = cur.fetchone()[0]
         
         ingredient_names = request.form.getlist('ingredient_name')
@@ -104,7 +138,11 @@ def update_recipe(recipe_id):
     conn = get_db_connection()
     with conn.cursor() as cur:
         new_name = request.form['recipe_name']
-        cur.execute('UPDATE recipes SET name = %s WHERE id = %s;', (new_name, recipe_id))
+        yield_quantity = request.form['yield_quantity'] or None
+        yield_unit = request.form['yield_unit'] or None
+
+        cur.execute('UPDATE recipes SET name = %s, yield_quantity = %s, yield_unit = %s WHERE id = %s;', 
+                    (new_name, yield_quantity, yield_unit, recipe_id))
         
         cur.execute('DELETE FROM ingredients WHERE recipe_id = %s;', (recipe_id,))
         
@@ -131,32 +169,6 @@ def delete_recipe(recipe_id):
     conn.commit()
     conn.close()
     return redirect(url_for('recipe_dashboard'))
-
-# --- RECURSIVE LOGIC FOR INGREDIENT TOTALS ---
-resolved_cache = {}
-
-def get_base_ingredients(recipe_id, conn):
-    if recipe_id in resolved_cache:
-        return resolved_cache[recipe_id]
-
-    with conn.cursor(cursor_factory=DictCursor) as cur:
-        cur.execute("SELECT * FROM ingredients WHERE recipe_id = %s;", (recipe_id,))
-        ingredients = cur.fetchall()
-        
-        base_ingredients = []
-        for ing in ingredients:
-            if ing['sub_recipe_id']:
-                sub_ingredients = get_base_ingredients(ing['sub_recipe_id'], conn)
-                for sub_ing in sub_ingredients:
-                    scaled_ing = dict(sub_ing)
-                    # Scale the quantity
-                    scaled_ing['quantity'] *= float(ing['quantity'])
-                    base_ingredients.append(scaled_ing)
-            else:
-                base_ingredients.append(dict(ing))
-    
-    resolved_cache[recipe_id] = base_ingredients
-    return base_ingredients
 
 @app.route('/totals')
 def ingredient_totals():
@@ -185,6 +197,7 @@ def ingredient_totals():
 
 @app.route('/products')
 def products_page():
+    # ... (This function is unchanged)
     conn = get_db_connection()
     with conn.cursor(cursor_factory=DictCursor) as cur:
         cur.execute("""
@@ -199,8 +212,10 @@ def products_page():
     conn.close()
     return render_template('products.html', products=products, recipes=recipes)
 
+
 @app.route('/products/add', methods=['POST'])
 def add_product():
+    # ... (This function is unchanged)
     sku = request.form['sku']
     recipe_id = request.form['recipe_id']
     conn = get_db_connection()

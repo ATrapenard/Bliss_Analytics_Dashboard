@@ -13,14 +13,10 @@
             font-family: sans-serif; 
             margin: 0;
             
-            /* --- NEW GRADIENT BACKGROUND --- */
-            /* This is a placeholder. Replace #d4eaf7 and #f9fafb with your logo's colors. */
+            /* --- UPDATED GRADIENT BACKGROUND --- */
             background-image: linear-gradient(to top right, #E46E4A, #84869B);
             
-            /* Ensures the gradient covers the full page */
             min-height: 100vh; 
-            
-            /* Keeps the gradient fixed while you scroll */
             background-attachment: fixed; 
         }
 
@@ -98,6 +94,7 @@
         <div class="nav-links">
             <a href="{{ url_for('recipe_dashboard') }}">Recipes</a>
             <a href="{{ url_for('products_page') }}">Products</a> 
+            <a href="{{ url_for('locations_page') }}">Locations</a>
             <a href="{{ url_for('ingredient_totals') }}">Ingredient Totals</a>
         </div>
         <div class="hamburger">
@@ -105,7 +102,7 @@
             <span class="bar"></span>
             <span class="bar"></span>
         </div>
-    </nav>
+    </nav
 
     <div class="content-container">
         {% block content %}{% endblock %}

@@ -12,9 +12,13 @@ def get_db_connection():
     conn = psycopg2.connect(conn_string)
     return conn
 
+# --- RECURSIVE LOGIC (USED BY MULTIPLE ROUTES) ---
 resolved_cache = {}
 
 def get_base_ingredients(recipe_id, conn):
+    """
+    Recursively resolves a recipe down to its base raw ingredients.
+    """
     if recipe_id in resolved_cache:
         return resolved_cache[recipe_id]
 
@@ -25,11 +29,9 @@ def get_base_ingredients(recipe_id, conn):
         base_ingredients = []
         for ing in ingredients:
             if ing['sub_recipe_id']:
-                # Get the yield of the sub-recipe
                 cur.execute("SELECT yield_quantity FROM recipes WHERE id = %s;", (ing['sub_recipe_id'],))
                 sub_recipe_yield = cur.fetchone()['yield_quantity']
                 
-                # If yield is not set or zero, we can't scale. Treat as 1 to avoid division by zero.
                 if not sub_recipe_yield or sub_recipe_yield == 0:
                     scaling_ratio = 1.0
                 else:
@@ -197,7 +199,6 @@ def ingredient_totals():
 
 @app.route('/products')
 def products_page():
-    # ... (This function is unchanged)
     conn = get_db_connection()
     with conn.cursor(cursor_factory=DictCursor) as cur:
         cur.execute("""
@@ -212,10 +213,8 @@ def products_page():
     conn.close()
     return render_template('products.html', products=products, recipes=recipes)
 
-
 @app.route('/products/add', methods=['POST'])
 def add_product():
-    # ... (This function is unchanged)
     sku = request.form['sku']
     recipe_id = request.form['recipe_id']
     conn = get_db_connection()
@@ -224,6 +223,39 @@ def add_product():
     conn.commit()
     conn.close()
     return redirect(url_for('products_page'))
+
+# --- NEW LOCATIONS ROUTES ---
+
+@app.route('/locations', methods=['GET', 'POST'])
+def locations_page():
+    conn = get_db_connection()
+    
+    if request.method == 'POST':
+        location_name = request.form['name']
+        with conn.cursor() as cur:
+            cur.execute("INSERT INTO locations (name) VALUES (%s);", (location_name,))
+        conn.commit()
+        conn.close()
+        return redirect(url_for('locations_page'))
+
+    # GET Request
+    with conn.cursor(cursor_factory=DictCursor) as cur:
+        cur.execute("SELECT * FROM locations ORDER BY name;")
+        locations = cur.fetchall()
+    conn.close()
+    return render_template('locations.html', locations=locations)
+
+@app.route('/locations/delete/<int:id>', methods=['POST'])
+def delete_location(id):
+    conn = get_db_connection()
+    with conn.cursor() as cur:
+        # We should add logic here later to check if locations are in use
+        cur.execute("DELETE FROM locations WHERE id = %s;", (id,))
+    conn.commit()
+    conn.close()
+    return redirect(url_for('locations_page'))
+
+# --- END NEW ROUTES ---
 
 if __name__ == '__main__':
     app.run(debug=True)

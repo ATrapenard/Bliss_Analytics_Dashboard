@@ -5,11 +5,25 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>{% block title %}{% endblock %}</title>
     <style>
+        *, *::before, *::after {
+            box-sizing: border-box;
+        }
+        
         body { 
             font-family: sans-serif; 
             margin: 0;
-            background-color: #f9fafb;
+            
+            /* --- NEW GRADIENT BACKGROUND --- */
+            /* This is a placeholder. Replace #d4eaf7 and #f9fafb with your logo's colors. */
+            background-image: linear-gradient(to top right, #E46E4A, #84869B);
+            
+            /* Ensures the gradient covers the full page */
+            min-height: 100vh; 
+            
+            /* Keeps the gradient fixed while you scroll */
+            background-attachment: fixed; 
         }
+
         .navbar {
             background-color: #333;
             overflow: hidden;
@@ -83,7 +97,7 @@
         </a>
         <div class="nav-links">
             <a href="{{ url_for('recipe_dashboard') }}">Recipes</a>
-            <a href="{{ url_for('products_page') }}">Products</a>  
+            <a href="{{ url_for('products_page') }}">Products</a> 
             <a href="{{ url_for('ingredient_totals') }}">Ingredient Totals</a>
         </div>
         <div class="hamburger">

@@ -1,0 +1,60 @@
+{% extends "_layout.html" %}
+
+{% block title %}Stock Requirements{% endblock %}
+
+{% block content %}
+    <style>
+        .content-card {
+            background-color: #fff;
+            padding: 20px;
+            border-radius: 12px;
+            border: 1px solid #e5e7eb;
+            box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.1), 0 2px 4px -2px rgba(0, 0, 0, 0.1);
+        }
+        
+        table { 
+            width: 100%; 
+            border-collapse: collapse; 
+            margin-top: 20px; 
+        }
+        th, td { 
+            padding: 12px 15px; 
+            text-align: left; 
+            border-bottom: 1px solid #e5e7eb;
+        }
+        th { 
+            background-color: #f9fafb;
+            font-size: 0.75rem;
+            text-transform: uppercase;
+            color: #6b7280;
+        }
+        tr:last-child td {
+            border-bottom: none;
+        }
+    </style>
+
+    <h1>Stock Requirements Report</h1>
+    <p>This is the master list of all raw ingredients needed to meet the minimum stock levels at all fulfillment locations.</p>
+
+    <div class="content-card">
+        <h2>Master Shopping List</h2>
+        <table>
+            <thead>
+                <tr>
+                    <th>Ingredient</th>
+                    <th>Total Quantity</th>
+                    <th>Unit</th>
+                </tr>
+            </thead>
+            <tbody>
+                {% for item in totals %}
+                <tr>
+                    <td>{{ item.name }}</td>
+                    <td>{{ item.total_quantity | round(2) }}</td>
+                    <td>{{ item.unit }}</td>
+                </tr>
+                {% endfor %}
+            </tbody>
+        </table>
+    </div>
+{% endblock %}

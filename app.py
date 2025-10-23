@@ -283,7 +283,6 @@ def delete_product(id):
     conn.close()
     return redirect(url_for('products_page'))
 
-# --- NEW ROUTE FOR STOCK MINIMUMS ---
 @app.route('/stock-minimums', methods=['GET', 'POST'])
 def stock_minimums_page():
     conn = get_db_connection()
@@ -294,7 +293,6 @@ def stock_minimums_page():
         min_jars = request.form['min_jars']
         
         with conn.cursor() as cur:
-            # Use UPSERT to insert or update the minimum
             cur.execute("""
                 INSERT INTO stock_minimums (location_id, product_id, min_jars)
                 VALUES (%s, %s, %s)
@@ -305,13 +303,9 @@ def stock_minimums_page():
         conn.close()
         return redirect(url_for('stock_minimums_page'))
 
-    # GET Request: Fetch data for dropdowns and table
     with conn.cursor(cursor_factory=DictCursor) as cur:
-        # Fetch all locations
         cur.execute("SELECT * FROM locations ORDER BY name;")
         locations = cur.fetchall()
-        
-        # Fetch all products (with recipe names for clarity)
         cur.execute("""
             SELECT p.id, p.sku, r.name as recipe_name 
             FROM products p
@@ -319,8 +313,6 @@ def stock_minimums_page():
             ORDER BY p.sku;
         """)
         products = cur.fetchall()
-        
-        # Fetch existing minimums
         cur.execute("""
             SELECT sm.id, l.name as location_name, p.sku, r.name as recipe_name, sm.min_jars
             FROM stock_minimums sm
@@ -333,6 +325,55 @@ def stock_minimums_page():
         
     conn.close()
     return render_template('stock_minimums.html', locations=locations, products=products, minimums=minimums)
+
+# --- NEW REQUIREMENTS REPORT ROUTE ---
+@app.route('/requirements')
+def requirements_page():
+    conn = get_db_connection()
+    resolved_cache.clear()
+    
+    all_base_ingredients = []
+    with conn.cursor(cursor_factory=DictCursor) as cur:
+        # 1. Get total jars needed per product, joining to get recipe and yield
+        cur.execute("""
+            SELECT 
+                p.recipe_id, 
+                r.yield_quantity,
+                SUM(sm.min_jars) as total_jars
+            FROM stock_minimums sm
+            JOIN products p ON sm.product_id = p.id
+            JOIN recipes r ON p.recipe_id = r.id
+            GROUP BY p.recipe_id, r.yield_quantity;
+        """)
+        products_to_make = cur.fetchall()
+
+        # 2. Loop through each product and calculate its raw ingredients
+        for prod in products_to_make:
+            if not prod['yield_quantity'] or prod['yield_quantity'] == 0:
+                continue # Can't calculate if yield isn't set
+            
+            # 3. Calculate how many batches are needed
+            scaling_ratio = float(prod['total_jars']) / float(prod['yield_quantity'])
+            
+            # 4. Get the scaled base ingredients for that many batches
+            base_ingredients = get_base_ingredients(prod['recipe_id'], conn)
+            for ing in base_ingredients:
+                scaled_ing = dict(ing)
+                scaled_ing['quantity'] *= scaling_ratio
+                all_base_ingredients.append(scaled_ing)
+
+    # 5. Aggregate all ingredients into a final shopping list
+    totals = {}
+    for ing in all_base_ingredients:
+        key = (ing['name'].strip().lower(), ing['unit'].strip().lower())
+        if key not in totals:
+            totals[key] = {'name': ing['name'], 'unit': ing['unit'], 'total_quantity': 0}
+        totals[key]['total_quantity'] += float(ing['quantity'])
+        
+    conn.close()
+    sorted_totals = sorted(totals.values(), key=lambda x: x['name'])
+    
+    return render_template('requirements.html', totals=sorted_totals)
 # --- END NEW ROUTE ---
 
 if __name__ == '__main__':

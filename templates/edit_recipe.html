@@ -7,7 +7,7 @@
         .form-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 20px; align-items: flex-end; margin-bottom: 20px; max-width: 800px;}
         .ingredient-row { display: grid; grid-template-columns: 2fr 1fr 1fr 2fr 0.5fr; gap: 10px; margin-bottom: 10px; align-items: center; }
         input[type="text"], input[type="number"], select, button { padding: 8px; font-size: 1em; border-radius: 4px; border: 1px solid #ccc; width: 100%; }
-        input[type="checkbox"] { width: auto; margin-right: 10px; } /* Style checkbox */
+        input[type="checkbox"] { width: auto; margin-right: 10px; }
         label { display: block; margin-bottom: 5px; }
         button { cursor: pointer; }
         .add-btn { background-color: #007BFF; color: white; border: none; max-width: 200px; }
@@ -20,6 +20,8 @@
             border: 1px solid #ddd;
         }
         .checkbox-container { display: flex; align-items: center; margin-bottom: 20px; }
+        /* NEW: Initially hide the jar yield container */
+        #jar-yield-container { display: none; }
     </style>
 
     <h1>Edit Recipe</h1>
@@ -48,7 +50,7 @@
             </div>
         </div>
 
-        <div class="form-grid" style="grid-template-columns: 1fr;">
+        <div id="jar-yield-container" class="form-grid" style="grid-template-columns: 1fr;">
             <div class="yield-section">
                 <label for="final_yield_jars">Final Yield (Jars)</label>
                 <input type="number" id="final_yield_jars" name="final_yield_jars" value="{{ recipe.final_yield_jars or '' }}" placeholder="e.g., 50">
@@ -80,6 +82,7 @@
     </form>
 
     <script>
+        // Ingredient adding script (unchanged)
         function addIngredient() {
             const container = document.getElementById('ingredients-container');
             const newRow = document.createElement('div');
@@ -98,5 +101,26 @@
             `;
             container.appendChild(newRow);
         }
+
+        // --- NEW SCRIPT for conditional display ---
+        document.addEventListener('DOMContentLoaded', () => {
+            const soldCheckbox = document.getElementById('is_sold_product');
+            const jarYieldContainer = document.getElementById('jar-yield-container');
+
+            function toggleJarYield() {
+                if (soldCheckbox.checked) {
+                    jarYieldContainer.style.display = 'grid'; // Show it using its grid display
+                } else {
+                    jarYieldContainer.style.display = 'none'; // Hide it
+                }
+            }
+
+            // Add event listener to checkbox
+            soldCheckbox.addEventListener('change', toggleJarYield);
+
+            // Run on page load to set initial state
+            toggleJarYield();
+        });
+        // --- END NEW SCRIPT ---
     </script>
 {% endblock %}

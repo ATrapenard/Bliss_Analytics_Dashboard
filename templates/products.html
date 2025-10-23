@@ -6,11 +6,10 @@
 <style>
     .container {
         display: grid;
-        grid-template-columns: 2fr 1fr; /* Give the table more space */
+        grid-template-columns: 2fr 1fr;
         gap: 40px;
     }
     
-    /* NEW: Style for the list card, to match the form card */
     .product-list {
         background-color: #fff;
         padding: 20px;
@@ -27,16 +26,19 @@
         box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.1), 0 2px 4px -2px rgba(0, 0, 0, 0.1);
     }
     
-    /* Modern Table Styles */
     table { 
         width: 100%; 
         border-collapse: collapse; 
         margin-top: 20px; 
+        /* Fixes column width issues */
+        table-layout: fixed; 
     }
     th, td { 
         padding: 12px 15px; 
         text-align: left; 
-        border-bottom: 1px solid #e5e7eb; /* Horizontal lines only */
+        border-bottom: 1px solid #e5e7eb;
+        /* Vertically centers all cell content */
+        vertical-align: middle; 
     }
     th { 
         background-color: #f9fafb;
@@ -44,6 +46,11 @@
         text-transform: uppercase;
         color: #6b7280;
     }
+    /* Set column widths */
+    th:nth-child(1) { width: 30%; } /* SKU */
+    th:nth-child(2) { width: 40%; } /* Mapped Recipe */
+    th:nth-child(3) { width: 30%; } /* Actions */
+
     tr:last-child td {
         border-bottom: none;
     }
@@ -66,11 +73,10 @@
         background-color: #218838;
     }
 
-    /* Modern Button Styles */
     .actions-cell {
         display: flex;
         gap: 10px;
-        align-items: center;
+        align-items: center; /* Aligns buttons with each other */
     }
     .edit-btn, .delete-btn {
         font-size: 0.9em;
@@ -85,20 +91,20 @@
         transition: background-color 0.2s ease;
     }
     .edit-btn {
-        background-color: #007BFF; /* Professional Blue */
+        background-color: #007BFF;
     }
     .edit-btn:hover {
         background-color: #0056b3;
     }
     .delete-btn {
-        background-color: #dc3545; /* Professional Red */
+        background-color: #dc3545;
     }
     .delete-btn:hover {
         background-color: #c82333;
     }
     .delete-form {
         margin: 0;
-        display: inline;
+        display: inline-block; /* Makes form behave */
     }
 
     @media screen and (max-width: 900px) {

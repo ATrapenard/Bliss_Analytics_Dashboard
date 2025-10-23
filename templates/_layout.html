@@ -4,21 +4,49 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>{% block title %}{% endblock %}</title>
+    
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Lato:wght@400;700&family=Montserrat:wght@600;700&display=swap" rel="stylesheet">
+    
     <style>
         *, *::before, *::after {
             box-sizing: border-box;
         }
         
+        /* Define CSS Variables for easier color management */
+        :root {
+            --primary-color: #E46E4A; /* Your Orange */
+            --secondary-color: #84869B; /* Your Purple */
+            --text-dark: #111827;
+            --text-medium: #6b7280;
+            --background-light: #f9fafb;
+            --border-color: #e5e7eb;
+            --white: #ffffff;
+            --nav-bg: #333;
+            
+            --font-heading: 'Montserrat', sans-serif;
+            --font-body: 'Lato', sans-serif;
+        }
+        
         body { 
-            font-family: sans-serif; 
+            font-family: var(--font-body); 
             margin: 0;
-            background-image: linear-gradient(to top right, #E46E4A, #84869B);
+            background-image: linear-gradient(to top right, var(--primary-color), var(--secondary-color));
             min-height: 100vh; 
             background-attachment: fixed; 
+            color: var(--text-dark); /* Default text color */
+        }
+        
+        /* Apply heading font */
+        h1, h2, h3 {
+            font-family: var(--font-heading);
+            color: var(--text-dark);
         }
 
+        /* --- Navbar Styles --- */
         .navbar {
-            background-color: #333;
+            background-color: var(--nav-bg);
             overflow: hidden;
             display: flex;
             justify-content: space-between;
@@ -26,12 +54,18 @@
             padding: 0 20px;
         }
         .navbar a {
-            color: white;
+            color: var(--white);
             text-decoration: none;
             padding: 14px 20px;
             display: block;
+            font-family: var(--font-body); /* Use body font for nav links */
+            transition: background-color 0.2s ease;
+        }
+        .navbar a:hover {
+             background-color: rgba(255, 255, 255, 0.1); /* Subtle hover */
         }
         .navbar a.logo {
+            font-family: var(--font-heading); /* Heading font for logo text */
             font-size: 1.5em;
             font-weight: bold;
             display: flex;
@@ -55,12 +89,41 @@
             width: 25px;
             height: 3px;
             margin: 5px auto;
-            background-color: white;
+            background-color: var(--white);
         }
+        
+        /* --- Content Area --- */
         .content-container {
             padding: 20px 40px;
         }
-
+        
+        /* Basic card style (can be overridden in specific templates) */
+        .content-card, .form-container, .product-list, .location-list, .list-container, .recipe-card {
+             background-color: var(--white);
+             border-radius: 12px;
+             border: 1px solid var(--border-color);
+             box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.1), 0 2px 4px -2px rgba(0, 0, 0, 0.1);
+             padding: 20px;
+        }
+        
+        /* Basic button style (can be overridden) */
+         button, .button-link { /* Add class .button-link to <a> tags you want styled like buttons */
+            font-family: var(--font-body);
+            background-color: var(--primary-color);
+            color: var(--white);
+            border: none;
+            padding: 10px 15px;
+            border-radius: 5px;
+            cursor: pointer;
+            text-decoration: none;
+            display: inline-block;
+            transition: background-color 0.2s ease;
+         }
+         button:hover, .button-link:hover {
+            opacity: 0.9;
+         }
+         
+        /* --- Responsive Styles --- */
         @media screen and (max-width: 768px) {
             .nav-links {
                 display: none;
@@ -69,7 +132,7 @@
                 position: absolute;
                 top: 60px;
                 left: 0;
-                background-color: #333;
+                background-color: var(--nav-bg);
                 z-index: 10;
             }
             .nav-links.active {
@@ -77,6 +140,9 @@
             }
             .hamburger {
                 display: block;
+            }
+            .content-container {
+                padding: 15px; /* Reduce padding on smaller screens */
             }
         }
     </style>
@@ -94,7 +160,8 @@
             <a href="{{ url_for('locations_page') }}">Locations</a>
             <a href="{{ url_for('stock_minimums_page') }}">Stock Minimums</a>
             <a href="{{ url_for('ingredient_totals') }}">Ingredient Totals</a>
-            <a href="{{ url_for('requirements_page') }}">Requirements</a> </div>
+            <a href="{{ url_for('requirements_page') }}">Requirements</a>
+        </div>
         <div class="hamburger">
             <span class="bar"></span>
             <span class="bar"></span>

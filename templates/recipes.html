@@ -4,18 +4,8 @@
 
 {% block content %}
     <style>
-        .add-link { display: inline-block; background-color: #28a745; color: white; padding: 10px 15px; border-radius: 5px; margin: 20px 0; text-decoration: none; }
-        .add-link:hover { background-color: #218838; }
-
-        /* Card Styles */
-        .recipe-card {
-            background-color: #ffffff;
-            border-radius: 12px;
-            border: 1px solid #e5e7eb;
-            box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.1), 0 2px 4px -2px rgba(0, 0, 0, 0.1);
-            margin-top: 1.5rem;
-        }
-        
+        /* Restored styles specific to recipe cards */
+        .recipe-card { margin-top: 1.5rem; } /* Keep spacing */
         .card-header-clickable {
             cursor: pointer;
             padding: 20px;
@@ -26,91 +16,44 @@
             transition: background-color 0.2s ease-in-out;
             gap: 15px;
         }
-        .card-header-clickable:hover {
-            background-color: #f9fafb;
-        }
-        
-        /* NEW: This border will appear only when the header has the 'active' class */
-        .card-header-clickable.active {
-            border-bottom: 1px solid #e5e7eb;
-        }
-
-        .recipe-info {
-            display: flex;
-            flex-direction: column;
-            min-width: 0;
-        }
+        .card-header-clickable:hover { background-color: var(--background-light); }
+        .card-header-clickable.active { border-bottom: 1px solid var(--border-color); }
+        .recipe-info { display: flex; flex-direction: column; min-width: 0; }
         .recipe-name {
             font-size: 1.25em;
             font-weight: 600;
-            color: #111827;
+            color: var(--text-dark);
             white-space: nowrap;
             overflow: hidden;
             text-overflow: ellipsis;
         }
-        .recipe-totals {
-            font-size: 0.8em;
-            color: #6b7280;
-            margin-top: 4px;
-        }
-        
-        .card-actions {
-            display: flex;
-            align-items: center;
-            gap: 20px;
-            flex-shrink: 0;
-        }
-        .edit-btn, .delete-btn {
-            font-size: 0.9em;
-            padding: 6px 12px;
-            width: auto;
-            text-decoration: none;
-            display: inline-block;
-            color: white;
-            border: none;
-            border-radius: 5px;
-            cursor: pointer;
-            transition: background-color 0.2s ease;
-        }
-        .edit-btn {
-            background-color: #007BFF;
-        }
-        .edit-btn:hover {
-            background-color: #0056b3;
-        }
-        .delete-btn {
-            background-color: #dc3545;
-        }
-        .delete-btn:hover {
-            background-color: #c82333;
-        }
-        .action-form {
-            margin: 0;
-        }
+        .recipe-totals { font-size: 0.8em; color: var(--text-medium); margin-top: 4px; }
+        .card-actions { display: flex; align-items: center; gap: 10px; flex-shrink: 0; }
+        .action-form { margin: 0; }
+        .edit-btn, .delete-btn { font-size: 0.9em; padding: 6px 12px; }
 
         .content {
             padding: 0 20px;
             max-height: 0;
             overflow: hidden;
             transition: max-height 0.3s ease-out;
-            /* REMOVED: The border-top was the white line */
-            /* border-top: 1px solid #e5e7eb; */
         }
-        
-        table { width: 100%; border-collapse: collapse; margin: 15px 0; }
-        th, td { border-bottom: 1px solid #e5e7eb; padding: 12px 8px; text-align: left; }
-        th { background-color: #f9fafb; font-size: 0.75rem; text-transform: uppercase; color: #6b7280;}
-        tr:last-child td { border-bottom: none; }
+        /* Keep table styles within the card specific */
+        .content table { width: 100%; border-collapse: collapse; margin: 15px 0; }
+        .content th, .content td { border-bottom: 1px solid var(--border-color); padding: 12px 8px; text-align: left; }
+        .content th { background-color: var(--background-light); font-size: 0.75rem; text-transform: uppercase; color: var(--text-medium); }
+        .content tr:last-child td { border-bottom: none; }
     </style>
 
     <h1>Recipe Dashboard</h1>
-    <a href="{{ url_for('new_recipe_form') }}" class="add-link">＋ Add New Recipe</a>
+    <a href="{{ url_for('new_recipe_form') }}" class="button-link submit-btn">＋ Add New Recipe</a>
     
     <h2>Existing Recipes</h2>
     
     {% for recipe in recipes %}
         <div class="recipe-card">
-            <div class="card-header-clickable"> <div class="recipe-info">
+            <div class="card-header-clickable">
+                <div class="recipe-info">
                     <span class="recipe-name">{{ recipe['name'] }}</span>
                     <span class="recipe-totals">
                         Grams: {{ recipe.totals.grams }}g, mLs: {{ recipe.totals.mLs }}mL
@@ -125,7 +68,8 @@
                     </form>
                 </div>
             </div>
-            <div class="content"> <table>
+            <div class="content">
+                <table>
                     <thead>
                         <tr>
                             <th>Ingredient</th>
@@ -154,16 +98,9 @@
             const headers = document.querySelectorAll(".card-header-clickable");
             headers.forEach(header => {
                 header.addEventListener("click", event => {
-                    // Ignore clicks that originate from the actions div
-                    if (event.target.closest('.card-actions')) {
-                        return;
-                    }
-                    
-                    // NEW: Toggle the 'active' class on the header itself
+                    if (event.target.closest('.card-actions')) { return; }
                     header.classList.toggle("active");
-                    
                     const content = header.nextElementSibling;
-                    
                     if (content.style.maxHeight) {
                         content.style.maxHeight = null;
                     } else {

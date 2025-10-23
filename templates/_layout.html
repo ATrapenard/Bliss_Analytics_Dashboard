@@ -5,6 +5,8 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>{% block title %}{% endblock %}</title>
 
+    <link rel="icon" href="{{ url_for('static', filename='bliss_logo.jpg') }}" type="image/jpeg">
+
     <link rel="preconnect" href="https://fonts.googleapis.com">
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
     <link href="https://fonts.googleapis.com/css2?family=Lato:wght@400;700&family=Montserrat:wght@600;700&display=swap" rel="stylesheet">
@@ -126,17 +128,15 @@
          button:hover, .button-link:hover, input[type="submit"]:hover {
             opacity: 0.85;
          }
-
-         /* Specific Button Colors - THESE DEFINE THE CORRECT COLORS */
-         .edit-btn { background-color: var(--edit-blue) !important; } /* Use !important to ensure override */
-         .delete-btn { background-color: var(--delete-red) !important; } /* Use !important to ensure override */
+         .edit-btn { background-color: var(--edit-blue) !important; }
+         .delete-btn { background-color: var(--delete-red) !important; }
          .add-btn { background-color: #007BFF; }
          .submit-btn { background-color: #28a745; }
          .remove-btn { background-color: var(--delete-red); }
 
          /* Hover states for specific buttons */
-         .edit-btn:hover { background-color: #0056b3 !important; opacity: 1;} /* Darker blue on hover */
-         .delete-btn:hover { background-color: #c82333 !important; opacity: 1;} /* Darker red on hover */
+         .edit-btn:hover { background-color: #0056b3 !important; opacity: 1;}
+         .delete-btn:hover { background-color: #c82333 !important; opacity: 1;}
          .add-btn:hover { background-color: #0056b3; opacity: 1;}
          .submit-btn:hover { background-color: #218838; opacity: 1;}
          .remove-btn:hover { background-color: #c82333; opacity: 1;}

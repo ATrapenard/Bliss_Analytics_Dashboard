@@ -6,28 +6,48 @@
 <style>
     .container {
         display: grid;
-        grid-template-columns: 2fr 1fr;
+        grid-template-columns: 2fr 1fr; /* Give the table more space */
         gap: 40px;
     }
+    
+    /* NEW: Style for the list card, to match the form card */
+    .product-list {
+        background-color: #fff;
+        padding: 20px;
+        border-radius: 12px;
+        border: 1px solid #e5e7eb;
+        box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.1), 0 2px 4px -2px rgba(0, 0, 0, 0.1);
+    }
+    
     .form-container {
         background-color: #fff;
         padding: 20px;
-        border-radius: 8px;
+        border-radius: 12px;
         border: 1px solid #e5e7eb;
+        box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.1), 0 2px 4px -2px rgba(0, 0, 0, 0.1);
     }
+    
+    /* Modern Table Styles */
     table { 
         width: 100%; 
         border-collapse: collapse; 
         margin-top: 20px; 
     }
     th, td { 
-        border: 1px solid #ddd; 
-        padding: 12px; 
+        padding: 12px 15px; 
         text-align: left; 
+        border-bottom: 1px solid #e5e7eb; /* Horizontal lines only */
     }
     th { 
-        background-color: #f2f2f2; 
+        background-color: #f9fafb;
+        font-size: 0.75rem;
+        text-transform: uppercase;
+        color: #6b7280;
     }
+    tr:last-child td {
+        border-bottom: none;
+    }
+
     input, select, button {
         width: 100%;
         padding: 10px;
@@ -45,22 +65,36 @@
     button:hover {
         background-color: #218838;
     }
+
+    /* Modern Button Styles */
     .actions-cell {
         display: flex;
         gap: 10px;
+        align-items: center;
     }
     .edit-btn, .delete-btn {
         font-size: 0.9em;
-        padding: 5px 10px;
+        padding: 6px 12px;
         width: auto;
         text-decoration: none;
         display: inline-block;
+        color: white;
+        border: none;
+        border-radius: 5px;
+        cursor: pointer;
+        transition: background-color 0.2s ease;
     }
     .edit-btn {
-        background-color: #007BFF;
+        background-color: #007BFF; /* Professional Blue */
+    }
+    .edit-btn:hover {
+        background-color: #0056b3;
     }
     .delete-btn {
-        background-color: #dc3545;
+        background-color: #dc3545; /* Professional Red */
+    }
+    .delete-btn:hover {
+        background-color: #c82333;
     }
     .delete-form {
         margin: 0;

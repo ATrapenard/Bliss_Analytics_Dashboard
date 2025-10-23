@@ -114,7 +114,7 @@
         /* --- General Button Styles --- */
          button, .button-link, input[type="submit"] {
             font-family: var(--font-body);
-            background-color: var(--primary-color); /* Default to primary orange */
+            background-color: var(--primary-color);
             color: var(--white);
             border: none;
             padding: 10px 15px;
@@ -134,7 +134,6 @@
          .submit-btn { background-color: #28a745; }
          .remove-btn { background-color: var(--delete-red); }
 
-         /* Hover states for specific buttons */
          .edit-btn:hover { background-color: #0056b3 !important; opacity: 1;}
          .delete-btn:hover { background-color: #c82333 !important; opacity: 1;}
          .add-btn:hover { background-color: #0056b3; opacity: 1;}
@@ -197,7 +196,7 @@
         th, td {
             padding: 12px 15px;
             text-align: left;
-            border-bottom: 1px solid var(--border-color);
+            border-bottom: 1px solid var(--border-color); /* Apply bottom border to ALL cells */
             vertical-align: middle;
         }
         th {
@@ -206,10 +205,9 @@
             text-transform: uppercase;
             color: var(--text-medium);
             font-family: var(--font-heading);
+            border-bottom-width: 2px; /* Make header bottom border slightly thicker */
         }
-        tr:last-child td {
-            border-bottom: none;
-        }
+        /* REMOVED: tr:last-child td { border-bottom: none; } */
 
         /* --- Responsive Styles --- */
         @media screen and (max-width: 768px) {

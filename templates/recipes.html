@@ -4,7 +4,6 @@
 
 {% block content %}
     <style>
-        /* Styles specific to recipe cards */
         .recipe-card { margin-top: 1.5rem; }
         .card-header-clickable {
             cursor: pointer;
@@ -29,8 +28,8 @@
         }
         .recipe-totals { font-size: 0.8em; color: var(--text-medium); margin-top: 4px; }
         .card-actions { display: flex; align-items: center; gap: 10px; flex-shrink: 0; }
-        .action-form { margin: 0; display: flex; align-items: center; } /* Keep alignment fix */
-        .edit-btn, .delete-btn { font-size: 0.9em; padding: 6px 12px; } /* Sizing only */
+        .action-form { margin: 0; display: flex; align-items: center; }
+        .edit-btn, .delete-btn { font-size: 0.9em; padding: 6px 12px; }
 
         .content {
             padding: 0 20px;
@@ -39,9 +38,13 @@
             transition: max-height 0.3s ease-out;
         }
         .content table { width: 100%; border-collapse: collapse; margin: 15px 0; }
-        .content th, .content td { border-bottom: 1px solid var(--border-color); padding: 12px 8px; text-align: left; }
+        .content th, .content td {
+             border-bottom: 1px solid var(--border-color); /* Apply bottom border to ALL cells */
+             padding: 12px 8px;
+             text-align: left;
+        }
         .content th { background-color: var(--background-light); font-size: 0.75rem; text-transform: uppercase; color: var(--text-medium); }
-        .content tr:last-child td { border-bottom: none; }
+        /* REMOVED: .content tr:last-child td { border-bottom: none; } */
     </style>
 
     <h1>Recipe Dashboard</h1>

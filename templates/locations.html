@@ -9,25 +9,37 @@
         grid-template-columns: 2fr 1fr;
         gap: 40px;
     }
-    .form-container {
+    
+    /* Apply card styles to both containers */
+    .location-list, .form-container {
         background-color: #fff;
         padding: 20px;
-        border-radius: 8px;
+        border-radius: 12px;
         border: 1px solid #e5e7eb;
+        box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.1), 0 2px 4px -2px rgba(0, 0, 0, 0.1);
     }
+
     table { 
         width: 100%; 
         border-collapse: collapse; 
         margin-top: 20px; 
     }
     th, td { 
-        border: 1px solid #ddd; 
-        padding: 12px; 
+        padding: 12px 15px; 
         text-align: left; 
+        border-bottom: 1px solid #e5e7eb;
+        vertical-align: middle;
     }
     th { 
-        background-color: #f2f2f2; 
+        background-color: #f9fafb;
+        font-size: 0.75rem;
+        text-transform: uppercase;
+        color: #6b7280;
     }
+    tr:last-child td {
+        border-bottom: none;
+    }
+    
     input, button {
         width: 100%;
         padding: 10px;
@@ -47,8 +59,8 @@
     }
     .delete-btn {
         background-color: #dc3545;
-        font-size: 0.8em;
-        padding: 5px 10px;
+        font-size: 0.9em;
+        padding: 6px 12px;
         width: auto;
     }
     .delete-form {

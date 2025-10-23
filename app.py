@@ -29,14 +29,14 @@ def get_base_ingredients(recipe_id, conn):
         base_ingredients = []
         for ing in ingredients:
             if ing['sub_recipe_id']:
-                # This logic uses the component yield (g/mL)
                 cur.execute("SELECT yield_quantity FROM recipes WHERE id = %s;", (ing['sub_recipe_id'],))
-                sub_recipe_yield = cur.fetchone()['yield_quantity']
-                
-                if not sub_recipe_yield or sub_recipe_yield == 0:
-                    scaling_ratio = 1.0
-                else:
+                sub_recipe_yield_row = cur.fetchone()
+                # Check if sub-recipe exists and has yield
+                if sub_recipe_yield_row and sub_recipe_yield_row['yield_quantity']:
+                    sub_recipe_yield = sub_recipe_yield_row['yield_quantity']
                     scaling_ratio = float(ing['quantity']) / float(sub_recipe_yield)
+                else:
+                    scaling_ratio = 1.0 # Default if yield is missing/zero
 
                 sub_ingredients = get_base_ingredients(ing['sub_recipe_id'], conn)
                 for sub_ing in sub_ingredients:
@@ -101,12 +101,13 @@ def create_recipe():
     conn = get_db_connection()
     with conn.cursor() as cur:
         recipe_name = request.form['recipe_name']
-        yield_quantity = request.form['yield_quantity'] or None
-        yield_unit = request.form['yield_unit'] or None
-        final_yield_jars = request.form['final_yield_jars'] or None # NEW
+        yield_quantity = request.form.get('yield_quantity') or None
+        yield_unit = request.form.get('yield_unit') or None
+        final_yield_jars = request.form.get('final_yield_jars') or None
+        is_sold_product = 'is_sold_product' in request.form # Checkbox value
 
-        cur.execute('INSERT INTO recipes (name, yield_quantity, yield_unit, final_yield_jars) VALUES (%s, %s, %s, %s) RETURNING id;', 
-                    (recipe_name, yield_quantity, yield_unit, final_yield_jars)) # NEW
+        cur.execute('INSERT INTO recipes (name, yield_quantity, yield_unit, final_yield_jars, is_sold_product) VALUES (%s, %s, %s, %s, %s) RETURNING id;', 
+                    (recipe_name, yield_quantity, yield_unit, final_yield_jars, is_sold_product))
         recipe_id = cur.fetchone()[0]
         
         ingredient_names = request.form.getlist('ingredient_name')
@@ -142,12 +143,13 @@ def update_recipe(recipe_id):
     conn = get_db_connection()
     with conn.cursor() as cur:
         new_name = request.form['recipe_name']
-        yield_quantity = request.form['yield_quantity'] or None
-        yield_unit = request.form['yield_unit'] or None
-        final_yield_jars = request.form['final_yield_jars'] or None # NEW
+        yield_quantity = request.form.get('yield_quantity') or None
+        yield_unit = request.form.get('yield_unit') or None
+        final_yield_jars = request.form.get('final_yield_jars') or None
+        is_sold_product = 'is_sold_product' in request.form # Checkbox value
 
-        cur.execute('UPDATE recipes SET name = %s, yield_quantity = %s, yield_unit = %s, final_yield_jars = %s WHERE id = %s;', 
-                    (new_name, yield_quantity, yield_unit, final_yield_jars, recipe_id)) # NEW
+        cur.execute('UPDATE recipes SET name = %s, yield_quantity = %s, yield_unit = %s, final_yield_jars = %s, is_sold_product = %s WHERE id = %s;', 
+                    (new_name, yield_quantity, yield_unit, final_yield_jars, is_sold_product, recipe_id))
         
         cur.execute('DELETE FROM ingredients WHERE recipe_id = %s;', (recipe_id,))
         
@@ -204,6 +206,7 @@ def ingredient_totals():
 def products_page():
     conn = get_db_connection()
     with conn.cursor(cursor_factory=DictCursor) as cur:
+        # Fetch existing products
         cur.execute("""
             SELECT p.id, p.sku, r.name as recipe_name
             FROM products p
@@ -211,8 +214,11 @@ def products_page():
             ORDER BY p.sku;
         """)
         products = cur.fetchall()
-        cur.execute("SELECT id, name FROM recipes ORDER BY name;")
+        
+        # Fetch ONLY SOLD recipes for the "Add New Product" dropdown
+        cur.execute("SELECT id, name FROM recipes WHERE is_sold_product = TRUE ORDER BY name;")
         recipes = cur.fetchall()
+        
     conn.close()
     return render_template('products.html', products=products, recipes=recipes)
 
@@ -260,8 +266,11 @@ def edit_product(id):
     with conn.cursor(cursor_factory=DictCursor) as cur:
         cur.execute("SELECT * FROM products WHERE id = %s;", (id,))
         product = cur.fetchone()
-        cur.execute("SELECT id, name FROM recipes ORDER BY name;")
+        
+        # Fetch ONLY SOLD recipes for the dropdown
+        cur.execute("SELECT id, name FROM recipes WHERE is_sold_product = TRUE ORDER BY name;")
         recipes = cur.fetchall()
+        
     conn.close()
     return render_template('edit_product.html', product=product, recipes=recipes)
 
@@ -309,13 +318,18 @@ def stock_minimums_page():
     with conn.cursor(cursor_factory=DictCursor) as cur:
         cur.execute("SELECT * FROM locations ORDER BY name;")
         locations = cur.fetchall()
+        
+        # Fetch ONLY products linked to SOLD recipes for the dropdown
         cur.execute("""
             SELECT p.id, p.sku, r.name as recipe_name 
             FROM products p
             JOIN recipes r ON p.recipe_id = r.id
+            WHERE r.is_sold_product = TRUE
             ORDER BY p.sku;
         """)
         products = cur.fetchall()
+        
+        # Fetch existing minimums (no change needed here)
         cur.execute("""
             SELECT sm.id, l.name as location_name, p.sku, r.name as recipe_name, sm.min_jars
             FROM stock_minimums sm
@@ -336,23 +350,24 @@ def requirements_page():
     
     all_base_ingredients = []
     with conn.cursor(cursor_factory=DictCursor) as cur:
-        # 1. Get total jars needed, joining to get recipe_id and NEW final_yield_jars
+        # Get total jars needed, ONLY for SOLD products
         cur.execute("""
             SELECT 
                 p.recipe_id, 
-                r.final_yield_jars,  -- UPDATED
+                r.final_yield_jars,
                 SUM(sm.min_jars) as total_jars
             FROM stock_minimums sm
             JOIN products p ON sm.product_id = p.id
             JOIN recipes r ON p.recipe_id = r.id
-            WHERE r.final_yield_jars IS NOT NULL AND r.final_yield_jars > 0
+            WHERE r.is_sold_product = TRUE 
+              AND r.final_yield_jars IS NOT NULL 
+              AND r.final_yield_jars > 0
             GROUP BY p.recipe_id, r.final_yield_jars;
         """)
         products_to_make = cur.fetchall()
 
         for prod in products_to_make:
-            # 3. Calculate batches needed (jars_needed / jars_per_batch)
-            scaling_ratio = float(prod['total_jars']) / float(prod['final_yield_jars']) # UPDATED
+            scaling_ratio = float(prod['total_jars']) / float(prod['final_yield_jars'])
             
             base_ingredients = get_base_ingredients(prod['recipe_id'], conn)
             for ing in base_ingredients:

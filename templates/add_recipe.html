@@ -4,32 +4,47 @@
 
 {% block content %}
     <style>
-        .form-grid { display: grid; grid-template-columns: 3fr 1fr; gap: 10px; align-items: flex-end; margin-bottom: 20px; max-width: 600px;}
+        .form-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 20px; align-items: flex-end; margin-bottom: 20px; max-width: 800px;}
         .ingredient-row { display: grid; grid-template-columns: 2fr 1fr 1fr 2fr 0.5fr; gap: 10px; margin-bottom: 10px; align-items: center; }
         input, select, button { padding: 8px; font-size: 1em; border-radius: 4px; border: 1px solid #ccc; width: 100%; }
         button { cursor: pointer; }
         .add-btn { background-color: #007BFF; color: white; border: none; max-width: 200px; }
         .submit-btn { background-color: #28a745; color: white; border: none; margin-top: 20px; max-width: 200px; }
         .remove-btn { background-color: #dc3545; color: white; border: none; }
+        .yield-section {
+            background: #f9f9f9;
+            padding: 15px;
+            border-radius: 8px;
+            border: 1px solid #ddd;
+        }
     </style>
 
     <h1>Add a New Recipe</h1>
 
     <form action="{{ url_for('create_recipe') }}" method="post">
-        <div class="form-grid">
-            <div>
-                <label for="recipe_name">Recipe Name</label>
-                <input type="text" id="recipe_name" name="recipe_name" required>
-            </div>
+        <div>
+            <label for="recipe_name">Recipe Name</label>
+            <input type="text" id="recipe_name" name="recipe_name" required style="max-width: 400px; margin-bottom: 20px;">
         </div>
+
         <div class="form-grid">
-            <div>
-                <label for="yield_quantity">Total Yield Quantity</label>
-                <input type="number" step="any" id="yield_quantity" name="yield_quantity" placeholder="e.g., 5000">
+            <div class="yield-section">
+                <label for="yield_quantity">Total Batch Weight/Volume (g or mL)</label>
+                <input type="number" step="any" id="yield_quantity" name="yield_quantity" placeholder="e.g., 8934">
+                <small>Used for nested recipe calculations. (e.g., total grams)</small>
             </div>
-            <div>
+            <div class="yield-section">
                 <label for="yield_unit">Yield Unit</label>
                 <input type="text" id="yield_unit" name="yield_unit" placeholder="e.g., grams">
+                <small>The unit for the batch weight (g or mLs).</small>
+            </div>
+        </div>
+        
+        <div class="form-grid" style="grid-template-columns: 1fr;">
+            <div class="yield-section">
+                <label for="final_yield_jars">Final Yield (Jars)</label>
+                <input type="number" id="final_yield_jars" name="final_yield_jars" placeholder="e.g., 50">
+                <small>Used for stock requirement calculations. (e.g., total jars)</small>
             </div>
         </div>
 

@@ -29,6 +29,7 @@ def get_base_ingredients(recipe_id, conn):
         base_ingredients = []
         for ing in ingredients:
             if ing['sub_recipe_id']:
+                # This logic uses the component yield (g/mL)
                 cur.execute("SELECT yield_quantity FROM recipes WHERE id = %s;", (ing['sub_recipe_id'],))
                 sub_recipe_yield = cur.fetchone()['yield_quantity']
                 
@@ -102,9 +103,10 @@ def create_recipe():
         recipe_name = request.form['recipe_name']
         yield_quantity = request.form['yield_quantity'] or None
         yield_unit = request.form['yield_unit'] or None
+        final_yield_jars = request.form['final_yield_jars'] or None # NEW
 
-        cur.execute('INSERT INTO recipes (name, yield_quantity, yield_unit) VALUES (%s, %s, %s) RETURNING id;', 
-                    (recipe_name, yield_quantity, yield_unit))
+        cur.execute('INSERT INTO recipes (name, yield_quantity, yield_unit, final_yield_jars) VALUES (%s, %s, %s, %s) RETURNING id;', 
+                    (recipe_name, yield_quantity, yield_unit, final_yield_jars)) # NEW
         recipe_id = cur.fetchone()[0]
         
         ingredient_names = request.form.getlist('ingredient_name')
@@ -142,9 +144,10 @@ def update_recipe(recipe_id):
         new_name = request.form['recipe_name']
         yield_quantity = request.form['yield_quantity'] or None
         yield_unit = request.form['yield_unit'] or None
+        final_yield_jars = request.form['final_yield_jars'] or None # NEW
 
-        cur.execute('UPDATE recipes SET name = %s, yield_quantity = %s, yield_unit = %s WHERE id = %s;', 
-                    (new_name, yield_quantity, yield_unit, recipe_id))
+        cur.execute('UPDATE recipes SET name = %s, yield_quantity = %s, yield_unit = %s, final_yield_jars = %s WHERE id = %s;', 
+                    (new_name, yield_quantity, yield_unit, final_yield_jars, recipe_id)) # NEW
         
         cur.execute('DELETE FROM ingredients WHERE recipe_id = %s;', (recipe_id,))
         
@@ -326,7 +329,6 @@ def stock_minimums_page():
     conn.close()
     return render_template('stock_minimums.html', locations=locations, products=products, minimums=minimums)
 
-# --- NEW REQUIREMENTS REPORT ROUTE ---
 @app.route('/requirements')
 def requirements_page():
     conn = get_db_connection()
@@ -334,35 +336,30 @@ def requirements_page():
     
     all_base_ingredients = []
     with conn.cursor(cursor_factory=DictCursor) as cur:
-        # 1. Get total jars needed per product, joining to get recipe and yield
+        # 1. Get total jars needed, joining to get recipe_id and NEW final_yield_jars
         cur.execute("""
             SELECT 
                 p.recipe_id, 
-                r.yield_quantity,
+                r.final_yield_jars,  -- UPDATED
                 SUM(sm.min_jars) as total_jars
             FROM stock_minimums sm
             JOIN products p ON sm.product_id = p.id
             JOIN recipes r ON p.recipe_id = r.id
-            GROUP BY p.recipe_id, r.yield_quantity;
+            WHERE r.final_yield_jars IS NOT NULL AND r.final_yield_jars > 0
+            GROUP BY p.recipe_id, r.final_yield_jars;
         """)
         products_to_make = cur.fetchall()
 
-        # 2. Loop through each product and calculate its raw ingredients
         for prod in products_to_make:
-            if not prod['yield_quantity'] or prod['yield_quantity'] == 0:
-                continue # Can't calculate if yield isn't set
+            # 3. Calculate batches needed (jars_needed / jars_per_batch)
+            scaling_ratio = float(prod['total_jars']) / float(prod['final_yield_jars']) # UPDATED
             
-            # 3. Calculate how many batches are needed
-            scaling_ratio = float(prod['total_jars']) / float(prod['yield_quantity'])
-            
-            # 4. Get the scaled base ingredients for that many batches
             base_ingredients = get_base_ingredients(prod['recipe_id'], conn)
             for ing in base_ingredients:
                 scaled_ing = dict(ing)
                 scaled_ing['quantity'] *= scaling_ratio
                 all_base_ingredients.append(scaled_ing)
 
-    # 5. Aggregate all ingredients into a final shopping list
     totals = {}
     for ing in all_base_ingredients:
         key = (ing['name'].strip().lower(), ing['unit'].strip().lower())
@@ -374,7 +371,6 @@ def requirements_page():
     sorted_totals = sorted(totals.values(), key=lambda x: x['name'])
     
     return render_template('requirements.html', totals=sorted_totals)
-# --- END NEW ROUTE ---
 
 if __name__ == '__main__':
     app.run(debug=True)

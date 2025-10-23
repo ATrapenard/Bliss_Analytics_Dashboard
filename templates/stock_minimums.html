@@ -1,0 +1,119 @@
+{% extends "_layout.html" %}
+
+{% block title %}Stock Minimums{% endblock %}
+
+{% block content %}
+<style>
+    .container {
+        display: grid;
+        grid-template-columns: 2fr 1fr;
+        gap: 40px;
+    }
+    .list-container, .form-container {
+        background-color: #fff;
+        padding: 20px;
+        border-radius: 12px;
+        border: 1px solid #e5e7eb;
+        box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.1), 0 2px 4px -2px rgba(0, 0, 0, 0.1);
+    }
+    table { 
+        width: 100%; 
+        border-collapse: collapse; 
+        margin-top: 20px; 
+    }
+    th, td { 
+        padding: 12px 15px; 
+        text-align: left; 
+        border-bottom: 1px solid #e5e7eb;
+        vertical-align: middle; 
+    }
+    th { 
+        background-color: #f9fafb;
+        font-size: 0.75rem;
+        text-transform: uppercase;
+        color: #6b7280;
+    }
+    tr:last-child td {
+        border-bottom: none;
+    }
+    input, select, button {
+        width: 100%;
+        padding: 10px;
+        margin-top: 5px;
+        margin-bottom: 15px;
+        border-radius: 4px;
+        border: 1px solid #ccc;
+    }
+    button {
+        background-color: #28a745;
+        color: white;
+        border: none;
+        cursor: pointer;
+    }
+    button:hover {
+        background-color: #218838;
+    }
+
+    @media screen and (max-width: 900px) {
+        .container {
+            grid-template-columns: 1fr;
+        }
+    }
+</style>
+
+<h1>Manage Stock Minimums</h1>
+<p>Set the minimum number of jars to keep in stock at each fulfillment location.</p>
+
+<div class="container">
+    <div class="list-container">
+        <h2>Existing Minimums</h2>
+        <table>
+            <thead>
+                <tr>
+                    <th>Location</th>
+                    <th>Product (SKU)</th>
+                    <th>Min. Jars</th>
+                </tr>
+            </thead>
+            <tbody>
+                {% for item in minimums %}
+                <tr>
+                    <td>{{ item.location_name }}</td>
+                    <td>{{ item.recipe_name }} ({{ item.sku }})</td>
+                    <td>{{ item.min_jars }}</td>
+                </tr>
+                {% endfor %}
+            </tbody>
+        </table>
+    </div>
+
+    <div class="form-container">
+        <h2>Set Minimum</h2>
+        <form method="POST" action="{{ url_for('stock_minimums_page') }}">
+            <div>
+                <label for="location_id">Select Location</label>
+                <select name="location_id" required>
+                    <option value="" disabled selected>-- Choose a location --</option>
+                    {% for loc in locations %}
+                        <option value="{{ loc.id }}">{{ loc.name }}</option>
+                    {% endfor %}
+                </select>
+            </div>
+            <div>
+                <label for="product_id">Select Product</label>
+                <select name="product_id" required>
+                    <option value="" disabled selected>-- Choose a product --</option>
+                    {% for prod in products %}
+                        <option value="{{ prod.id }}">{{ prod.recipe_name }} ({{ prod.sku }})</option>
+                    {% endfor %}
+                </select>
+            </div>
+            <div>
+                <label for="min_jars">Minimum Jars</label>
+                <input type="number" name="min_jars" required>
+            </div>
+            <button type="submit">Set / Update Minimum</button>
+        </form>
+    </div>
+</div>
+{% endblock %}

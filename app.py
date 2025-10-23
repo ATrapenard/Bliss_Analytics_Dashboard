@@ -251,20 +251,14 @@ def delete_location(id):
     conn.close()
     return redirect(url_for('locations_page'))
 
-# --- NEW ROUTES FOR PRODUCT EDIT/DELETE ---
-
 @app.route('/products/edit/<int:id>')
 def edit_product(id):
     conn = get_db_connection()
     with conn.cursor(cursor_factory=DictCursor) as cur:
-        # Fetch the specific product to edit
         cur.execute("SELECT * FROM products WHERE id = %s;", (id,))
         product = cur.fetchone()
-        
-        # Fetch all recipes for the dropdown
         cur.execute("SELECT id, name FROM recipes ORDER BY name;")
         recipes = cur.fetchall()
-        
     conn.close()
     return render_template('edit_product.html', product=product, recipes=recipes)
 
@@ -272,7 +266,6 @@ def edit_product(id):
 def update_product(id):
     sku = request.form['sku']
     recipe_id = request.form['recipe_id']
-    
     conn = get_db_connection()
     with conn.cursor() as cur:
         cur.execute("UPDATE products SET sku = %s, recipe_id = %s WHERE id = %s;",
@@ -290,7 +283,57 @@ def delete_product(id):
     conn.close()
     return redirect(url_for('products_page'))
 
-# --- END NEW ROUTES ---
+# --- NEW ROUTE FOR STOCK MINIMUMS ---
+@app.route('/stock-minimums', methods=['GET', 'POST'])
+def stock_minimums_page():
+    conn = get_db_connection()
+    
+    if request.method == 'POST':
+        location_id = request.form['location_id']
+        product_id = request.form['product_id']
+        min_jars = request.form['min_jars']
+        
+        with conn.cursor() as cur:
+            # Use UPSERT to insert or update the minimum
+            cur.execute("""
+                INSERT INTO stock_minimums (location_id, product_id, min_jars)
+                VALUES (%s, %s, %s)
+                ON CONFLICT (product_id, location_id)
+                DO UPDATE SET min_jars = EXCLUDED.min_jars;
+            """, (location_id, product_id, min_jars))
+        conn.commit()
+        conn.close()
+        return redirect(url_for('stock_minimums_page'))
+
+    # GET Request: Fetch data for dropdowns and table
+    with conn.cursor(cursor_factory=DictCursor) as cur:
+        # Fetch all locations
+        cur.execute("SELECT * FROM locations ORDER BY name;")
+        locations = cur.fetchall()
+        
+        # Fetch all products (with recipe names for clarity)
+        cur.execute("""
+            SELECT p.id, p.sku, r.name as recipe_name 
+            FROM products p
+            JOIN recipes r ON p.recipe_id = r.id
+            ORDER BY p.sku;
+        """)
+        products = cur.fetchall()
+        
+        # Fetch existing minimums
+        cur.execute("""
+            SELECT sm.id, l.name as location_name, p.sku, r.name as recipe_name, sm.min_jars
+            FROM stock_minimums sm
+            JOIN locations l ON sm.location_id = l.id
+            JOIN products p ON sm.product_id = p.id
+            JOIN recipes r ON p.recipe_id = r.id
+            ORDER BY l.name, p.sku;
+        """)
+        minimums = cur.fetchall()
+        
+    conn.close()
+    return render_template('stock_minimums.html', locations=locations, products=products, minimums=minimums)
+# --- END NEW ROUTE ---
 
 if __name__ == '__main__':
     app.run(debug=True)

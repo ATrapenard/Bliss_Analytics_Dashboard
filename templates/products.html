@@ -45,6 +45,27 @@
     button:hover {
         background-color: #218838;
     }
+    .actions-cell {
+        display: flex;
+        gap: 10px;
+    }
+    .edit-btn, .delete-btn {
+        font-size: 0.9em;
+        padding: 5px 10px;
+        width: auto;
+        text-decoration: none;
+        display: inline-block;
+    }
+    .edit-btn {
+        background-color: #007BFF;
+    }
+    .delete-btn {
+        background-color: #dc3545;
+    }
+    .delete-form {
+        margin: 0;
+        display: inline;
+    }
 
     @media screen and (max-width: 900px) {
         .container {
@@ -70,10 +91,13 @@
             <tbody>
                 {% for product in products %}
                 <tr>
-                    <td>{{ product['sku'] }}</td>
-                    <td>{{ product['recipe_name'] or 'N/A' }}</td>
-                    <td>
-                        ...
+                    <td>{{ product.sku }}</td>
+                    <td>{{ product.recipe_name or 'N/A' }}</td>
+                    <td class="actions-cell">
+                        <a href="{{ url_for('edit_product', id=product.id) }}" class="edit-btn">Edit</a>
+                        <form class="delete-form" method="POST" action="{{ url_for('delete_product', id=product.id) }}" onsubmit="return confirm('Are you sure you want to delete this product?');">
+                            <button type="submit" class="delete-btn">Delete</button>
+                        </form>
                     </td>
                 </tr>
                 {% endfor %}
@@ -82,23 +106,23 @@
     </div>
 
     <div class="form-container">
-    <h2>Add New Product</h2>
-    <form method="POST" action="{{ url_for('add_product') }}">
-        <div>
-            <label for="sku">SKU</label>
-            <input type="text" name="sku" required>
-        </div>
-        <div>
-            <label for="recipe_id">Select Recipe</label>
-            <select name="recipe_id" required>
-                <option value="" disabled selected>-- Choose a recipe --</option>
-                {% for recipe in recipes %}
-                    <option value="{{ recipe.id }}">{{ recipe.name }}</option>
-                {% endfor %}
-            </select>
-        </div>
-        <button type="submit">Add Product</button>
-    </form>
-</div>
+        <h2>Add New Product</h2>
+        <form method="POST" action="{{ url_for('add_product') }}">
+            <div>
+                <label for="sku">SKU</label>
+                <input type="text" name="sku" required>
+            </div>
+            <div>
+                <label for="recipe_id">Select Recipe</label>
+                <select name="recipe_id" required>
+                    <option value="" disabled selected>-- Choose a recipe --</option>
+                    {% for recipe in recipes %}
+                        <option value="{{ recipe.id }}">{{ recipe.name }}</option>
+                    {% endfor %}
+                </select>
+            </div>
+            <button type="submit">Add Product</button>
+        </form>
+    </div>
 </div>
 {% endblock %}

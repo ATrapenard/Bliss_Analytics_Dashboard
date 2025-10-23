@@ -1,0 +1,55 @@
+{% extends "_layout.html" %}
+
+{% block title %}Edit Product{% endblock %}
+
+{% block content %}
+<style>
+    .form-container {
+        max-width: 600px;
+        margin: 0 auto;
+        background-color: #fff;
+        padding: 30px;
+        border-radius: 8px;
+        border: 1px solid #e5e7eb;
+    }
+    input, select, button {
+        width: 100%;
+        padding: 10px;
+        margin-top: 5px;
+        margin-bottom: 15px;
+        border-radius: 4px;
+        border: 1px solid #ccc;
+    }
+    button {
+        background-color: #28a745;
+        color: white;
+        border: none;
+        cursor: pointer;
+    }
+    button:hover {
+        background-color: #218838;
+    }
+</style>
+
+<div class="form-container">
+    <h1>Edit Product</h1>
+    <form method="POST" action="{{ url_for('update_product', id=product.id) }}">
+        <div>
+            <label for="sku">SKU</label>
+            <input type="text" name="sku" required value="{{ product.sku }}">
+        </div>
+        <div>
+            <label for="recipe_id">Select Recipe</label>
+            <select name="recipe_id" required>
+                <option value="" disabled>-- Choose a recipe --</option>
+                {% for recipe in recipes %}
+                    <option value="{{ recipe.id }}" {% if recipe.id == product.recipe_id %}selected{% endif %}>
+                        {{ recipe.name }}
+                    </option>
+                {% endfor %}
+            </select>
+        </div>
+        <button type="submit">Save Changes</button>
+    </form>
+</div>
+{% endblock %}

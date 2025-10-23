@@ -224,8 +224,6 @@ def add_product():
     conn.close()
     return redirect(url_for('products_page'))
 
-# --- NEW LOCATIONS ROUTES ---
-
 @app.route('/locations', methods=['GET', 'POST'])
 def locations_page():
     conn = get_db_connection()
@@ -238,7 +236,6 @@ def locations_page():
         conn.close()
         return redirect(url_for('locations_page'))
 
-    # GET Request
     with conn.cursor(cursor_factory=DictCursor) as cur:
         cur.execute("SELECT * FROM locations ORDER BY name;")
         locations = cur.fetchall()
@@ -249,13 +246,37 @@ def locations_page():
 def delete_location(id):
     conn = get_db_connection()
     with conn.cursor() as cur:
-        # We should add logic here later to check if locations are in use
         cur.execute("DELETE FROM locations WHERE id = %s;", (id,))
     conn.commit()
     conn.close()
     return redirect(url_for('locations_page'))
 
-# --- END NEW ROUTES ---
+# --- NEW ROUTES FOR PRODUCT EDIT/DELETE ---
 
-if __name__ == '__main__':
-    app.run(debug=True)
+@app.route('/products/edit/<int:id>')
+def edit_product(id):
+    conn = get_db_connection()
+    with conn.cursor(cursor_factory=DictCursor) as cur:
+        # Fetch the specific product to edit
+        cur.execute("SELECT * FROM products WHERE id = %s;", (id,))
+        product = cur.fetchone()
+        
+        # Fetch all recipes for the dropdown
+        cur.execute("SELECT id, name FROM recipes ORDER BY name;")
+        recipes = cur.fetchall()
+        
+    conn.close()
+    return render_template('edit_product.html', product=product, recipes=recipes)
+
+@app.route('/products/update/<int:id>', methods=['POST'])
+def update_product(id):
+    sku = request.form['sku']
+    recipe_id = request.form['recipe_id']
+    
+    conn = get_db_connection()
+    with conn.cursor() as cur:
+        cur.execute("UPDATE products SET sku = %s, recipe_id = %s WHERE id = %s;",
+                     (sku, recipe_id, id))
+    conn.commit()
+    conn.close()
+    return

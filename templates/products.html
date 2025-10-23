@@ -30,14 +30,12 @@
         width: 100%; 
         border-collapse: collapse; 
         margin-top: 20px; 
-        /* Fixes column width issues */
         table-layout: fixed; 
     }
     th, td { 
         padding: 12px 15px; 
         text-align: left; 
         border-bottom: 1px solid #e5e7eb;
-        /* Vertically centers all cell content */
         vertical-align: middle; 
     }
     th { 
@@ -46,10 +44,9 @@
         text-transform: uppercase;
         color: #6b7280;
     }
-    /* Set column widths */
-    th:nth-child(1) { width: 30%; } /* SKU */
-    th:nth-child(2) { width: 40%; } /* Mapped Recipe */
-    th:nth-child(3) { width: 30%; } /* Actions */
+    th:nth-child(1) { width: 30%; }
+    th:nth-child(2) { width: 40%; }
+    th:nth-child(3) { width: 30%; }
 
     tr:last-child td {
         border-bottom: none;
@@ -76,8 +73,15 @@
     .actions-cell {
         display: flex;
         gap: 10px;
-        align-items: center; /* Aligns buttons with each other */
+        align-items: center;
     }
+    
+    /* NEW: Universal style for our action forms */
+    .action-form {
+        margin: 0;
+    }
+    
+    /* Styles are now applied to BUTTONS, not <a> tags */
     .edit-btn, .delete-btn {
         font-size: 0.9em;
         padding: 6px 12px;
@@ -101,10 +105,6 @@
     }
     .delete-btn:hover {
         background-color: #c82333;
-    }
-    .delete-form {
-        margin: 0;
-        display: inline-block; /* Makes form behave */
     }
 
     @media screen and (max-width: 900px) {
@@ -134,10 +134,15 @@
                     <td>{{ product.sku }}</td>
                     <td>{{ product.recipe_name or 'N/A' }}</td>
                     <td class="actions-cell">
-                        <a href="{{ url_for('edit_product', id=product.id) }}" class="edit-btn">Edit</a>
-                        <form class="delete-form" method="POST" action="{{ url_for('delete_product', id=product.id) }}" onsubmit="return confirm('Are you sure you want to delete this product?');">
+                        
+                        <form class="action-form" method="GET" action="{{ url_for('edit_product', id=product.id) }}">
+                            <button type="submit" class="edit-btn">Edit</button>
+                        </form>
+                        
+                        <form class="action-form" method="POST" action="{{ url_for('delete_product', id=product.id) }}" onsubmit="return confirm('Are you sure you want to delete this product?');">
                             <button type="submit" class="delete-btn">Delete</button>
                         </form>
+                        
                     </td>
                 </tr>
                 {% endfor %}

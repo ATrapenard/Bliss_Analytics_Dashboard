@@ -4,11 +4,6 @@
 
 {% block content %}
     <style>
-        /* This is the universal fix for the box model issue */
-        *, *:before, *:after {
-            box-sizing: border-box;
-        }
-
         .add-link { display: inline-block; background-color: #28a745; color: white; padding: 10px 15px; border-radius: 5px; margin: 20px 0; text-decoration: none; }
         .add-link:hover { background-color: #218838; }
 
@@ -27,10 +22,17 @@
             display: flex;
             justify-content: space-between;
             align-items: center; 
+            width: 100%;
+            transition: background-color 0.2s ease-in-out;
             gap: 15px;
         }
         .card-header-clickable:hover {
             background-color: #f9fafb;
+        }
+        
+        /* NEW: This border will appear only when the header has the 'active' class */
+        .card-header-clickable.active {
+            border-bottom: 1px solid #e5e7eb;
         }
 
         .recipe-info {
@@ -58,31 +60,41 @@
             gap: 20px;
             flex-shrink: 0;
         }
-        .edit-link {
-             font-size: 0.9em;
-             text-decoration: none;
+        .edit-btn, .delete-btn {
+            font-size: 0.9em;
+            padding: 6px 12px;
+            width: auto;
+            text-decoration: none;
+            display: inline-block;
+            color: white;
+            border: none;
+            border-radius: 5px;
+            cursor: pointer;
+            transition: background-color 0.2s ease;
+        }
+        .edit-btn {
+            background-color: #007BFF;
+        }
+        .edit-btn:hover {
+            background-color: #0056b3;
         }
         .delete-btn {
-            color: #6b7280;
-            font-size: 0.9em;
-            text-decoration: none;
-            transition: color 0.2s ease-in-out;
-            background: none; 
-            border: none; 
-            cursor: pointer; 
-            padding: 0;
+            background-color: #dc3545;
         }
-        .edit-link:hover, .delete-btn:hover {
-            color: #111827;
+        .delete-btn:hover {
+            background-color: #c82333;
         }
-        .delete-form { margin: 0; }
+        .action-form {
+            margin: 0;
+        }
 
         .content {
             padding: 0 20px;
             max-height: 0;
             overflow: hidden;
             transition: max-height 0.3s ease-out;
-            border-top: 1px solid #e5e7eb;
+            /* REMOVED: The border-top was the white line */
+            /* border-top: 1px solid #e5e7eb; */
         }
         
         table { width: 100%; border-collapse: collapse; margin: 15px 0; }
@@ -98,22 +110,22 @@
     
     {% for recipe in recipes %}
         <div class="recipe-card">
-            <div class="card-header-clickable">
-                <div class="recipe-info">
+            <div class="card-header-clickable"> <div class="recipe-info">
                     <span class="recipe-name">{{ recipe['name'] }}</span>
                     <span class="recipe-totals">
                         Grams: {{ recipe.totals.grams }}g, mLs: {{ recipe.totals.mLs }}mL
                     </span>
                 </div>
                 <div class="card-actions">
-                    <a href="{{ url_for('edit_recipe_form', recipe_id=recipe['id']) }}" class="edit-link">✏️ Edit</a>
-                    <form method="post" action="{{ url_for('delete_recipe', recipe_id=recipe['id']) }}" onsubmit="return confirm('Are you sure you want to delete this recipe?');" class="delete-form">
-                        <button type="submit" class="delete-btn">🗑️ Delete</button>
+                    <form class="action-form" method="GET" action="{{ url_for('edit_recipe_form', recipe_id=recipe['id']) }}">
+                        <button type="submit" class="edit-btn">Edit</button>
+                    </form>
+                    <form class="action-form" method="POST" action="{{ url_for('delete_recipe', recipe_id=recipe['id']) }}" onsubmit="return confirm('Are you sure you want to delete this recipe?');">
+                        <button type="submit" class="delete-btn">Delete</button>
                     </form>
                 </div>
             </div>
-            <div class="content">
-                <table>
+            <div class="content"> <table>
                     <thead>
                         <tr>
                             <th>Ingredient</th>
@@ -146,6 +158,9 @@
                     if (event.target.closest('.card-actions')) {
                         return;
                     }
+                    
+                    // NEW: Toggle the 'active' class on the header itself
+                    header.classList.toggle("active");
                     
                     const content = header.nextElementSibling;
                     

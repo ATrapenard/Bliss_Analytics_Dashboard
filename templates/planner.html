@@ -1,0 +1,84 @@
+{% extends "_layout.html" %}
+
+{% block title %}Production Planner{% endblock %}
+
+{% block content %}
+<style>
+    .planner-container {
+        display: grid;
+        grid-template-columns: 1fr; /* Single column layout */
+        gap: 30px;
+    }
+    .product-input-row {
+        display: grid;
+        grid-template-columns: 3fr 1fr;
+        gap: 15px;
+        align-items: center;
+        margin-bottom: 15px;
+    }
+    .product-input-row label {
+        margin-bottom: 0; /* Remove default label margin */
+        font-weight: normal; /* Normal weight for product names */
+        color: var(--text-dark);
+        font-size: 1em;
+    }
+    .product-input-row input[type="number"] {
+        margin-bottom: 0; /* Remove default input margin */
+        text-align: right;
+    }
+    .calculate-button-container {
+        text-align: right; /* Align button to the right */
+        margin-top: 20px;
+    }
+</style>
+
+<h1>Production Planner</h1>
+<p>Enter the number of jars you want to produce for each product to calculate the total raw ingredients needed for this specific run.</p>
+
+<div class="planner-container">
+
+    <div class="planner-form-card content-card">
+        <h2>Plan Production Run</h2>
+        <form method="POST" action="{{ url_for('production_planner') }}">
+            {% for product in products %}
+            <div class="product-input-row">
+                <label for="jars_product_{{ product.id }}">{{ product.recipe_name }} ({{ product.sku }})</label>
+                <input type="number" id="jars_product_{{ product.id }}" name="jars_product_{{ product.id }}" min="0" placeholder="0">
+            </div>
+            {% endfor %}
+            <div class="calculate-button-container">
+                <button type="submit" class="submit-btn">Calculate Ingredients</button>
+            </div>
+        </form>
+    </div>
+
+    {% if requirements is not none %}
+    <div class="results-card content-card">
+        <h2>Required Ingredients for This Run</h2>
+        {% if requirements %}
+        <table>
+            <thead>
+                <tr>
+                    <th>Ingredient</th>
+                    <th>Total Quantity</th>
+                    <th>Unit</th>
+                </tr>
+            </thead>
+            <tbody>
+                {% for item in requirements %}
+                <tr>
+                    <td>{{ item.name }}</td>
+                    <td>{{ item.total_quantity | round(2) }}</td>
+                    <td>{{ item.unit }}</td>
+                </tr>
+                {% endfor %}
+            </tbody>
+        </table>
+        {% else %}
+            <p>No ingredients required based on the quantities entered.</p>
+        {% endif %}
+    </div>
+    {% endif %}
+
+</div>
+{% endblock %}

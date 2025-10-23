@@ -3,6 +3,7 @@ import psycopg2
 from psycopg2.extras import DictCursor
 from dotenv import load_dotenv
 from flask import Flask, render_template, request, redirect, url_for
+from collections import defaultdict # Import defaultdict for easier aggregation
 
 load_dotenv()
 app = Flask(__name__)
@@ -33,21 +34,31 @@ def get_base_ingredients(recipe_id, conn):
                 sub_recipe_yield_row = cur.fetchone()
                 if sub_recipe_yield_row and sub_recipe_yield_row['yield_quantity']:
                     sub_recipe_yield = sub_recipe_yield_row['yield_quantity']
-                    scaling_ratio = float(ing['quantity']) / float(sub_recipe_yield)
+                    # Avoid division by zero if quantity or yield is zero
+                    if float(sub_recipe_yield) != 0:
+                        scaling_ratio = float(ing['quantity']) / float(sub_recipe_yield)
+                    else:
+                        scaling_ratio = 0 # If sub-recipe yield is 0, need 0 of its ingredients
                 else:
-                    scaling_ratio = 1.0
+                    scaling_ratio = 1.0 # Default if yield is missing/zero, or treat as direct multiplication? Decide based on business logic. Assume 1 for now.
+
 
                 sub_ingredients = get_base_ingredients(ing['sub_recipe_id'], conn)
                 for sub_ing in sub_ingredients:
                     scaled_ing = dict(sub_ing)
-                    scaled_ing['quantity'] *= scaling_ratio
+                    # Ensure quantity is treated as float for multiplication
+                    scaled_ing['quantity'] = float(scaled_ing['quantity']) * scaling_ratio
                     base_ingredients.append(scaled_ing)
             else:
-                base_ingredients.append(dict(ing))
+                # Ensure raw ingredient quantity is float
+                raw_ing = dict(ing)
+                raw_ing['quantity'] = float(raw_ing['quantity'])
+                base_ingredients.append(raw_ing)
 
     resolved_cache[recipe_id] = base_ingredients
     return base_ingredients
 
+# --- Standard Routes (Recipes, Products, Locations, etc.) ---
 @app.route('/')
 def home():
     return render_template('index.html')
@@ -72,10 +83,12 @@ def recipe_dashboard():
             totals = {'grams': 0, 'mLs': 0}
             for ing in base_ingredients:
                 unit = ing.get('unit', '').lower()
+                # Ensure quantity is treated as float before adding
+                quantity = float(ing.get('quantity', 0))
                 if unit == 'grams':
-                    totals['grams'] += float(ing['quantity'])
+                    totals['grams'] += quantity
                 elif unit == 'mls':
-                    totals['mLs'] += float(ing['quantity'])
+                    totals['mLs'] += quantity
 
             recipe_dict['totals'] = {
                 'grams': round(totals['grams'], 2),
@@ -86,6 +99,7 @@ def recipe_dashboard():
     conn.close()
     return render_template('recipes.html', recipes=recipes_list)
 
+# --- Add/Edit Recipe Routes ---
 @app.route('/new')
 def new_recipe_form():
     conn = get_db_connection()
@@ -116,9 +130,15 @@ def create_recipe():
 
         for i in range(len(ingredient_names)):
             sub_recipe_id = sub_recipe_ids[i] if sub_recipe_ids[i] else None
+            # Ensure quantity is valid number, default to 0 if not
+            try:
+                quantity_val = float(quantities[i]) if quantities[i] else 0
+            except ValueError:
+                quantity_val = 0
+
             cur.execute(
                 'INSERT INTO ingredients (recipe_id, name, quantity, unit, sub_recipe_id) VALUES (%s, %s, %s, %s, %s);',
-                (recipe_id, ingredient_names[i], quantities[i], units[i], sub_recipe_id)
+                (recipe_id, ingredient_names[i], quantity_val, units[i], sub_recipe_id)
             )
     conn.commit()
     conn.close()
@@ -159,9 +179,13 @@ def update_recipe(recipe_id):
 
         for i in range(len(ingredient_names)):
             sub_recipe_id = sub_recipe_ids[i] if sub_recipe_ids[i] else None
+            try:
+                quantity_val = float(quantities[i]) if quantities[i] else 0
+            except ValueError:
+                quantity_val = 0
             cur.execute(
                 'INSERT INTO ingredients (recipe_id, name, quantity, unit, sub_recipe_id) VALUES (%s, %s, %s, %s, %s);',
-                (recipe_id, ingredient_names[i], quantities[i], units[i], sub_recipe_id)
+                (recipe_id, ingredient_names[i], quantity_val, units[i], sub_recipe_id)
             )
     conn.commit()
     conn.close()
@@ -176,6 +200,7 @@ def delete_recipe(recipe_id):
     conn.close()
     return redirect(url_for('recipe_dashboard'))
 
+# --- Totals, Products, Locations Routes (Unchanged) ---
 @app.route('/totals')
 def ingredient_totals():
     conn = get_db_connection()
@@ -189,17 +214,21 @@ def ingredient_totals():
         for rec_id in all_recipe_ids:
             all_base_ingredients.extend(get_base_ingredients(rec_id['id'], conn))
 
-    totals = {}
+    totals = defaultdict(lambda: {'name': '', 'unit': '', 'total_quantity': 0})
     for ing in all_base_ingredients:
-        key = (ing['name'].strip().lower(), ing['unit'].strip().lower())
-        if key not in totals:
-            totals[key] = {'name': ing['name'], 'unit': ing['unit'], 'total_quantity': 0}
-        totals[key]['total_quantity'] += float(ing['quantity'])
+        name = ing.get('name', 'Unknown').strip()
+        unit = ing.get('unit', 'Unknown').strip()
+        key = (name.lower(), unit.lower())
+
+        totals[key]['name'] = name
+        totals[key]['unit'] = unit
+        totals[key]['total_quantity'] += float(ing.get('quantity', 0))
 
     conn.close()
     sorted_totals = sorted(totals.values(), key=lambda x: x['name'])
 
     return render_template('totals.html', totals=sorted_totals)
+
 
 @app.route('/products')
 def products_page():
@@ -331,6 +360,7 @@ def stock_minimums_page():
     conn.close()
     return render_template('stock_minimums.html', locations=locations, products=products, minimums=minimums)
 
+
 @app.route('/requirements')
 def requirements_page():
     conn = get_db_connection()
@@ -354,27 +384,36 @@ def requirements_page():
         products_to_make = cur.fetchall()
 
         for prod in products_to_make:
-            scaling_ratio = float(prod['total_jars']) / float(prod['final_yield_jars'])
+            # Ensure final_yield_jars is treated as float for division
+            final_yield_jars_float = float(prod['final_yield_jars'])
+            if final_yield_jars_float == 0: continue # Avoid division by zero
+
+            scaling_ratio = float(prod['total_jars']) / final_yield_jars_float
 
             base_ingredients = get_base_ingredients(prod['recipe_id'], conn)
             for ing in base_ingredients:
                 scaled_ing = dict(ing)
-                scaled_ing['quantity'] *= scaling_ratio
+                # Ensure quantity is treated as float before multiplication
+                scaled_ing['quantity'] = float(scaled_ing['quantity']) * scaling_ratio
                 all_base_ingredients.append(scaled_ing)
 
-    totals = {}
+    # Use defaultdict for cleaner aggregation
+    totals = defaultdict(lambda: {'name': '', 'unit': '', 'total_quantity': 0})
     for ing in all_base_ingredients:
-        key = (ing['name'].strip().lower(), ing['unit'].strip().lower())
-        if key not in totals:
-            totals[key] = {'name': ing['name'], 'unit': ing['unit'], 'total_quantity': 0}
-        totals[key]['total_quantity'] += float(ing['quantity'])
+        # Handle potential missing name/unit gracefully
+        name = ing.get('name', 'Unknown').strip()
+        unit = ing.get('unit', 'Unknown').strip()
+        key = (name.lower(), unit.lower())
+
+        totals[key]['name'] = name
+        totals[key]['unit'] = unit
+        totals[key]['total_quantity'] += float(ing.get('quantity', 0)) # Ensure quantity is float
 
     conn.close()
     sorted_totals = sorted(totals.values(), key=lambda x: x['name'])
 
     return render_template('requirements.html', totals=sorted_totals)
 
-# --- NEW ROUTE FOR DELETING STOCK MINIMUM ---
 @app.route('/stock-minimums/delete/<int:id>', methods=['POST'])
 def delete_stock_minimum(id):
     conn = get_db_connection()
@@ -383,7 +422,68 @@ def delete_stock_minimum(id):
     conn.commit()
     conn.close()
     return redirect(url_for('stock_minimums_page'))
+
+# --- NEW PRODUCTION PLANNER ROUTE ---
+@app.route('/planner', methods=['GET', 'POST'])
+def production_planner():
+    conn = get_db_connection()
+    resolved_cache.clear()
+    calculated_requirements = None
+
+    # Fetch sellable products for the form (always needed)
+    with conn.cursor(cursor_factory=DictCursor) as cur:
+        cur.execute("""
+            SELECT p.id, p.sku, r.id as recipe_id, r.name as recipe_name, r.final_yield_jars
+            FROM products p
+            JOIN recipes r ON p.recipe_id = r.id
+            WHERE r.is_sold_product = TRUE AND r.final_yield_jars IS NOT NULL AND r.final_yield_jars > 0
+            ORDER BY r.name;
+        """)
+        sellable_products = cur.fetchall()
+
+    if request.method == 'POST':
+        all_base_ingredients_run = []
+        for product in sellable_products:
+            # Input name is 'jars_product_{id}'
+            jars_to_make_str = request.form.get(f"jars_product_{product['id']}")
+            try:
+                # Convert input to integer, default to 0 if empty or invalid
+                jars_to_make = int(jars_to_make_str) if jars_to_make_str else 0
+            except ValueError:
+                jars_to_make = 0
+
+            if jars_to_make > 0:
+                final_yield_jars_float = float(product['final_yield_jars'])
+                if final_yield_jars_float == 0: continue # Skip if yield is zero
+
+                scaling_ratio = jars_to_make / final_yield_jars_float
+                base_ingredients = get_base_ingredients(product['recipe_id'], conn)
+
+                for ing in base_ingredients:
+                    scaled_ing = dict(ing)
+                    scaled_ing['quantity'] = float(scaled_ing['quantity']) * scaling_ratio
+                    all_base_ingredients_run.append(scaled_ing)
+
+        # Aggregate the results for this run
+        totals_run = defaultdict(lambda: {'name': '', 'unit': '', 'total_quantity': 0})
+        for ing in all_base_ingredients_run:
+            name = ing.get('name', 'Unknown').strip()
+            unit = ing.get('unit', 'Unknown').strip()
+            key = (name.lower(), unit.lower())
+
+            totals_run[key]['name'] = name
+            totals_run[key]['unit'] = unit
+            totals_run[key]['total_quantity'] += float(ing.get('quantity', 0))
+
+        calculated_requirements = sorted(totals_run.values(), key=lambda x: x['name'])
+
+    conn.close()
+    # Pass both products for the form and the results (if calculated)
+    return render_template('planner.html',
+                           products=sellable_products,
+                           requirements=calculated_requirements)
 # --- END NEW ROUTE ---
+
 
 if __name__ == '__main__':
     app.run(debug=True)

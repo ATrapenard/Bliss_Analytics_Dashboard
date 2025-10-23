@@ -82,6 +82,7 @@
         }
         .nav-links {
             display: flex;
+            flex-wrap: wrap; /* Allow links to wrap on smaller screens if needed */
         }
         .hamburger {
             display: none;
@@ -196,7 +197,7 @@
         th, td {
             padding: 12px 15px;
             text-align: left;
-            border-bottom: 1px solid var(--border-color); /* Apply bottom border to ALL cells */
+            border-bottom: 1px solid var(--border-color);
             vertical-align: middle;
         }
         th {
@@ -205,18 +206,18 @@
             text-transform: uppercase;
             color: var(--text-medium);
             font-family: var(--font-heading);
-            border-bottom-width: 2px; /* Make header bottom border slightly thicker */
+            border-bottom-width: 2px;
         }
-        /* REMOVED: tr:last-child td { border-bottom: none; } */
 
         /* --- Responsive Styles --- */
         @media screen and (max-width: 768px) {
+             .navbar a { padding: 10px 15px; } /* Adjust padding for smaller screens */
             .nav-links {
                 display: none;
                 flex-direction: column;
                 width: 100%;
                 position: absolute;
-                top: 60px;
+                top: 58px; /* Adjust based on potentially smaller navbar height */
                 left: 0;
                 background-color: var(--nav-bg);
                 z-index: 10;
@@ -250,7 +251,7 @@
             <a href="{{ url_for('stock_minimums_page') }}">Stock Minimums</a>
             <a href="{{ url_for('ingredient_totals') }}">Ingredient Totals</a>
             <a href="{{ url_for('requirements_page') }}">Requirements</a>
-        </div>
+            <a href="{{ url_for('production_planner') }}">Planner</a> </div>
         <div class="hamburger">
             <span class="bar"></span>
             <span class="bar"></span>

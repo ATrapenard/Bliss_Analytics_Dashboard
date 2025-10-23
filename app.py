@@ -279,4 +279,18 @@ def update_product(id):
                      (sku, recipe_id, id))
     conn.commit()
     conn.close()
-    return
+    return redirect(url_for('products_page'))
+
+@app.route('/products/delete/<int:id>', methods=['POST'])
+def delete_product(id):
+    conn = get_db_connection()
+    with conn.cursor() as cur:
+        cur.execute("DELETE FROM products WHERE id = %s;", (id,))
+    conn.commit()
+    conn.close()
+    return redirect(url_for('products_page'))
+
+# --- END NEW ROUTES ---
+
+if __name__ == '__main__':
+    app.run(debug=True)

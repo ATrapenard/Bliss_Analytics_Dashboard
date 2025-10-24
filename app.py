@@ -70,10 +70,7 @@ def recipe_dashboard():
                     totals['grams'] += quantity
                 elif unit == 'mls':
                     totals['mLs'] += quantity
-            recipe_dict['totals'] = {
-                'grams': round(totals['grams'], 2),
-                'mLs': round(totals['mLs'], 2)
-            }
+            recipe_dict['totals'] = { 'grams': round(totals['grams'], 2), 'mLs': round(totals['mLs'], 2) }
             recipes_list.append(recipe_dict)
     conn.close()
     return render_template('recipes.html', recipes=recipes_list)
@@ -106,10 +103,7 @@ def create_recipe():
             sub_recipe_id = sub_recipe_ids[i] if sub_recipe_ids[i] else None
             try: quantity_val = float(quantities[i]) if quantities[i] else 0
             except ValueError: quantity_val = 0
-            cur.execute(
-                'INSERT INTO ingredients (recipe_id, name, quantity, unit, sub_recipe_id) VALUES (%s, %s, %s, %s, %s);',
-                (recipe_id, ingredient_names[i], quantity_val, units[i], sub_recipe_id)
-            )
+            cur.execute( 'INSERT INTO ingredients (recipe_id, name, quantity, unit, sub_recipe_id) VALUES (%s, %s, %s, %s, %s);', (recipe_id, ingredient_names[i], quantity_val, units[i], sub_recipe_id) )
     conn.commit()
     conn.close()
     return redirect(url_for('recipe_dashboard'))
@@ -146,10 +140,7 @@ def update_recipe(recipe_id):
             sub_recipe_id = sub_recipe_ids[i] if sub_recipe_ids[i] else None
             try: quantity_val = float(quantities[i]) if quantities[i] else 0
             except ValueError: quantity_val = 0
-            cur.execute(
-                'INSERT INTO ingredients (recipe_id, name, quantity, unit, sub_recipe_id) VALUES (%s, %s, %s, %s, %s);',
-                (recipe_id, ingredient_names[i], quantity_val, units[i], sub_recipe_id)
-            )
+            cur.execute( 'INSERT INTO ingredients (recipe_id, name, quantity, unit, sub_recipe_id) VALUES (%s, %s, %s, %s, %s);', (recipe_id, ingredient_names[i], quantity_val, units[i], sub_recipe_id) )
     conn.commit()
     conn.close()
     return redirect(url_for('recipe_dashboard'))
@@ -189,9 +180,7 @@ def ingredient_totals():
 def products_page():
     conn = get_db_connection()
     with conn.cursor(cursor_factory=DictCursor) as cur:
-        cur.execute("""
-            SELECT p.id, p.sku, p.jars_per_batch, r.name as recipe_name
-            FROM products p LEFT JOIN recipes r ON p.recipe_id = r.id ORDER BY p.sku;""")
+        cur.execute("""SELECT p.id, p.sku, p.jars_per_batch, r.name as recipe_name FROM products p LEFT JOIN recipes r ON p.recipe_id = r.id ORDER BY p.sku;""")
         products = cur.fetchall()
         cur.execute("SELECT id, name FROM recipes WHERE is_sold_product = TRUE ORDER BY name;")
         recipes = cur.fetchall()
@@ -358,30 +347,21 @@ def production_planner():
     conn.close()
     return render_template('planner.html', products=sellable_products, requirements=calculated_requirements)
 
-# --- NEW INVENTORY ITEMS ROUTES ---
 @app.route('/inventory', methods=['GET', 'POST'])
 def inventory_items_page():
     conn = get_db_connection()
     if request.method == 'POST':
         name = request.form['name']
         unit = request.form['unit']
-        # Optionally handle initial quantity on hand
         qty_on_hand_str = request.form.get('quantity_on_hand')
-        try:
-            qty_on_hand = float(qty_on_hand_str) if qty_on_hand_str else 0.0
-        except ValueError:
-            qty_on_hand = 0.0 # Default to 0 if input is invalid
-
+        try: qty_on_hand = float(qty_on_hand_str) if qty_on_hand_str else 0.0
+        except ValueError: qty_on_hand = 0.0
         with conn.cursor() as cur:
-            # Check for existing item with the same name and unit (case-insensitive)
             cur.execute("SELECT id FROM inventory_items WHERE LOWER(name) = LOWER(%s) AND LOWER(unit) = LOWER(%s);", (name, unit))
             existing = cur.fetchone()
-            if not existing: # Only insert if it doesn't exist
-                 cur.execute("INSERT INTO inventory_items (name, unit, quantity_on_hand) VALUES (%s, %s, %s);",
-                             (name, unit, qty_on_hand))
+            if not existing:
+                 cur.execute("INSERT INTO inventory_items (name, unit, quantity_on_hand) VALUES (%s, %s, %s);", (name, unit, qty_on_hand))
                  conn.commit()
-            # We might want to add a flash message here if the item already exists
-    # GET Request or after POST redirect
     with conn.cursor(cursor_factory=DictCursor) as cur:
         cur.execute("SELECT * FROM inventory_items ORDER BY name;")
         inventory_items = cur.fetchall()
@@ -395,9 +375,7 @@ def edit_inventory_item(id):
         cur.execute("SELECT * FROM inventory_items WHERE id = %s;", (id,))
         item = cur.fetchone()
     conn.close()
-    if item is None:
-        # Handle item not found, maybe redirect or show error
-        return redirect(url_for('inventory_items_page'))
+    if item is None: return redirect(url_for('inventory_items_page'))
     return render_template('edit_inventory_item.html', item=item)
 
 @app.route('/inventory/update/<int:id>', methods=['POST'])
@@ -405,22 +383,11 @@ def update_inventory_item(id):
     name = request.form['name']
     unit = request.form['unit']
     qty_on_hand_str = request.form.get('quantity_on_hand')
-    try:
-        qty_on_hand = float(qty_on_hand_str) if qty_on_hand_str else 0.0
-    except ValueError:
-        # How to handle invalid input? Keep old value or set to 0? Let's keep old for now.
-        # Fetch old value first to keep it if new one is invalid.
-        # This part requires a bit more logic if strict validation is needed.
-        # For simplicity now, we might just default to 0 or rely on DB constraints.
-        # Let's assume we want to update even if invalid, setting to 0.
-        qty_on_hand = 0.0
-
-
+    try: qty_on_hand = float(qty_on_hand_str) if qty_on_hand_str else 0.0
+    except ValueError: qty_on_hand = 0.0
     conn = get_db_connection()
     with conn.cursor() as cur:
-        # Update name, unit, and quantity on hand. Allocation is handled elsewhere.
-        cur.execute("UPDATE inventory_items SET name = %s, unit = %s, quantity_on_hand = %s WHERE id = %s;",
-                     (name, unit, qty_on_hand, id))
+        cur.execute("UPDATE inventory_items SET name = %s, unit = %s, quantity_on_hand = %s WHERE id = %s;", (name, unit, qty_on_hand, id))
     conn.commit()
     conn.close()
     return redirect(url_for('inventory_items_page'))
@@ -430,19 +397,65 @@ def delete_inventory_item(id):
     conn = get_db_connection()
     try:
         with conn.cursor() as cur:
-            # Attempt to delete. Will fail if item is allocated (due to FK constraint)
             cur.execute("DELETE FROM inventory_items WHERE id = %s;", (id,))
         conn.commit()
-        # Add flash message for success?
     except psycopg2.Error as e:
-        conn.rollback() # Important: Rollback the transaction on error
-        # Add flash message indicating failure (e.g., "Cannot delete item: it is currently allocated.")
-        print(f"Error deleting inventory item {id}: {e}") # Log the error
+        conn.rollback()
+        print(f"Error deleting inventory item {id}: {e}")
     finally:
         conn.close()
     return redirect(url_for('inventory_items_page'))
-# --- END NEW ROUTES ---
 
+# --- NEW WIP BATCHES ROUTE ---
+@app.route('/wip', methods=['GET', 'POST'])
+def wip_batches_page():
+    conn = get_db_connection()
+    if request.method == 'POST':
+        recipe_id = request.form['recipe_id']
+        target_jars = request.form.get('target_jars') or 0 # Default to 0 if not provided
+
+        try:
+            target_jars_int = int(target_jars)
+            if target_jars_int <= 0:
+                # Handle error: Target jars must be positive
+                # You might use flash messages here
+                 pass # For now, just don't insert
+            else:
+                with conn.cursor() as cur:
+                    cur.execute("INSERT INTO wip_batches (recipe_id, target_jars, status) VALUES (%s, %s, %s);",
+                                (recipe_id, target_jars_int, 'In Progress'))
+                conn.commit()
+        except ValueError:
+             # Handle error: Invalid number for target jars
+             pass # For now, just don't insert
+        finally:
+            conn.close()
+            return redirect(url_for('wip_batches_page')) # Redirect even on error for now
+
+    # GET Request
+    with conn.cursor(cursor_factory=DictCursor) as cur:
+        # Fetch ongoing WIP batches
+        cur.execute("""
+            SELECT w.id, r.name as recipe_name, w.target_jars, w.status, w.created_at
+            FROM wip_batches w
+            JOIN recipes r ON w.recipe_id = r.id
+            WHERE w.status = 'In Progress'
+            ORDER BY w.created_at DESC;
+        """)
+        wip_batches = cur.fetchall()
+
+        # Fetch sellable recipes for the 'Start Batch' dropdown
+        cur.execute("""
+            SELECT id, name
+            FROM recipes
+            WHERE is_sold_product = TRUE
+            ORDER BY name;
+        """)
+        sellable_recipes = cur.fetchall()
+
+    conn.close()
+    return render_template('wip_batches.html', wip_batches=wip_batches, sellable_recipes=sellable_recipes)
+# --- END WIP BATCHES ROUTE ---
 
 if __name__ == '__main__':
     app.run(debug=True)

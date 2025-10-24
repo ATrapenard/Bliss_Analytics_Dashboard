@@ -1,0 +1,93 @@
+{% extends "_layout.html" %}
+
+{% block title %}Work In Progress Batches{% endblock %}
+
+{% block content %}
+<style>
+    .container {
+        display: grid;
+        grid-template-columns: 2fr 1fr;
+        gap: 40px;
+    }
+    table { table-layout: fixed; }
+    th:nth-child(1) { width: 10%; } /* ID */
+    th:nth-child(2) { width: 40%; } /* Recipe */
+    th:nth-child(3) { width: 15%; } /* Target Jars */
+    th:nth-child(4) { width: 20%; } /* Started At */
+    th:nth-child(5) { width: 15%; } /* Actions */
+
+    .actions-cell a { /* Style links like buttons */
+        font-size: 0.9em;
+        padding: 6px 12px;
+        text-decoration: none;
+        display: inline-block;
+        color: white;
+        border: none;
+        border-radius: 5px;
+        cursor: pointer;
+        transition: background-color 0.2s ease;
+        background-color: var(--edit-blue); /* Use edit color for details */
+    }
+     .actions-cell a:hover {
+        background-color: #0056b3;
+     }
+</style>
+
+<h1>Work In Progress (WIP) Batches</h1>
+<p>Track production batches that have been started but not yet completed.</p>
+
+<div class="container">
+    <div class="list-container content-card">
+        <h2>Ongoing Batches</h2>
+        {% if wip_batches %}
+            <table>
+                <thead>
+                    <tr>
+                        <th>Batch ID</th>
+                        <th>Recipe</th>
+                        <th>Target Jars</th>
+                        <th>Started At</th>
+                        <th>Actions</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    {% for batch in wip_batches %}
+                    <tr>
+                        <td>{{ batch.id }}</td>
+                        <td>{{ batch.recipe_name }}</td>
+                        <td>{{ batch.target_jars }}</td>
+                        <td>{{ batch.created_at.strftime('%Y-%m-%d %H:%M') }}</td> {# Format timestamp #}
+                        <td class="actions-cell">
+                            {# Link to a future detail page #}
+                            <a href="#">Details</a>
+                        </td>
+                    </tr>
+                    {% endfor %}
+                </tbody>
+            </table>
+        {% else %}
+            <p>No batches currently in progress.</p>
+        {% endif %}
+    </div>
+
+    <div class="form-container content-card">
+        <h2>Start New Batch</h2>
+        <form method="POST" action="{{ url_for('wip_batches_page') }}">
+            <div>
+                <label for="recipe_id">Select Recipe</label>
+                <select id="recipe_id" name="recipe_id" required>
+                    <option value="" disabled selected>-- Choose a recipe --</option>
+                    {% for recipe in sellable_recipes %}
+                        <option value="{{ recipe.id }}">{{ recipe.name }}</option>
+                    {% endfor %}
+                </select>
+            </div>
+            <div>
+                <label for="target_jars">Target Jars to Produce</label>
+                <input type="number" id="target_jars" name="target_jars" min="1" required placeholder="e.g., 50">
+            </div>
+            <button type="submit" class="submit-btn">Start Batch</button>
+        </form>
+    </div>
+</div>
+{% endblock %}

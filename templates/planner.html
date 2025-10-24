@@ -4,46 +4,35 @@
 
 {% block content %}
 <style>
-    .planner-container {
-        display: grid;
-        grid-template-columns: 1fr; /* Single column layout */
-        gap: 30px;
-    }
-    .product-input-row {
-        display: grid;
-        grid-template-columns: 3fr 1fr;
-        gap: 15px;
-        align-items: center;
-        margin-bottom: 15px;
-    }
-    .product-input-row label {
-        margin-bottom: 0; /* Remove default label margin */
-        font-weight: normal; /* Normal weight for product names */
-        color: var(--text-dark);
-        font-size: 1em;
-    }
-    .product-input-row input[type="number"] {
-        margin-bottom: 0; /* Remove default input margin */
-        text-align: right;
-    }
-    .calculate-button-container {
-        text-align: right; /* Align button to the right */
-        margin-top: 20px;
-    }
+    .planner-container { display: grid; grid-template-columns: 1fr; gap: 30px; }
+    .product-input-row { display: grid; grid-template-columns: 3fr 1fr; gap: 15px; align-items: center; margin-bottom: 15px; }
+    .product-input-row label { margin-bottom: 0; font-weight: normal; color: var(--text-dark); font-size: 1em; }
+    .product-input-row input[type="number"] { margin-bottom: 0; text-align: right; }
+    .calculate-button-container { text-align: right; margin-top: 20px; }
+
+    /* Styles for results table */
+    .results-card table { table-layout: fixed; }
+    .results-card th:nth-child(1) { width: 40%; } /* Ingredient */
+    .results-card th:nth-child(2) { width: 10%; } /* Unit */
+    .results-card th:nth-child(3) { width: 15%; } /* Needed */
+    .results-card th:nth-child(4) { width: 15%; } /* Available */
+    .results-card th:nth-child(5) { width: 20%; } /* Net Needed */
+
+    .results-card td:nth-child(n+3) { text-align: right; } /* Right-align numeric */
+    .highlight-needed { font-weight: bold; color: var(--delete-red); }
 </style>
 
 <h1>Production Planner</h1>
-<p>Enter the number of jars you want to produce for each product to calculate the total raw ingredients needed for this specific run.</p>
+<p>Enter jars to produce for this run to calculate raw ingredients needed vs. available stock.</p>
 
 <div class="planner-container">
-
     <div class="planner-form-card content-card">
         <h2>Plan Production Run</h2>
         <form method="POST" action="{{ url_for('production_planner') }}">
             {% for product in products %}
             <div class="product-input-row">
                 <label for="jars_product_{{ product.id }}">{{ product.recipe_name }} ({{ product.sku }})</label>
-                <input type="number" id="jars_product_{{ product.id }}" name="jars_product_{{ product.id }}" min="0" placeholder="0">
+                <input type="number" id="jars_product_{{ product.id }}" name="jars_product_{{ product.id }}" min="0" placeholder="0" value="{{ request.form.get('jars_product_' + product.id|string, '') }}"> {# Retain input value #}
             </div>
             {% endfor %}
             <div class="calculate-button-container">
@@ -54,22 +43,28 @@
 
     {% if requirements is not none %}
     <div class="results-card content-card">
-        <h2>Required Ingredients for This Run</h2>
+        <h2>Required Ingredients for This Run (Net)</h2>
         {% if requirements %}
         <table>
             <thead>
                 <tr>
                     <th>Ingredient</th>
-                    <th>Total Quantity</th>
                     <th>Unit</th>
+                    <th>Total Needed</th>
+                    <th>Available Now</th>
+                    <th>Net Needed</th>
                 </tr>
             </thead>
             <tbody>
                 {% for item in requirements %}
                 <tr>
                     <td>{{ item.name }}</td>
-                    <td>{{ item.total_quantity | round(2) }}</td>
                     <td>{{ item.unit }}</td>
+                    <td>{{ item.total_needed }}</td>
+                    <td>{{ item.available }}</td>
+                    <td class="{{ 'highlight-needed' if item.net_needed > 0 else '' }}">
+                         {{ item.net_needed }}
+                    </td>
                 </tr>
                 {% endfor %}
             </tbody>
@@ -79,6 +74,5 @@
         {% endif %}
     </div>
     {% endif %}
-
 </div>
 {% endblock %}

@@ -4,44 +4,70 @@
 
 {% block content %}
     <style>
-        /* Restored original table styles for this page */
-        table { 
-            width: 100%; 
-            border-collapse: collapse; 
-            margin-top: 20px; 
+        table {
+            width: 100%;
+            border-collapse: collapse;
+            margin-top: 20px;
+            table-layout: fixed; /* Keep layout fixed */
         }
-        th, td { 
-            border: 1px solid #ddd; /* Original border */
-            padding: 12px; 
-            text-align: left; 
+        th, td {
+            border: 1px solid #ddd;
+            padding: 10px 12px; /* Adjust padding slightly */
+            text-align: left;
+            vertical-align: middle;
         }
-        th { 
-            background-color: #f2f2f2; /* Original header background */
+        th {
+            background-color: #f2f2f2;
         }
+        /* Define column widths */
+        th:nth-child(1) { width: 30%; } /* Ingredient */
+        th:nth-child(2) { width: 10%; } /* Unit */
+        th:nth-child(3) { width: 12%; } /* Needed */
+        th:nth-child(4) { width: 12%; } /* On Hand */
+        th:nth-child(5) { width: 12%; } /* Allocated */
+        th:nth-child(6) { width: 12%; } /* Available */
+        th:nth-child(7) { width: 12%; } /* Net Needed */
+
+        td:nth-child(n+3) { text-align: right; } /* Right-align numeric columns */
+        .highlight-needed { font-weight: bold; color: var(--delete-red); } /* Highlight net needed > 0 */
     </style>
 
     <h1>Stock Requirements Report</h1>
-    <p>This is the master list of all raw ingredients needed to meet the minimum stock levels at all fulfillment locations.</p>
+    <p>Master list of raw ingredients needed to meet minimum stock levels, considering current inventory.</p>
 
     <div class="content-card">
-        <h2>Master Shopping List</h2>
-        <table>
-            <thead>
-                <tr>
-                    <th>Ingredient</th>
-                    <th>Total Quantity</th>
-                    <th>Unit</th>
-                </tr>
-            </thead>
-            <tbody>
-                {% for item in totals %}
-                <tr>
-                    <td>{{ item.name }}</td>
-                    <td>{{ item.total_quantity | round(2) }}</td>
-                    <td>{{ item.unit }}</td>
-                </tr>
-                {% endfor %}
-            </tbody>
-        </table>
+        <h2>Master Shopping List (Net Requirements)</h2>
+        {% if report_data %}
+            <table>
+                <thead>
+                    <tr>
+                        <th>Ingredient</th>
+                        <th>Unit</th>
+                        <th>Total Needed</th>
+                        <th>On Hand</th>
+                        <th>Allocated</th>
+                        <th>Available</th>
+                        <th>Net Needed</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    {% for item in report_data %}
+                    <tr>
+                        <td>{{ item.name }}</td>
+                        <td>{{ item.unit }}</td>
+                        <td>{{ item.total_needed }}</td>
+                        <td>{{ item.on_hand }}</td>
+                        <td>{{ item.allocated }}</td>
+                        <td>{{ item.available }}</td>
+                        <td class="{{ 'highlight-needed' if item.net_needed > 0 else '' }}">
+                            {{ item.net_needed }}
+                        </td>
+                    </tr>
+                    {% endfor %}
+                </tbody>
+            </table>
+        {% else %}
+             <p>No stock minimums set or no ingredients required based on current minimums.</p>
+        {% endif %}
     </div>
 {% endblock %}

@@ -1,0 +1,119 @@
+{% extends "_layout.html" %}
+
+{% block title %}WIP Batch Details{% endblock %}
+
+{% block content %}
+<style>
+    .detail-grid {
+        display: grid;
+        grid-template-columns: repeat(auto-fit, minmax(300px, 1fr)); /* Responsive columns */
+        gap: 30px;
+    }
+    .info-card p { margin: 5px 0 15px; }
+    .info-card strong { color: var(--text-medium); margin-right: 8px;}
+
+    table { table-layout: fixed; } /* Keep table layout fixed */
+    .ingredients-card th:nth-child(1) { width: 40%; } /* Name */
+    .ingredients-card th:nth-child(2) { width: 10%; } /* Unit */
+    .ingredients-card th:nth-child(3) { width: 15%; } /* Needed */
+    .ingredients-card th:nth-child(4) { width: 15%; } /* Allocated */
+    .ingredients-card th:nth-child(5) { width: 20%; } /* Remaining */
+
+    .allocation-form div { margin-bottom: 15px; }
+    .allocation-form select, .allocation-form input { margin-bottom: 0; } /* Remove double margin */
+
+    .complete-form { margin-top: 20px; text-align: right; }
+
+     /* Flash message styles */
+    .flash-error { background-color: #f8d7da; color: #721c24; padding: 10px; border: 1px solid #f5c6cb; border-radius: 5px; margin-bottom: 15px; }
+    .flash-success { background-color: #d4edda; color: #155724; padding: 10px; border: 1px solid #c3e6cb; border-radius: 5px; margin-bottom: 15px; }
+
+</style>
+
+<div style="margin-bottom: 20px;">
+    <a href="{{ url_for('wip_batches_page') }}">&larr; Back to WIP List</a>
+</div>
+
+<h1>WIP Batch #{{ batch.id }} Details</h1>
+
+{% with messages = get_flashed_messages(with_categories=true) %}
+    {% if messages %}
+        {% for category, message in messages %}
+        <div class="flash-{{ category }}">{{ message }}</div>
+        {% endfor %}
+    {% endif %}
+{% endwith %}
+
+
+<div class="detail-grid">
+    <div class="info-card content-card">
+        <h2>Batch Information</h2>
+        <p><strong>Recipe:</strong> {{ batch.recipe_name }}</p>
+        <p><strong>Target Jars:</strong> {{ batch.target_jars }}</p>
+        <p><strong>Status:</strong> {{ batch.status }}</p>
+        <p><strong>Started:</strong> {{ batch.created_at.strftime('%Y-%m-%d %H:%M') if batch.created_at else 'N/A' }}</p>
+        {% if batch.status == 'In Progress' %}
+            <form class="complete-form" method="POST" action="{{ url_for('complete_wip_batch', batch_id=batch.id) }}" onsubmit="return confirm('Are you sure you want to mark this batch as complete? This will finalize inventory changes.');">
+                <button type="submit" class="submit-btn">Mark Batch as Complete</button>
+            </form>
+        {% endif %}
+    </div>
+
+    <div class="allocation-card content-card">
+        <h2>Allocate Ingredient</h2>
+        {% if batch.status == 'In Progress' %}
+        <form class="allocation-form" method="POST" action="{{ url_for('allocate_ingredient', batch_id=batch.id) }}">
+            <div>
+                <label for="inventory_item_id">Ingredient</label>
+                <select id="inventory_item_id" name="inventory_item_id" required>
+                    <option value="" disabled selected>-- Select ingredient --</option>
+                    {% for item in inventory_items %}
+                        {# Only show items needed for this recipe #}
+                        {% set needed_item = ingredient_summary | selectattr('inventory_item_id', 'equalto', item.id) | first %}
+                        {% if needed_item %}
+                            <option value="{{ item.id }}">{{ item.name }} ({{ item.unit }})</option>
+                        {% endif %}
+                    {% endfor %}
+                </select>
+            </div>
+            <div>
+                <label for="quantity_allocated">Quantity to Allocate</label>
+                <input type="number" step="any" id="quantity_allocated" name="quantity_allocated" min="0.01" required placeholder="e.g., 200.5">
+            </div>
+            <button type="submit" class="add-btn">Allocate Stock</button>
+        </form>
+        {% else %}
+            <p>This batch is already completed. No further allocations possible.</p>
+        {% endif %}
+    </div>
+
+    <div class="ingredients-card content-card" style="grid-column: 1 / -1;"> <h2>Ingredient Requirements & Allocations</h2>
+        {% if ingredient_summary %}
+            <table>
+                <thead>
+                    <tr>
+                        <th>Ingredient</th>
+                        <th>Unit</th>
+                        <th>Total Needed</th>
+                        <th>Allocated</th>
+                        <th>Remaining</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    {% for ing in ingredient_summary %}
+                    <tr>
+                        <td>{{ ing.name }}</td>
+                        <td>{{ ing.unit }}</td>
+                        <td>{{ ing.needed }}</td>
+                        <td>{{ ing.allocated }}</td>
+                        <td>{{ ing.remaining }}</td>
+                    </tr>
+                    {% endfor %}
+                </tbody>
+            </table>
+        {% else %}
+            <p>Could not calculate ingredient requirements for this batch.</p>
+        {% endif %}
+    </div>
+</div>
+{% endblock %}

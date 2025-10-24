@@ -5,13 +5,14 @@
 {% block content %}
     <style>
         .form-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 20px; align-items: flex-end; margin-bottom: 20px; max-width: 800px;}
-        /* Adjusted grid for new select element */
         .ingredient-row { display: grid; grid-template-columns: 3fr 1fr 2fr 0.5fr; gap: 10px; margin-bottom: 10px; align-items: center; }
         input[type="checkbox"] { width: auto; margin-right: 10px; }
         .yield-section { background: #f9f9f9; padding: 15px; border-radius: 8px; border: 1px solid #ddd; }
         .checkbox-container { display: flex; align-items: center; margin-bottom: 20px; }
-        /* Style the remove button */
         .remove-btn { padding: 6px 10px; font-size: 0.9em; }
+        .ingredient-row label { display: none; }
+        /* Ensure Select2 fits in the grid */
+        .ingredient-row .select2-container { width: 100% !important; }
     </style>
 
     <h1>Add a New Recipe</h1>
@@ -19,7 +20,7 @@
      {% with messages = get_flashed_messages(with_categories=true) %}
         {% if messages %}
             {% for category, message in messages %}
-            <div class="flash-{{ category }}">{{ message }}</div> {# Add CSS for flash messages if needed #}
+            <div class="flash-{{ category }}">{{ message }}</div>
             {% endfor %}
         {% endif %}
     {% endwith %}
@@ -58,72 +59,79 @@
     </form>
 
     <script>
+        // Function to add a new ingredient row
         function addIngredient() {
             const container = document.getElementById('ingredients-container');
             const newRow = document.createElement('div');
             newRow.className = 'ingredient-row';
             newRow.innerHTML = `
                 <div>
-                    <label style="display:none;">Ingredient</label> <select name="inventory_item_id" class="ingredient-select">
+                    <label>Raw Material</label>
+                    <select name="inventory_item_id" class="ingredient-select select2-enable">
                         <option value="">-- Select Raw Material --</option>
                         {% for item in inventory_items %}
-                            <option value="{{ item.id }}" data-unit="{{ item.unit }}">{{ item.name }} ({{ item.unit }})</option>
+                            <option value="{{ item.id }}">{{ item.name }} ({{ item.unit }})</option>
                         {% endfor %}
                     </select>
                 </div>
                 <div>
-                    <label style="display:none;">Quantity</label>
+                    <label>Quantity</label>
                     <input type="number" name="quantity" placeholder="Quantity" step="any" required>
                 </div>
                  <div>
-                    <label style="display:none;">Sub-Recipe</label>
-                    <select name="sub_recipe_id" class="subrecipe-select">
+                    <label>Sub-Recipe</label>
+                    <select name="sub_recipe_id" class="subrecipe-select select2-enable">
                         <option value="">-- Or Select Sub-Recipe --</option>
                         {% for r in recipes %}
                             <option value="{{ r.id }}">{{ r.name }}</option>
                         {% endfor %}
                     </select>
                 </div>
-                <button type="button" class="remove-btn" onclick="this.parentElement.remove()">X</button>
+                <button type="button" class="remove-btn" onclick="removeIngredientRow(this)">X</button>
             `;
             container.appendChild(newRow);
 
-            // Add logic to disable one dropdown if the other is selected
-            const invSelect = newRow.querySelector('.ingredient-select');
-            const subSelect = newRow.querySelector('.subrecipe-select');
-            const quantityInput = newRow.querySelector('input[name="quantity"]'); // Need quantity too
+             // Initialize Select2 on the NEW dropdowns within this row
+            $(newRow).find('.select2-enable').select2({ theme: "default" });
 
-             // Find unit input/display if needed (not strictly necessary if inv item selected)
-
-
-            invSelect.addEventListener('change', (e) => {
-                 if (e.target.value) {
-                     subSelect.value = ''; // Clear sub-recipe if raw material selected
-                     subSelect.disabled = true;
-                     // Optional: auto-fill unit based on data-unit attribute
-                     // const selectedOption = e.target.options[e.target.selectedIndex];
-                     // const unit = selectedOption.getAttribute('data-unit');
-                     // Find and set unit input/display here if you add one
-                 } else {
-                     subSelect.disabled = false;
-                 }
-            });
-            subSelect.addEventListener('change', (e) => {
-                if (e.target.value) {
-                     invSelect.value = ''; // Clear raw material if sub-recipe selected
-                     invSelect.disabled = true;
-                     // We need a unit for the sub-recipe quantity (e.g., how many g/mL/batch?)
-                     // Maybe add a unit input specifically for sub-recipes?
-                     // Or assume g/mL based on parent recipe context? This is complex.
-                     // For now, let's add a required unit input for sub-recipes too.
-                     // ---> Let's simplify: Keep original separate unit input for now <---
-                     // We will modify the HTML innerHTML string to re-add unit input
-
-                } else {
-                    invSelect.disabled = false;
-                }
-            });
+            addDropdownLogic(newRow); // Attach the enable/disable logic
         }
-        window.onload = addIngredient; // Start with one row
+
+        function removeIngredientRow(button) {
+             // Destroy Select2 instance before removing the row to prevent memory leaks
+            $(button.parentElement).find('.select2-enable').select2('destroy');
+            button.parentElement.remove();
+        }
+
+        function addDropdownLogic(row) {
+            const invSelect = row.querySelector('.ingredient-select');
+            const subSelect = row.querySelector('.subrecipe-select');
+
+             // Use jQuery to handle Select2 interactions
+             $(invSelect).on('change', function(e) {
+                 if ($(this).val()) {
+                     $(subSelect).val('').trigger('change'); // Clear and trigger change for Select2
+                     $(subSelect).prop('disabled', true);
+                 } else {
+                     $(subSelect).prop('disabled', false);
+                 }
+                  $(subSelect).select2({ theme: "default" }); // Re-init needed after enabling/disabling
+             });
+
+             $(subSelect).on('change', function(e) {
+                 if ($(this).val()) {
+                     $(invSelect).val('').trigger('change'); // Clear and trigger change for Select2
+                     $(invSelect).prop('disabled', true);
+                 } else {
+                     $(invSelect).prop('disabled', false);
+                 }
+                 $(invSelect).select2({ theme: "default" }); // Re-init needed
+             });
+        }
+
+        // Add one ingredient row to start with when the page loads
+        document.addEventListener('DOMContentLoaded', () => {
+             addIngredient();
+        });
     </script>
 {% endblock %}

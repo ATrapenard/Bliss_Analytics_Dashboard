@@ -5,12 +5,14 @@
 {% block content %}
     <style>
         .form-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 20px; align-items: flex-end; margin-bottom: 20px; max-width: 800px;}
-         /* Adjusted grid for new select element */
         .ingredient-row { display: grid; grid-template-columns: 3fr 1fr 2fr 0.5fr; gap: 10px; margin-bottom: 10px; align-items: center; }
         input[type="checkbox"] { width: auto; margin-right: 10px; }
         .yield-section { background: #f9f9f9; padding: 15px; border-radius: 8px; border: 1px solid #ddd; }
         .checkbox-container { display: flex; align-items: center; margin-bottom: 20px; }
         .remove-btn { padding: 6px 10px; font-size: 0.9em; }
+        .ingredient-row label { display: none; }
+        /* Ensure Select2 fits in the grid */
+        .ingredient-row .select2-container { width: 100% !important; }
     </style>
 
     <h1>Edit Recipe</h1>
@@ -52,24 +54,23 @@
             {% for ingredient in ingredients %}
             <div class="ingredient-row">
                  <div>
-                    <label style="display:none;">Ingredient</label>
-                    <select name="inventory_item_id" class="ingredient-select" {% if ingredient.sub_recipe_id %}disabled{% endif %}>
+                    <label>Raw Material</label>
+                     <select name="inventory_item_id" class="ingredient-select select2-enable" {% if ingredient.sub_recipe_id %}disabled{% endif %}>
                         <option value="">-- Select Raw Material --</option>
                         {% for item in inventory_items %}
-                            <option value="{{ item.id }}" data-unit="{{ item.unit }}" {% if item.id == ingredient.inventory_item_id %}selected{% endif %}>
+                            <option value="{{ item.id }}" {% if item.id == ingredient.inventory_item_id %}selected{% endif %}>
                                 {{ item.name }} ({{ item.unit }})
                             </option>
                         {% endfor %}
                     </select>
                 </div>
                 <div>
-                     <label style="display:none;">Quantity</label>
+                     <label>Quantity</label>
                     <input type="number" name="quantity" placeholder="Quantity" step="any" required value="{{ ingredient.quantity }}">
                 </div>
-
                 <div>
-                    <label style="display:none;">Sub-Recipe</label>
-                    <select name="sub_recipe_id" class="subrecipe-select" {% if ingredient.inventory_item_id %}disabled{% endif %}>
+                    <label>Sub-Recipe</label>
+                     <select name="sub_recipe_id" class="subrecipe-select select2-enable" {% if ingredient.inventory_item_id %}disabled{% endif %}>
                         <option value="">-- Or Select Sub-Recipe --</option>
                         {% for r in recipes %}
                             <option value="{{ r.id }}" {% if r.id == ingredient.sub_recipe_id %}selected{% endif %}>
@@ -78,7 +79,7 @@
                         {% endfor %}
                     </select>
                 </div>
-                <button type="button" class="remove-btn" onclick="this.parentElement.remove()">X</button>
+                <button type="button" class="remove-btn" onclick="removeIngredientRow(this)">X</button>
             </div>
             {% endfor %}
         </div>
@@ -89,67 +90,81 @@
     </form>
 
     <script>
-        // Function to add a new ingredient row
+         // Function to add a new ingredient row (identical to add_recipe.html)
         function addIngredient() {
             const container = document.getElementById('ingredients-container');
             const newRow = document.createElement('div');
             newRow.className = 'ingredient-row';
-            // Use the same innerHTML as in add_recipe.html for consistency
             newRow.innerHTML = `
                 <div>
-                    <label style="display:none;">Ingredient</label>
-                    <select name="inventory_item_id" class="ingredient-select">
+                    <label>Raw Material</label>
+                    <select name="inventory_item_id" class="ingredient-select select2-enable">
                         <option value="">-- Select Raw Material --</option>
                         {% for item in inventory_items %}
-                            <option value="{{ item.id }}" data-unit="{{ item.unit }}">{{ item.name }} ({{ item.unit }})</option>
+                            <option value="{{ item.id }}">{{ item.name }} ({{ item.unit }})</option>
                         {% endfor %}
                     </select>
                 </div>
                 <div>
-                    <label style="display:none;">Quantity</label>
+                    <label>Quantity</label>
                     <input type="number" name="quantity" placeholder="Quantity" step="any" required>
                 </div>
                  <div>
-                    <label style="display:none;">Sub-Recipe</label>
-                    <select name="sub_recipe_id" class="subrecipe-select">
+                    <label>Sub-Recipe</label>
+                    <select name="sub_recipe_id" class="subrecipe-select select2-enable">
                         <option value="">-- Or Select Sub-Recipe --</option>
                         {% for r in recipes %}
                             <option value="{{ r.id }}">{{ r.name }}</option>
                         {% endfor %}
                     </select>
                 </div>
-                <button type="button" class="remove-btn" onclick="this.parentElement.remove()">X</button>
+                <button type="button" class="remove-btn" onclick="removeIngredientRow(this)">X</button>
             `;
             container.appendChild(newRow);
-            addDropdownLogic(newRow); // Attach logic to the new row
+             // Initialize Select2 on the NEW dropdowns
+            $(newRow).find('.select2-enable').select2({ theme: "default" });
+            addDropdownLogic(newRow);
         }
 
-        // Function to add the enable/disable logic to dropdowns in a row
+        function removeIngredientRow(button) {
+            $(button.parentElement).find('.select2-enable').select2('destroy');
+            button.parentElement.remove();
+        }
+
         function addDropdownLogic(row) {
             const invSelect = row.querySelector('.ingredient-select');
             const subSelect = row.querySelector('.subrecipe-select');
 
-            invSelect.addEventListener('change', (e) => {
-                 if (e.target.value) {
-                     subSelect.value = '';
-                     subSelect.disabled = true;
+             $(invSelect).on('change', function(e) {
+                 if ($(this).val()) {
+                     $(subSelect).val('').trigger('change');
+                     $(subSelect).prop('disabled', true);
                  } else {
-                     subSelect.disabled = false;
+                     $(subSelect).prop('disabled', false);
                  }
-            });
-            subSelect.addEventListener('change', (e) => {
-                if (e.target.value) {
-                     invSelect.value = '';
-                     invSelect.disabled = true;
-                } else {
-                    invSelect.disabled = false;
-                }
-            });
+                  $(subSelect).select2({ theme: "default" });
+             });
+
+             $(subSelect).on('change', function(e) {
+                 if ($(this).val()) {
+                     $(invSelect).val('').trigger('change');
+                     $(invSelect).prop('disabled', true);
+                 } else {
+                     $(invSelect).prop('disabled', false);
+                 }
+                 $(invSelect).select2({ theme: "default" });
+             });
         }
 
-        // Apply logic to existing rows on page load
-        document.querySelectorAll('.ingredient-row').forEach(row => {
-            addDropdownLogic(row);
+        // Apply logic to existing rows AND initialize Select2 on page load
+        document.addEventListener('DOMContentLoaded', () => {
+             // Initialize Select2 on dropdowns that were loaded with the page
+            $('.select2-enable').select2({ theme: "default" });
+
+            // Attach enable/disable logic to existing rows
+            document.querySelectorAll('.ingredient-row').forEach(row => {
+                addDropdownLogic(row);
+            });
         });
     </script>
 {% endblock %}

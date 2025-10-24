@@ -11,82 +11,245 @@
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
     <link href="https://fonts.googleapis.com/css2?family=Lato:wght@400;700&family=Montserrat:wght@600;700&display=swap" rel="stylesheet">
 
+    <link href="https://cdn.jsdelivr.net/npm/select2@4.1.0-rc.0/dist/css/select2.min.css" rel="stylesheet" />
+
     <style>
-        *, *::before, *::after { box-sizing: border-box; }
+        *, *::before, *::after {
+            box-sizing: border-box;
+        }
+
         :root {
-            --primary-color: #E46E4A; --secondary-color: #84869B; --text-dark: #111827;
-            --text-medium: #6b7280; --background-light: #f9fafb; --border-color: #e5e7eb;
-            --white: #ffffff; --nav-bg: #333; --delete-red: #dc3545; --edit-blue: #007BFF;
-            --input-border: #ccc; --input-focus-border: var(--edit-blue);
-            --font-heading: 'Montserrat', sans-serif; --font-body: 'Lato', sans-serif;
+            --primary-color: #E46E4A;
+            --secondary-color: #84869B;
+            --text-dark: #111827;
+            --text-medium: #6b7280;
+            --background-light: #f9fafb;
+            --border-color: #e5e7eb;
+            --white: #ffffff;
+            --nav-bg: #333;
+            --delete-red: #dc3545;
+            --edit-blue: #007BFF;
+            --input-border: #ccc;
+            --input-focus-border: var(--edit-blue);
+
+            --font-heading: 'Montserrat', sans-serif;
+            --font-body: 'Lato', sans-serif;
         }
+
         body {
-            font-family: var(--font-body); margin: 0;
+            font-family: var(--font-body);
+            margin: 0;
             background-image: linear-gradient(to top right, var(--primary-color), var(--secondary-color));
-            min-height: 100vh; background-attachment: fixed; color: var(--text-dark);
+            min-height: 100vh;
+            background-attachment: fixed;
+            color: var(--text-dark);
         }
-        h1, h2, h3 { font-family: var(--font-heading); color: var(--text-dark); }
+
+        h1, h2, h3 {
+            font-family: var(--font-heading);
+            color: var(--text-dark);
+        }
+
+        /* --- Navbar Styles --- */
         .navbar {
-            background-color: var(--nav-bg); overflow: hidden; display: flex;
-            justify-content: space-between; align-items: center; padding: 0 20px;
+            background-color: var(--nav-bg);
+            overflow: hidden;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            padding: 0 20px;
         }
         .navbar a {
-            color: var(--white); text-decoration: none; padding: 14px 10px; /* Reduced padding slightly more */
-            display: block; font-family: var(--font-body); transition: background-color 0.2s ease;
-            white-space: nowrap; font-size: 0.9em; /* Slightly smaller nav font */
+            color: var(--white);
+            text-decoration: none;
+            padding: 14px 10px;
+            display: block;
+            font-family: var(--font-body);
+            transition: background-color 0.2s ease;
+            white-space: nowrap;
+            font-size: 0.9em;
         }
-        .navbar a:hover { background-color: rgba(255, 255, 255, 0.1); }
+        .navbar a:hover {
+             background-color: rgba(255, 255, 255, 0.1);
+        }
         .navbar a.logo {
-            font-family: var(--font-heading); font-size: 1.4em; /* Slightly smaller logo font */
-            font-weight: bold; display: flex; align-items: center; gap: 8px; padding-left: 0;
+            font-family: var(--font-heading);
+            font-size: 1.4em;
+            font-weight: bold;
+            display: flex;
+            align-items: center;
+            gap: 8px;
+            padding-left: 0;
         }
-        .navbar img.logo-img { height: 35px; width: auto; } /* Slightly smaller logo */
-        .nav-links { display: flex; flex-wrap: wrap; }
-        .hamburger { display: none; cursor: pointer; padding: 14px 20px; }
-        .hamburger .bar { display: block; width: 25px; height: 3px; margin: 5px auto; background-color: var(--white); }
-        .content-container { padding: 20px 40px; }
+        .navbar img.logo-img {
+            height: 35px;
+            width: auto;
+        }
+        .nav-links {
+            display: flex;
+            flex-wrap: wrap;
+        }
+        .hamburger {
+            display: none;
+            cursor: pointer;
+            padding: 14px 20px;
+        }
+        .hamburger .bar {
+            display: block;
+            width: 25px;
+            height: 3px;
+            margin: 5px auto;
+            background-color: var(--white);
+        }
+
+        /* --- Content Area --- */
+        .content-container {
+            padding: 20px 40px;
+        }
+
+        /* --- General Card Style --- */
         .content-card, .form-container, .product-list, .location-list, .list-container, .recipe-card {
-             background-color: var(--white); border-radius: 12px; border: 1px solid var(--border-color);
+             background-color: var(--white);
+             border-radius: 12px;
+             border: 1px solid var(--border-color);
              box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.1), 0 2px 4px -2px rgba(0, 0, 0, 0.1);
-             padding: 20px; margin-bottom: 20px;
+             padding: 20px;
+             margin-bottom: 20px;
         }
-        button, .button-link, input[type="submit"] {
-            font-family: var(--font-body); background-color: var(--primary-color); color: var(--white);
-            border: none; padding: 10px 15px; border-radius: 5px; cursor: pointer; text-decoration: none;
-            display: inline-block; transition: opacity 0.2s ease; font-size: 1em;
+
+        /* --- General Button Styles --- */
+         button, .button-link, input[type="submit"] {
+            font-family: var(--font-body);
+            background-color: var(--primary-color);
+            color: var(--white);
+            border: none;
+            padding: 10px 15px;
+            border-radius: 5px;
+            cursor: pointer;
+            text-decoration: none;
+            display: inline-block;
+            transition: opacity 0.2s ease;
+            font-size: 1em;
          }
-        button:hover, .button-link:hover, input[type="submit"]:hover { opacity: 0.85; }
-        .edit-btn { background-color: var(--edit-blue) !important; }
-        .delete-btn { background-color: var(--delete-red) !important; }
-        .add-btn { background-color: #007BFF; }
-        .submit-btn { background-color: #28a745; }
-        .remove-btn { background-color: var(--delete-red); }
-        .edit-btn:hover { background-color: #0056b3 !important; opacity: 1;}
-        .delete-btn:hover { background-color: #c82333 !important; opacity: 1;}
-        .add-btn:hover { background-color: #0056b3; opacity: 1;}
-        .submit-btn:hover { background-color: #218838; opacity: 1;}
-        .remove-btn:hover { background-color: #c82333; opacity: 1;}
-        input[type="text"], input[type="number"], select {
-             padding: 10px 12px; font-size: 1em; font-family: var(--font-body); border-radius: 6px;
-             border: 1px solid var(--input-border); width: 100%; margin-bottom: 15px; background-color: var(--white);
+         button:hover, .button-link:hover, input[type="submit"]:hover {
+            opacity: 0.85;
+         }
+         .edit-btn { background-color: var(--edit-blue) !important; }
+         .delete-btn { background-color: var(--delete-red) !important; }
+         .add-btn { background-color: #007BFF; }
+         .submit-btn { background-color: #28a745; }
+         .remove-btn { background-color: var(--delete-red); }
+
+         .edit-btn:hover { background-color: #0056b3 !important; opacity: 1;}
+         .delete-btn:hover { background-color: #c82333 !important; opacity: 1;}
+         .add-btn:hover { background-color: #0056b3; opacity: 1;}
+         .submit-btn:hover { background-color: #218838; opacity: 1;}
+         .remove-btn:hover { background-color: #c82333; opacity: 1;}
+
+
+        /* --- Enhanced General Form Styles --- */
+        input[type="text"],
+        input[type="number"],
+        select {
+             padding: 10px 12px;
+             font-size: 1em;
+             font-family: var(--font-body);
+             border-radius: 6px;
+             border: 1px solid var(--input-border);
+             width: 100%;
+             margin-bottom: 15px;
+             background-color: var(--white);
              transition: border-color 0.2s ease, box-shadow 0.2s ease;
-             -webkit-appearance: none; -moz-appearance: none; appearance: none;
+             -webkit-appearance: none;
+             -moz-appearance: none;
+             appearance: none;
         }
-        input[type="text"]:focus, input[type="number"]:focus, select:focus {
-            outline: none; border-color: var(--input-focus-border);
+        input[type="text"]:focus,
+        input[type="number"]:focus,
+        select:focus {
+            outline: none;
+            border-color: var(--input-focus-border);
             box-shadow: 0 0 0 2px rgba(0, 123, 255, 0.25);
         }
         select {
             background-image: url('data:image/svg+xml;utf8,<svg fill="%236b7280" height="24" viewBox="0 0 24 24" width="24" xmlns="http://www.w3.org/2000/svg"><path d="M7 10l5 5 5-5z"/><path d="M0 0h24v24H0z" fill="none"/></svg>');
-            background-repeat: no-repeat; background-position: right 10px center; background-size: 20px; padding-right: 40px;
+            background-repeat: no-repeat;
+            background-position: right 10px center;
+            background-size: 20px;
+            padding-right: 40px;
         }
-        label { display: block; margin-bottom: 8px; font-weight: 600; color: var(--text-medium); font-size: 0.9em; }
-        small { font-size: 0.8em; color: var(--text-medium); display: block; margin-top: -10px; margin-bottom: 10px; }
-        table { width: 100%; border-collapse: collapse; margin-top: 20px; }
-        th, td { padding: 12px 15px; text-align: left; border-bottom: 1px solid var(--border-color); vertical-align: middle; }
-        th { background-color: var(--background-light); font-size: 0.75rem; text-transform: uppercase; color: var(--text-medium); font-family: var(--font-heading); border-bottom-width: 2px; }
-        @media screen and (max-width: 1000px) { /* Adjust breakpoint for nav wrap */
-             .navbar a { padding: 10px 8px; font-size: 0.85em; } /* Further reduce padding/font */
+        label {
+             display: block;
+             margin-bottom: 8px;
+             font-weight: 600;
+             color: var(--text-medium);
+             font-size: 0.9em;
+        }
+        small {
+            font-size: 0.8em;
+            color: var(--text-medium);
+            display: block;
+            margin-top: -10px;
+            margin-bottom: 10px;
+        }
+
+        /* --- General Table Styles --- */
+        table {
+            width: 100%;
+            border-collapse: collapse;
+            margin-top: 20px;
+        }
+        th, td {
+            padding: 12px 15px;
+            text-align: left;
+            border-bottom: 1px solid var(--border-color);
+            vertical-align: middle;
+        }
+        th {
+            background-color: var(--background-light);
+            font-size: 0.75rem;
+            text-transform: uppercase;
+            color: var(--text-medium);
+            font-family: var(--font-heading);
+            border-bottom-width: 2px;
+        }
+
+        /* --- Select2 Custom Styles --- */
+        .select2-container--default .select2-selection--single {
+            height: calc(1.5em + .75rem + 8px);
+            padding: .375rem .75rem;
+            border: 1px solid var(--input-border);
+            border-radius: 6px;
+        }
+        .select2-container--default .select2-selection--single .select2-selection__rendered {
+            line-height: 1.8;
+            padding-left: 0;
+            color: var(--text-dark); /* Ensure text color matches inputs */
+        }
+        .select2-container--default .select2-selection--single .select2-selection__arrow {
+            height: calc(1.5em + .75rem + 6px);
+            right: 8px;
+        }
+        .select2-container--default.select2-container--open .select2-selection--single {
+            border-color: var(--input-focus-border);
+            box-shadow: 0 0 0 2px rgba(0, 123, 255, 0.25);
+        }
+        .select2-dropdown {
+             border: 1px solid var(--input-focus-border);
+             border-radius: 6px;
+             box-shadow: 0 0 5px rgba(0,0,0,0.1);
+        }
+        .select2-search--dropdown .select2-search__field {
+            border: 1px solid var(--input-border);
+            border-radius: 4px;
+            padding: 8px;
+        }
+         .select2-results__option { padding: 8px 12px; }
+        .select2-results__option--highlighted { background-color: var(--edit-blue); color: var(--white); }
+
+        /* --- Responsive Styles --- */
+        @media screen and (max-width: 1000px) {
+             .navbar a { padding: 10px 8px; font-size: 0.85em; }
              .navbar a.logo { font-size: 1.2em; }
              .navbar img.logo-img { height: 30px; }
         }
@@ -100,6 +263,7 @@
     </style>
 </head>
 <body>
+
     <nav class="navbar">
         <a href="{{ url_for('home') }}" class="logo">
             <img src="{{ url_for('static', filename='bliss_logo.jpg') }}" alt="Bliss Energetics Logo" class="logo-img">
@@ -110,7 +274,8 @@
             <a href="{{ url_for('products_page') }}">Products</a>
             <a href="{{ url_for('locations_page') }}">Locations</a>
             <a href="{{ url_for('inventory_items_page') }}">Inventory</a>
-            <a href="{{ url_for('wip_batches_page') }}">WIP Batches</a> <a href="{{ url_for('stock_minimums_page') }}">Stock Minimums</a>
+            <a href="{{ url_for('wip_batches_page') }}">WIP Batches</a>
+            <a href="{{ url_for('stock_minimums_page') }}">Stock Minimums</a>
             <a href="{{ url_for('ingredient_totals') }}">Ingredient Totals</a>
             <a href="{{ url_for('requirements_page') }}">Requirements</a>
             <a href="{{ url_for('production_planner') }}">Planner</a>
@@ -121,15 +286,37 @@
             <span class="bar"></span>
         </div>
     </nav>
+
     <div class="content-container">
         {% block content %}{% endblock %}
     </div>
+
+    <script src="https://code.jquery.com/jquery-3.6.0.min.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/select2@4.1.0-rc.0/dist/js/select2.min.js"></script>
+
     <script>
+        // Hamburger Menu Script
         const hamburger = document.querySelector(".hamburger");
         const navLinks = document.querySelector(".nav-links");
         hamburger.addEventListener("click", () => {
             navLinks.classList.toggle("active");
         });
+
+        // Initialize Select2 globally after page loads
+        // Ensures it works on dynamically added elements too if structure is right
+        // If issues arise with dynamic elements, initialize within the function that adds them
+        $(document).ready(function() {
+            // Apply Select2 to elements with this class upon initial load
+            initializeSelect2('.select2-enable');
+        });
+
+        // Function to initialize Select2 (can be called again if needed)
+        function initializeSelect2(selector) {
+             $(selector).select2({
+                 theme: "default"
+             });
+        }
     </script>
+
 </body>
 </html>

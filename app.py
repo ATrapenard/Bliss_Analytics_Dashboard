@@ -103,12 +103,12 @@ def create_recipe():
                 inventory_item_id = inventory_item_ids[i] if inventory_item_ids[i] else None; sub_recipe_id = sub_recipe_ids[i] if sub_recipe_ids[i] else None; quantity_str = quantities[i]
                 if not inventory_item_id and not sub_recipe_id: flash(f"Row {i+1} skipped.", "warning"); continue
                 if inventory_item_id and sub_recipe_id: flash(f"Row {i+1} skipped.", "warning"); continue
-                try: 
+                try:
                     quantity_val = float(quantity_str) if quantity_str else 0
-                    if quantity_val <= 0: 
+                    if quantity_val <= 0:
                         flash(f"Quantity row {i+1} invalid. Row skipped.", "warning")
                         continue
-                except ValueError: 
+                except ValueError:
                     flash(f"Invalid quantity row {i+1}. Row skipped.", "warning")
                     continue
                 item_name = None; item_unit = None
@@ -165,13 +165,13 @@ def update_recipe(recipe_id):
                 inventory_item_id = inventory_item_ids[i] if inventory_item_ids[i] else None; sub_recipe_id = sub_recipe_ids[i] if sub_recipe_ids[i] else None; quantity_str = quantities[i]
                 if not inventory_item_id and not sub_recipe_id: flash(f"Row {i+1} skipped.", "warning"); continue
                 if inventory_item_id and sub_recipe_id: flash(f"Row {i+1} skipped.", "warning"); continue
-                try: 
+                try:
                     quantity_val = float(quantity_str) if quantity_str else 0;
                     if quantity_val <= 0: flash(f"Quantity row {i+1} invalid. Row skipped.", "warning"); continue
                 except ValueError: flash(f"Invalid quantity row {i+1}. Row skipped.", "warning"); continue
                 item_name = None; item_unit = None
                 if inventory_item_id: cur.execute("SELECT name, unit FROM inventory_items WHERE id = %s;", (inventory_item_id,)); item_data = cur.fetchone();
-                if item_data: 
+                if item_data:
                         item_name, item_unit = item_data
                 elif sub_recipe_id: cur.execute("SELECT name FROM recipes WHERE id = %s;", (sub_recipe_id,)); sub_recipe_data = cur.fetchone();
                 if sub_recipe_data: item_name = sub_recipe_data[0]; item_unit = 'batch'
@@ -194,7 +194,7 @@ def update_recipe(recipe_id):
 
 @app.route('/edit/<int:recipe_id>')
 def edit_recipe_form(recipe_id):
-    conn = get_db_connection(); recipe = None; ingredients = []; all_recipes = []; inventory_items = [] # Code unchanged
+    conn = get_db_connection(); recipe = None; ingredients = []; all_recipes = []; inventory_items = []
     try:
         with conn.cursor(cursor_factory=DictCursor) as cur:
             cur.execute('SELECT * FROM recipes WHERE id = %s;', (recipe_id,)); recipe = cur.fetchone()
@@ -210,11 +210,11 @@ def edit_recipe_form(recipe_id):
 # --- (Rest of the routes remain unchanged) ---
 @app.route('/delete/<int:recipe_id>', methods=['POST'])
 def delete_recipe(recipe_id):
-    conn = get_db_connection(); # ... (Code unchanged)
+    conn = get_db_connection();
     with conn.cursor() as cur: cur.execute('DELETE FROM recipes WHERE id = %s;', (recipe_id,)); conn.commit(); conn.close(); return redirect(url_for('recipe_dashboard'))
 @app.route('/totals')
 def ingredient_totals():
-    conn = get_db_connection(); # ... (Code unchanged)
+    conn = get_db_connection();
     resolved_cache.clear(); all_base_ingredients = []
     with conn.cursor(cursor_factory=DictCursor) as cur:
         cur.execute("SELECT id FROM recipes;"); all_recipe_ids = cur.fetchall()
@@ -226,46 +226,46 @@ def ingredient_totals():
     conn.close(); sorted_totals = sorted(totals.values(), key=lambda x: x['name']); return render_template('totals.html', totals=sorted_totals)
 @app.route('/products')
 def products_page():
-    conn = get_db_connection(); # ... (Code unchanged)
+    conn = get_db_connection();
     with conn.cursor(cursor_factory=DictCursor) as cur:
         cur.execute("""SELECT p.id, p.sku, p.jars_per_batch, r.name as recipe_name FROM products p LEFT JOIN recipes r ON p.recipe_id = r.id ORDER BY p.sku;"""); products = cur.fetchall()
         cur.execute("SELECT id, name FROM recipes WHERE is_sold_product = TRUE ORDER BY name;"); recipes = cur.fetchall()
     conn.close(); return render_template('products.html', products=products, recipes=recipes)
 @app.route('/products/add', methods=['POST'])
 def add_product():
-    conn = get_db_connection(); # ... (Code unchanged)
+    conn = get_db_connection();
     sku = request.form['sku']; recipe_id = request.form['recipe_id']; jars_per_batch = request.form.get('jars_per_batch') or None
     with conn.cursor() as cur: cur.execute('INSERT INTO products (sku, recipe_id, jars_per_batch) VALUES (%s, %s, %s);', (sku, recipe_id, jars_per_batch)); conn.commit(); conn.close(); return redirect(url_for('products_page'))
 @app.route('/products/edit/<int:id>')
 def edit_product(id):
-    conn = get_db_connection(); # ... (Code unchanged)
+    conn = get_db_connection();
     with conn.cursor(cursor_factory=DictCursor) as cur:
         cur.execute("SELECT * FROM products WHERE id = %s;", (id,)); product = cur.fetchone()
         cur.execute("SELECT id, name FROM recipes WHERE is_sold_product = TRUE ORDER BY name;"); recipes = cur.fetchall()
     conn.close(); return render_template('edit_product.html', product=product, recipes=recipes)
 @app.route('/products/update/<int:id>', methods=['POST'])
 def update_product(id):
-    conn = get_db_connection(); # ... (Code unchanged)
+    conn = get_db_connection();
     sku = request.form['sku']; recipe_id = request.form['recipe_id']; jars_per_batch = request.form.get('jars_per_batch') or None
     with conn.cursor() as cur: cur.execute("UPDATE products SET sku = %s, recipe_id = %s, jars_per_batch = %s WHERE id = %s;", (sku, recipe_id, jars_per_batch, id)); conn.commit(); conn.close(); return redirect(url_for('products_page'))
 @app.route('/products/delete/<int:id>', methods=['POST'])
 def delete_product(id):
-    conn = get_db_connection(); # ... (Code unchanged)
+    conn = get_db_connection();
     with conn.cursor() as cur: cur.execute("DELETE FROM products WHERE id = %s;", (id,)); conn.commit(); conn.close(); return redirect(url_for('products_page'))
 @app.route('/locations', methods=['GET', 'POST'])
 def locations_page():
-    conn = get_db_connection(); # ... (Code unchanged)
+    conn = get_db_connection();
     if request.method == 'POST':
         location_name = request.form['name'];
         with conn.cursor() as cur: cur.execute("INSERT INTO locations (name) VALUES (%s);", (location_name,)); conn.commit(); conn.close(); return redirect(url_for('locations_page'))
     with conn.cursor(cursor_factory=DictCursor) as cur: cur.execute("SELECT * FROM locations ORDER BY name;"); locations = cur.fetchall(); conn.close(); return render_template('locations.html', locations=locations)
 @app.route('/locations/delete/<int:id>', methods=['POST'])
 def delete_location(id):
-    conn = get_db_connection(); # ... (Code unchanged)
+    conn = get_db_connection();
     with conn.cursor() as cur: cur.execute("DELETE FROM locations WHERE id = %s;", (id,)); conn.commit(); conn.close(); return redirect(url_for('locations_page'))
 @app.route('/stock-minimums', methods=['GET', 'POST'])
 def stock_minimums_page():
-    conn = get_db_connection(); # ... (Code unchanged)
+    conn = get_db_connection();
     if request.method == 'POST':
         location_id = request.form['location_id']; product_id = request.form['product_id']; min_jars = request.form['min_jars']
         with conn.cursor() as cur: cur.execute("""INSERT INTO stock_minimums (location_id, product_id, min_jars) VALUES (%s, %s, %s) ON CONFLICT (product_id, location_id) DO UPDATE SET min_jars = EXCLUDED.min_jars;""", (location_id, product_id, min_jars)); conn.commit(); conn.close(); return redirect(url_for('stock_minimums_page'))
@@ -276,11 +276,11 @@ def stock_minimums_page():
     conn.close(); return render_template('stock_minimums.html', locations=locations, products=products, minimums=minimums)
 @app.route('/stock-minimums/delete/<int:id>', methods=['POST'])
 def delete_stock_minimum(id):
-    conn = get_db_connection(); # ... (Code unchanged)
+    conn = get_db_connection();
     with conn.cursor() as cur: cur.execute("DELETE FROM stock_minimums WHERE id = %s;", (id,)); conn.commit(); conn.close(); return redirect(url_for('stock_minimums_page'))
 @app.route('/requirements')
 def requirements_page():
-    conn = get_db_connection(); # ... (Code unchanged)
+    conn = get_db_connection();
     resolved_cache.clear(); all_base_ingredients = []; inventory_levels = {}
     with conn.cursor(cursor_factory=DictCursor) as cur:
         cur.execute("SELECT id, name, unit, quantity_on_hand, quantity_allocated FROM inventory_items;");
@@ -303,7 +303,7 @@ def requirements_page():
     conn.close(); sorted_report_data = sorted(report_data, key=lambda x: x['name']); return render_template('requirements.html', report_data=sorted_report_data)
 @app.route('/planner', methods=['GET', 'POST'])
 def production_planner():
-    conn = get_db_connection(); # ... (Code unchanged)
+    conn = get_db_connection();
     resolved_cache.clear(); calculated_requirements = None; inventory_levels = {}
     with conn.cursor(cursor_factory=DictCursor) as cur:
         cur.execute("SELECT id, name, unit, quantity_on_hand, quantity_allocated FROM inventory_items;");
@@ -330,7 +330,7 @@ def production_planner():
     conn.close(); return render_template('planner.html', products=sellable_products, requirements=calculated_requirements)
 @app.route('/inventory', methods=['GET', 'POST'])
 def inventory_items_page():
-    conn = get_db_connection(); # ... (Code unchanged)
+    conn = get_db_connection();
     if request.method == 'POST':
         name = request.form['name']; unit = request.form['unit']; qty_on_hand_str = request.form.get('quantity_on_hand')
         try: qty_on_hand = float(qty_on_hand_str) if qty_on_hand_str else 0.0
@@ -342,26 +342,26 @@ def inventory_items_page():
     with conn.cursor(cursor_factory=DictCursor) as cur: cur.execute("SELECT *, (quantity_on_hand - quantity_allocated) as quantity_available FROM inventory_items ORDER BY name;"); inventory_items = cur.fetchall(); conn.close(); return render_template('inventory_items.html', inventory_items=inventory_items)
 @app.route('/inventory/edit/<int:id>', methods=['GET'])
 def edit_inventory_item(id):
-    conn = get_db_connection(); # ... (Code unchanged)
+    conn = get_db_connection();
     with conn.cursor(cursor_factory=DictCursor) as cur: cur.execute("SELECT * FROM inventory_items WHERE id = %s;", (id,)); item = cur.fetchone(); conn.close();
     if item is None: flash(f"Inventory item ID {id} not found.", "error"); return redirect(url_for('inventory_items_page')); return render_template('edit_inventory_item.html', item=item)
 @app.route('/inventory/update/<int:id>', methods=['POST'])
 def update_inventory_item(id):
-    conn = get_db_connection(); # ... (Code unchanged)
+    conn = get_db_connection();
     name = request.form['name']; unit = request.form['unit']; qty_on_hand_str = request.form.get('quantity_on_hand')
     try: qty_on_hand = float(qty_on_hand_str) if qty_on_hand_str else 0.0
     except ValueError: qty_on_hand = 0.0
     with conn.cursor() as cur: cur.execute("UPDATE inventory_items SET name = %s, unit = %s, quantity_on_hand = %s WHERE id = %s;", (name, unit, qty_on_hand, id)); conn.commit(); conn.close(); return redirect(url_for('inventory_items_page'))
 @app.route('/inventory/delete/<int:id>', methods=['POST'])
 def delete_inventory_item(id):
-    conn = get_db_connection(); # ... (Code unchanged)
+    conn = get_db_connection();
     try:
         with conn.cursor() as cur: cur.execute("DELETE FROM inventory_items WHERE id = %s;", (id,)); conn.commit(); flash("Inventory item deleted successfully.", "success")
     except psycopg2.Error as e: conn.rollback(); print(f"Error deleting inventory item {id}: {e}"); flash(f"Cannot delete item: {e.diag.message_primary}", "error")
     finally: conn.close(); return redirect(url_for('inventory_items_page'))
 @app.route('/wip', methods=['GET', 'POST'])
 def wip_batches_page():
-    conn = get_db_connection(); # ... (Code unchanged)
+    conn = get_db_connection();
     if request.method == 'POST':
         recipe_id = request.form['recipe_id']; target_jars = request.form.get('target_jars') or 0
         try:
@@ -377,7 +377,7 @@ def wip_batches_page():
     conn.close(); return render_template('wip_batches.html', wip_batches=wip_batches, sellable_recipes=sellable_recipes)
 @app.route('/wip/<int:batch_id>')
 def wip_batch_detail(batch_id):
-    conn = get_db_connection(); # ... (Code unchanged)
+    conn = get_db_connection();
     resolved_cache.clear()
     with conn.cursor(cursor_factory=DictCursor) as cur:
         cur.execute("""SELECT w.id, w.target_jars, w.status, w.created_at, r.id as recipe_id, r.name as recipe_name FROM wip_batches w JOIN recipes r ON w.recipe_id = r.id WHERE w.id = %s;""", (batch_id,)); batch = cur.fetchone()
@@ -408,7 +408,7 @@ def allocate_ingredient(batch_id):
     if not inventory_item_id or not quantity_str: flash("Missing ingredient or quantity.", "error");
     if conn: conn.close(); return redirect(url_for('wip_batch_detail', batch_id=batch_id))
     try: 
-        quantity = float(quantity_str);
+        quantity = float(quantity_str)
         if quantity <= 0: raise ValueError("Quantity must be positive.")
     except ValueError: flash("Invalid quantity entered.", "error");
     if conn: conn.close(); return redirect(url_for('wip_batch_detail', batch_id=batch_id))
@@ -439,7 +439,7 @@ def complete_wip_batch(batch_id):
 
 @app.route('/wip/delete/<int:batch_id>', methods=['POST'])
 def delete_wip_batch(batch_id):
-    conn = get_db_connection()
+    conn = get_db_connection();
     try:
         with conn.cursor(cursor_factory=DictCursor) as cur:
             cur.execute("SELECT status FROM wip_batches WHERE id = %s;", (batch_id,)); batch_status = cur.fetchone()

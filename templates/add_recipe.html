@@ -11,13 +11,16 @@
         .checkbox-container { display: flex; align-items: center; margin-bottom: 20px; }
         .remove-btn { padding: 6px 10px; font-size: 0.9em; }
         .ingredient-row label { display: none; }
-        /* Ensure Select2 fits in the grid */
-        .ingredient-row .select2-container { width: 100% !important; }
+        .ingredient-row .select2-container { width: 100% !important; } /* Ensure Select2 fits */
+         /* Flash message styles */
+        .flash-error { background-color: #f8d7da; color: #721c24; padding: 10px; border: 1px solid #f5c6cb; border-radius: 5px; margin-bottom: 15px; }
+        .flash-success { background-color: #d4edda; color: #155724; padding: 10px; border: 1px solid #c3e6cb; border-radius: 5px; margin-bottom: 15px; }
+        .flash-warning { background-color: #fff3cd; color: #856404; padding: 10px; border: 1px solid #ffeeba; border-radius: 5px; margin-bottom: 15px; }
     </style>
 
     <h1>Add a New Recipe</h1>
 
-     {% with messages = get_flashed_messages(with_categories=true) %}
+    {% with messages = get_flashed_messages(with_categories=true) %}
         {% if messages %}
             {% for category, message in messages %}
             <div class="flash-{{ category }}">{{ message }}</div>
@@ -59,7 +62,6 @@
     </form>
 
     <script>
-        // Function to add a new ingredient row
         function addIngredient() {
             const container = document.getElementById('ingredients-container');
             const newRow = document.createElement('div');
@@ -90,15 +92,11 @@
                 <button type="button" class="remove-btn" onclick="removeIngredientRow(this)">X</button>
             `;
             container.appendChild(newRow);
-
-             // Initialize Select2 on the NEW dropdowns within this row
-            $(newRow).find('.select2-enable').select2({ theme: "default" });
-
-            addDropdownLogic(newRow); // Attach the enable/disable logic
+            $(newRow).find('.select2-enable').select2({ theme: "default" }); // Init Select2
+            addDropdownLogic(newRow); // Attach logic
         }
 
         function removeIngredientRow(button) {
-             // Destroy Select2 instance before removing the row to prevent memory leaks
             $(button.parentElement).find('.select2-enable').select2('destroy');
             button.parentElement.remove();
         }
@@ -107,31 +105,31 @@
             const invSelect = row.querySelector('.ingredient-select');
             const subSelect = row.querySelector('.subrecipe-select');
 
-             // Use jQuery to handle Select2 interactions
              $(invSelect).on('change', function(e) {
-                 if ($(this).val()) {
-                     $(subSelect).val('').trigger('change'); // Clear and trigger change for Select2
-                     $(subSelect).prop('disabled', true);
-                 } else {
-                     $(subSelect).prop('disabled', false);
+                 if ($(this).val()) { // If raw material is selected
+                     $(subSelect).val('').trigger('change'); // Clear sub-recipe value
+                     // $(subSelect).prop('disabled', true); // REMOVED disable
                  }
-                  $(subSelect).select2({ theme: "default" }); // Re-init needed after enabling/disabling
+                 // else { $(subSelect).prop('disabled', false); } // REMOVED enable
+                  // $(subSelect).select2({ theme: "default" }); // Re-init might not be needed now
              });
 
              $(subSelect).on('change', function(e) {
-                 if ($(this).val()) {
-                     $(invSelect).val('').trigger('change'); // Clear and trigger change for Select2
-                     $(invSelect).prop('disabled', true);
-                 } else {
-                     $(invSelect).prop('disabled', false);
+                 if ($(this).val()) { // If sub-recipe is selected
+                     $(invSelect).val('').trigger('change'); // Clear raw material value
+                     // $(invSelect).prop('disabled', true); // REMOVED disable
                  }
-                 $(invSelect).select2({ theme: "default" }); // Re-init needed
+                 // else { $(invSelect).prop('disabled', false); } // REMOVED enable
+                 // $(invSelect).select2({ theme: "default" }); // Re-init might not be needed now
              });
+
+             // Ensure initial state is correct (in case of browser back button)
+             if ($(invSelect).val()) { $(subSelect).prop('disabled', true); }
+             if ($(subSelect).val()) { $(invSelect).prop('disabled', true); }
         }
 
-        // Add one ingredient row to start with when the page loads
         document.addEventListener('DOMContentLoaded', () => {
-             addIngredient();
+             addIngredient(); // Add initial row
         });
     </script>
 {% endblock %}

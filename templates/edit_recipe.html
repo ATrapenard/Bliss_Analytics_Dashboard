@@ -11,13 +11,16 @@
         .checkbox-container { display: flex; align-items: center; margin-bottom: 20px; }
         .remove-btn { padding: 6px 10px; font-size: 0.9em; }
         .ingredient-row label { display: none; }
-        /* Ensure Select2 fits in the grid */
         .ingredient-row .select2-container { width: 100% !important; }
+        /* Flash message styles */
+        .flash-error { background-color: #f8d7da; color: #721c24; padding: 10px; border: 1px solid #f5c6cb; border-radius: 5px; margin-bottom: 15px; }
+        .flash-success { background-color: #d4edda; color: #155724; padding: 10px; border: 1px solid #c3e6cb; border-radius: 5px; margin-bottom: 15px; }
+        .flash-warning { background-color: #fff3cd; color: #856404; padding: 10px; border: 1px solid #ffeeba; border-radius: 5px; margin-bottom: 15px; }
     </style>
 
     <h1>Edit Recipe</h1>
 
-     {% with messages = get_flashed_messages(with_categories=true) %}
+    {% with messages = get_flashed_messages(with_categories=true) %}
         {% if messages %}
             {% for category, message in messages %}
             <div class="flash-{{ category }}">{{ message }}</div>
@@ -55,7 +58,7 @@
             <div class="ingredient-row">
                  <div>
                     <label>Raw Material</label>
-                     <select name="inventory_item_id" class="ingredient-select select2-enable" {% if ingredient.sub_recipe_id %}disabled{% endif %}>
+                    <select name="inventory_item_id" class="ingredient-select select2-enable" {% if ingredient.sub_recipe_id %}disabled{% endif %}>
                         <option value="">-- Select Raw Material --</option>
                         {% for item in inventory_items %}
                             <option value="{{ item.id }}" {% if item.id == ingredient.inventory_item_id %}selected{% endif %}>
@@ -68,9 +71,10 @@
                      <label>Quantity</label>
                     <input type="number" name="quantity" placeholder="Quantity" step="any" required value="{{ ingredient.quantity }}">
                 </div>
+
                 <div>
                     <label>Sub-Recipe</label>
-                     <select name="sub_recipe_id" class="subrecipe-select select2-enable" {% if ingredient.inventory_item_id %}disabled{% endif %}>
+                    <select name="sub_recipe_id" class="subrecipe-select select2-enable" {% if ingredient.inventory_item_id %}disabled{% endif %}>
                         <option value="">-- Or Select Sub-Recipe --</option>
                         {% for r in recipes %}
                             <option value="{{ r.id }}" {% if r.id == ingredient.sub_recipe_id %}selected{% endif %}>
@@ -90,7 +94,7 @@
     </form>
 
     <script>
-         // Function to add a new ingredient row (identical to add_recipe.html)
+        // Function to add a new ingredient row (identical to add_recipe.html)
         function addIngredient() {
             const container = document.getElementById('ingredients-container');
             const newRow = document.createElement('div');
@@ -121,9 +125,8 @@
                 <button type="button" class="remove-btn" onclick="removeIngredientRow(this)">X</button>
             `;
             container.appendChild(newRow);
-             // Initialize Select2 on the NEW dropdowns
-            $(newRow).find('.select2-enable').select2({ theme: "default" });
-            addDropdownLogic(newRow);
+            $(newRow).find('.select2-enable').select2({ theme: "default" }); // Init Select2
+            addDropdownLogic(newRow); // Attach logic
         }
 
         function removeIngredientRow(button) {
@@ -131,34 +134,34 @@
             button.parentElement.remove();
         }
 
+        // CORRECTED: Do not disable, just clear the other value
         function addDropdownLogic(row) {
             const invSelect = row.querySelector('.ingredient-select');
             const subSelect = row.querySelector('.subrecipe-select');
 
              $(invSelect).on('change', function(e) {
-                 if ($(this).val()) {
-                     $(subSelect).val('').trigger('change');
-                     $(subSelect).prop('disabled', true);
-                 } else {
-                     $(subSelect).prop('disabled', false);
+                 if ($(this).val()) { // If raw material is selected
+                     $(subSelect).val('').trigger('change'); // Clear sub-recipe value and trigger Select2 update
                  }
-                  $(subSelect).select2({ theme: "default" });
              });
 
              $(subSelect).on('change', function(e) {
-                 if ($(this).val()) {
-                     $(invSelect).val('').trigger('change');
-                     $(invSelect).prop('disabled', true);
-                 } else {
-                     $(invSelect).prop('disabled', false);
+                 if ($(this).val()) { // If sub-recipe is selected
+                     $(invSelect).val('').trigger('change'); // Clear raw material value and trigger Select2 update
                  }
-                 $(invSelect).select2({ theme: "default" });
              });
+
+             // Set initial disabled state based on pre-filled values
+             if ($(invSelect).val()) { $(subSelect).prop('disabled', true); }
+             if ($(subSelect).val()) { $(invSelect).prop('disabled', true); }
+
+             // Re-initialize Select2 if needed after potential disable state change
+             $(invSelect).select2({ theme: "default" });
+             $(subSelect).select2({ theme: "default" });
         }
 
-        // Apply logic to existing rows AND initialize Select2 on page load
         document.addEventListener('DOMContentLoaded', () => {
-             // Initialize Select2 on dropdowns that were loaded with the page
+             // Initialize Select2 on dropdowns loaded with the page
             $('.select2-enable').select2({ theme: "default" });
 
             // Attach enable/disable logic to existing rows

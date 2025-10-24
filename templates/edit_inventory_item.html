@@ -1,0 +1,33 @@
+{% extends "_layout.html" %}
+
+{% block title %}Edit Inventory Item{% endblock %}
+
+{% block content %}
+<style>
+    .form-container {
+        max-width: 600px;
+        margin: 0 auto;
+    }
+     input[type="number"] { text-align: right; }
+</style>
+
+<div class="form-container content-card">
+    <h1>Edit Inventory Item</h1>
+    <form method="POST" action="{{ url_for('update_inventory_item', id=item.id) }}">
+        <div>
+            <label for="name">Item Name</label>
+            <input type="text" id="name" name="name" required value="{{ item.name }}">
+        </div>
+        <div>
+            <label for="unit">Base Unit</label>
+            <input type="text" id="unit" name="unit" required value="{{ item.unit }}">
+        </div>
+         <div>
+            <label for="quantity_on_hand">Current Quantity On Hand</label>
+            <input type="number" step="any" id="quantity_on_hand" name="quantity_on_hand" value="{{ item.quantity_on_hand }}">
+            <small>Adjusting this value directly sets the current stock. Use WIP tracking for allocations.</small>
+        </div>
+        <button type="submit" class="submit-btn">Save Changes</button>
+    </form>
+</div>
+{% endblock %}

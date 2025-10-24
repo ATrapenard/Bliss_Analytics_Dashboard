@@ -48,7 +48,6 @@
             color: var(--text-dark);
         }
 
-        /* --- Navbar Styles --- */
         .navbar {
             background-color: var(--nav-bg);
             overflow: hidden;
@@ -60,10 +59,11 @@
         .navbar a {
             color: var(--white);
             text-decoration: none;
-            padding: 14px 20px;
+            padding: 14px 15px; /* Slightly reduced padding for more links */
             display: block;
             font-family: var(--font-body);
             transition: background-color 0.2s ease;
+            white-space: nowrap; /* Prevent nav links wrapping too soon */
         }
         .navbar a:hover {
              background-color: rgba(255, 255, 255, 0.1);
@@ -75,6 +75,7 @@
             display: flex;
             align-items: center;
             gap: 10px;
+            padding-left: 0; /* Remove extra padding from logo link */
         }
         .navbar img.logo-img {
             height: 40px;
@@ -82,7 +83,7 @@
         }
         .nav-links {
             display: flex;
-            flex-wrap: wrap; /* Allow links to wrap on smaller screens if needed */
+            flex-wrap: wrap;
         }
         .hamburger {
             display: none;
@@ -97,12 +98,10 @@
             background-color: var(--white);
         }
 
-        /* --- Content Area --- */
         .content-container {
             padding: 20px 40px;
         }
 
-        /* --- General Card Style --- */
         .content-card, .form-container, .product-list, .location-list, .list-container, .recipe-card {
              background-color: var(--white);
              border-radius: 12px;
@@ -112,7 +111,6 @@
              margin-bottom: 20px;
         }
 
-        /* --- General Button Styles --- */
          button, .button-link, input[type="submit"] {
             font-family: var(--font-body);
             background-color: var(--primary-color);
@@ -141,8 +139,6 @@
          .submit-btn:hover { background-color: #218838; opacity: 1;}
          .remove-btn:hover { background-color: #c82333; opacity: 1;}
 
-
-        /* --- Enhanced General Form Styles --- */
         input[type="text"],
         input[type="number"],
         select {
@@ -188,7 +184,6 @@
             margin-bottom: 10px;
         }
 
-        /* --- General Table Styles --- */
         table {
             width: 100%;
             border-collapse: collapse;
@@ -209,31 +204,22 @@
             border-bottom-width: 2px;
         }
 
-        /* --- Responsive Styles --- */
-        @media screen and (max-width: 768px) {
-             .navbar a { padding: 10px 15px; } /* Adjust padding for smaller screens */
-            .nav-links {
+        @media screen and (max-width: 900px) { /* Adjusted breakpoint */
+            .navbar a { padding: 10px 12px; } /* Further reduce padding */
+             .nav-links {
                 display: none;
                 flex-direction: column;
                 width: 100%;
                 position: absolute;
-                top: 58px; /* Adjust based on potentially smaller navbar height */
+                top: 58px;
                 left: 0;
                 background-color: var(--nav-bg);
                 z-index: 10;
             }
-            .nav-links.active {
-                display: flex;
-            }
-            .hamburger {
-                display: block;
-            }
-            .content-container {
-                padding: 15px;
-            }
-            .container {
-                 grid-template-columns: 1fr !important;
-            }
+            .nav-links.active { display: flex; }
+            .hamburger { display: block; }
+            .content-container { padding: 15px; }
+            .container { grid-template-columns: 1fr !important; }
         }
     </style>
 </head>
@@ -248,10 +234,11 @@
             <a href="{{ url_for('recipe_dashboard') }}">Recipes</a>
             <a href="{{ url_for('products_page') }}">Products</a>
             <a href="{{ url_for('locations_page') }}">Locations</a>
-            <a href="{{ url_for('stock_minimums_page') }}">Stock Minimums</a>
+            <a href="{{ url_for('inventory_items_page') }}">Inventory</a> <a href="{{ url_for('stock_minimums_page') }}">Stock Minimums</a>
             <a href="{{ url_for('ingredient_totals') }}">Ingredient Totals</a>
             <a href="{{ url_for('requirements_page') }}">Requirements</a>
-            <a href="{{ url_for('production_planner') }}">Planner</a> </div>
+            <a href="{{ url_for('production_planner') }}">Planner</a>
+        </div>
         <div class="hamburger">
             <span class="bar"></span>
             <span class="bar"></span>
@@ -266,7 +253,6 @@
     <script>
         const hamburger = document.querySelector(".hamburger");
         const navLinks = document.querySelector(".nav-links");
-
         hamburger.addEventListener("click", () => {
             navLinks.classList.toggle("active");
         });

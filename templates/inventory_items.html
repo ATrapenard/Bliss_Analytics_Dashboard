@@ -8,9 +8,9 @@
         display: grid;
         grid-template-columns: 2fr 1fr;
         gap: 40px;
+        align-items: start; /* Prevent columns stretching vertically */
     }
     table { table-layout: fixed; }
-    /* Adjusted column widths */
     th:nth-child(1) { width: 10%; } /* ID */
     th:nth-child(2) { width: 30%; } /* Name */
     th:nth-child(3) { width: 10%; } /* Unit */
@@ -19,11 +19,46 @@
     th:nth-child(6) { width: 12%; } /* Available */
     th:nth-child(7) { width: 14%; } /* Actions */
 
-
     .actions-cell { display: flex; gap: 5px; align-items: center; }
     .action-form { margin: 0; display: flex; align-items: center; }
     .edit-btn, .delete-btn { font-size: 0.8em; padding: 4px 8px; }
     input[type="number"] { text-align: right; }
+
+    /* Collapsible Form Styles */
+    .collapsible-header {
+        cursor: pointer;
+        display: flex;
+        justify-content: space-between;
+        align-items: center;
+        margin-bottom: 0; /* Remove default h2 margin */
+        padding-bottom: 15px; /* Add space below header */
+        border-bottom: 1px solid var(--border-color); /* Separator line */
+    }
+     .collapsible-header::after {
+        content: '\002B'; /* Plus sign */
+        font-weight: bold;
+        color: var(--text-medium);
+        font-size: 1.2em;
+        transition: transform 0.2s ease-out;
+     }
+     .collapsible-header.active::after {
+        content: "\2212"; /* Minus sign */
+        transform: rotate(180deg);
+     }
+    .form-content {
+        max-height: 0;
+        overflow: hidden;
+        transition: max-height 0.3s ease-out;
+        padding-top: 15px; /* Add space above form when open */
+    }
+
+
+    @media screen and (max-width: 900px) {
+        /* Stack order */
+        .form-container {
+            order: -1; /* Move form to the top */
+        }
+    }
 </style>
 
 <h1>Manage Inventory Items</h1>
@@ -44,7 +79,8 @@
         <table>
             <thead>
                 <tr>
-                    <th>ID</th> <th>Item Name</th>
+                    <th>ID</th>
+                    <th>Item Name</th>
                     <th>Unit</th>
                     <th>On Hand</th>
                     <th>Allocated</th>
@@ -55,7 +91,8 @@
             <tbody>
                 {% for item in inventory_items %}
                 <tr>
-                    <td>{{ item.id }}</td> <td>{{ item.name }}</td>
+                    <td>{{ item.id }}</td>
+                    <td>{{ item.name }}</td>
                     <td>{{ item.unit }}</td>
                     <td>{{ item.quantity_on_hand | round(2) }}</td>
                     <td>{{ item.quantity_allocated | round(2) }}</td>
@@ -75,22 +112,48 @@
     </div>
 
     <div class="form-container content-card">
-        <h2>Add New Item</h2>
-        <form method="POST" action="{{ url_for('inventory_items_page') }}">
-            <div>
-                <label for="name">Item Name</label>
-                <input type="text" id="name" name="name" required placeholder="e.g., Arjuna">
-            </div>
-            <div>
-                <label for="unit">Base Unit</label>
-                <input type="text" id="unit" name="unit" required placeholder="e.g., grams, mLs">
-            </div>
-            <div>
-                <label for="quantity_on_hand">Initial Quantity On Hand (Optional)</label>
-                <input type="number" step="any" id="quantity_on_hand" name="quantity_on_hand" placeholder="0.0">
-            </div>
-            <button type="submit" class="submit-btn">Add Item</button>
-        </form>
+        <h2 id="add-item-toggle" class="collapsible-header">Add New Item</h2>
+        <div id="add-item-content" class="form-content">
+            <form method="POST" action="{{ url_for('inventory_items_page') }}">
+                <div>
+                    <label for="name">Item Name</label>
+                    <input type="text" id="name" name="name" required placeholder="e.g., Arjuna">
+                </div>
+                <div>
+                    <label for="unit">Base Unit</label>
+                    <input type="text" id="unit" name="unit" required placeholder="e.g., grams, mLs">
+                </div>
+                <div>
+                    <label for="quantity_on_hand">Initial Quantity On Hand (Optional)</label>
+                    <input type="number" step="any" id="quantity_on_hand" name="quantity_on_hand" placeholder="0.0">
+                </div>
+                <button type="submit" class="submit-btn">Add Item</button>
+            </form>
+        </div>
     </div>
 </div>
+
+<script>
+    document.addEventListener('DOMContentLoaded', () => {
+        const toggleButton = document.getElementById('add-item-toggle');
+        const content = document.getElementById('add-item-content');
+
+        toggleButton.addEventListener('click', () => {
+            toggleButton.classList.toggle('active');
+            content.classList.toggle('active'); // Add active class to content too
+
+            if (content.style.maxHeight) {
+                content.style.maxHeight = null; // Collapse
+            } else {
+                content.style.maxHeight = content.scrollHeight + "px"; // Expand
+            }
+        });
+
+        // Optional: Start collapsed by default?
+        // toggleButton.classList.remove('active');
+        // content.classList.remove('active');
+        // content.style.maxHeight = null;
+    });
+</script>
+
 {% endblock %}

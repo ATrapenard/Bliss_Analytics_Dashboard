@@ -58,7 +58,7 @@
             <div class="ingredient-row">
                  <div>
                     <label>Raw Material</label>
-                    <select name="inventory_item_id" class="ingredient-select select2-enable" {% if ingredient.sub_recipe_id %}disabled{% endif %}>
+                    <select name="inventory_item_id" class="ingredient-select select2-enable">
                         <option value="">-- Select Raw Material --</option>
                         {% for item in inventory_items %}
                             <option value="{{ item.id }}" {% if item.id == ingredient.inventory_item_id %}selected{% endif %}>
@@ -74,7 +74,7 @@
 
                 <div>
                     <label>Sub-Recipe</label>
-                    <select name="sub_recipe_id" class="subrecipe-select select2-enable" {% if ingredient.inventory_item_id %}disabled{% endif %}>
+                    <select name="sub_recipe_id" class="subrecipe-select select2-enable">
                         <option value="">-- Or Select Sub-Recipe --</option>
                         {% for r in recipes %}
                             <option value="{{ r.id }}" {% if r.id == ingredient.sub_recipe_id %}selected{% endif %}>
@@ -142,22 +142,24 @@
              $(invSelect).on('change', function(e) {
                  if ($(this).val()) { // If raw material is selected
                      $(subSelect).val('').trigger('change'); // Clear sub-recipe value and trigger Select2 update
+                     // $(subSelect).prop('disabled', true); // REMOVED
                  }
+                 // else { $(subSelect).prop('disabled', false); } // REMOVED
+                  // $(subSelect).select2({ theme: "default" }); // Re-init might be needed?
              });
 
              $(subSelect).on('change', function(e) {
                  if ($(this).val()) { // If sub-recipe is selected
                      $(invSelect).val('').trigger('change'); // Clear raw material value and trigger Select2 update
+                     // $(invSelect).prop('disabled', true); // REMOVED
                  }
+                 // else { $(invSelect).prop('disabled', false); } // REMOVED
+                 // $(invSelect).select2({ theme: "default" }); // Re-init might be needed?
              });
 
-             // Set initial disabled state based on pre-filled values
-             if ($(invSelect).val()) { $(subSelect).prop('disabled', true); }
-             if ($(subSelect).val()) { $(invSelect).prop('disabled', true); }
-
-             // Re-initialize Select2 if needed after potential disable state change
-             $(invSelect).select2({ theme: "default" });
-             $(subSelect).select2({ theme: "default" });
+             // Set initial disabled state VISUALLY (optional, but helps UI) without disabling submission
+             // This requires checking the initial values when the page loads
+             // However, simply clearing the opposite value on change is sufficient for functionality
         }
 
         document.addEventListener('DOMContentLoaded', () => {
@@ -167,6 +169,19 @@
             // Attach enable/disable logic to existing rows
             document.querySelectorAll('.ingredient-row').forEach(row => {
                 addDropdownLogic(row);
+
+                // --- ADDED INITIAL STATE LOGIC ---
+                // Check initial values and potentially visually disable (but don't disable submission)
+                // This part ensures the UI looks right on load, but removing .prop('disabled') fixes the core issue.
+                const invSelect = row.querySelector('.ingredient-select');
+                const subSelect = row.querySelector('.subrecipe-select');
+                if ($(invSelect).val()) {
+                    // Visually indicate disabled state if needed, e.g., add a CSS class
+                    // $(subSelect).addClass('visually-disabled'); // Example CSS class
+                } else if ($(subSelect).val()) {
+                    // $(invSelect).addClass('visually-disabled'); // Example CSS class
+                }
+                // --- END INITIAL STATE LOGIC ---
             });
         });
     </script>

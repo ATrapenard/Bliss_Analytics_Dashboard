@@ -5,18 +5,24 @@
 {% block content %}
     <style>
         .form-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 20px; align-items: flex-end; margin-bottom: 20px; max-width: 800px;}
-        .ingredient-row { display: grid; grid-template-columns: 2fr 1fr 1fr 2fr 0.5fr; gap: 10px; margin-bottom: 10px; align-items: center; }
+        /* Adjusted grid for new select element */
+        .ingredient-row { display: grid; grid-template-columns: 3fr 1fr 2fr 0.5fr; gap: 10px; margin-bottom: 10px; align-items: center; }
         input[type="checkbox"] { width: auto; margin-right: 10px; }
-        .yield-section {
-            background: #f9f9f9;
-            padding: 15px;
-            border-radius: 8px;
-            border: 1px solid #ddd;
-        }
+        .yield-section { background: #f9f9f9; padding: 15px; border-radius: 8px; border: 1px solid #ddd; }
         .checkbox-container { display: flex; align-items: center; margin-bottom: 20px; }
+        /* Style the remove button */
+        .remove-btn { padding: 6px 10px; font-size: 0.9em; }
     </style>
 
     <h1>Add a New Recipe</h1>
+
+     {% with messages = get_flashed_messages(with_categories=true) %}
+        {% if messages %}
+            {% for category, message in messages %}
+            <div class="flash-{{ category }}">{{ message }}</div> {# Add CSS for flash messages if needed #}
+            {% endfor %}
+        {% endif %}
+    {% endwith %}
 
     <form action="{{ url_for('create_recipe') }}" method="post">
         <div>
@@ -33,7 +39,7 @@
             <div class="yield-section">
                 <label for="yield_quantity">Total Batch Weight/Volume (g or mL)</label>
                 <input type="number" step="any" id="yield_quantity" name="yield_quantity" placeholder="e.g., 8934">
-                <small>Used for nested recipe calculations. (e.g., total grams)</small>
+                <small>Used for nested recipe calculations.</small>
             </div>
             <div class="yield-section">
                 <label for="yield_unit">Yield Unit</label>
@@ -41,8 +47,10 @@
                 <small>The unit for the batch weight (g or mLs).</small>
             </div>
         </div>
+
         <h3>Ingredients</h3>
-        <div id="ingredients-container"></div>
+        <div id="ingredients-container">
+            </div>
 
         <button type="button" class="add-btn" onclick="addIngredient()">＋ Add Ingredient</button>
         <br>
@@ -55,19 +63,67 @@
             const newRow = document.createElement('div');
             newRow.className = 'ingredient-row';
             newRow.innerHTML = `
-                <input type="text" name="ingredient_name" placeholder="Ingredient Name" required>
-                <input type="number" name="quantity" placeholder="Quantity" step="any" required>
-                <input type="text" name="unit" placeholder="Unit" required>
-                <select name="sub_recipe_id">
-                    <option value="">-- Raw Material --</option>
-                    {% for r in recipes %}
-                        <option value="{{ r.id }}">{{ r.name }}</option>
-                    {% endfor %}
-                </select>
+                <div>
+                    <label style="display:none;">Ingredient</label> <select name="inventory_item_id" class="ingredient-select">
+                        <option value="">-- Select Raw Material --</option>
+                        {% for item in inventory_items %}
+                            <option value="{{ item.id }}" data-unit="{{ item.unit }}">{{ item.name }} ({{ item.unit }})</option>
+                        {% endfor %}
+                    </select>
+                </div>
+                <div>
+                    <label style="display:none;">Quantity</label>
+                    <input type="number" name="quantity" placeholder="Quantity" step="any" required>
+                </div>
+                 <div>
+                    <label style="display:none;">Sub-Recipe</label>
+                    <select name="sub_recipe_id" class="subrecipe-select">
+                        <option value="">-- Or Select Sub-Recipe --</option>
+                        {% for r in recipes %}
+                            <option value="{{ r.id }}">{{ r.name }}</option>
+                        {% endfor %}
+                    </select>
+                </div>
                 <button type="button" class="remove-btn" onclick="this.parentElement.remove()">X</button>
             `;
             container.appendChild(newRow);
+
+            // Add logic to disable one dropdown if the other is selected
+            const invSelect = newRow.querySelector('.ingredient-select');
+            const subSelect = newRow.querySelector('.subrecipe-select');
+            const quantityInput = newRow.querySelector('input[name="quantity"]'); // Need quantity too
+
+             // Find unit input/display if needed (not strictly necessary if inv item selected)
+
+
+            invSelect.addEventListener('change', (e) => {
+                 if (e.target.value) {
+                     subSelect.value = ''; // Clear sub-recipe if raw material selected
+                     subSelect.disabled = true;
+                     // Optional: auto-fill unit based on data-unit attribute
+                     // const selectedOption = e.target.options[e.target.selectedIndex];
+                     // const unit = selectedOption.getAttribute('data-unit');
+                     // Find and set unit input/display here if you add one
+                 } else {
+                     subSelect.disabled = false;
+                 }
+            });
+            subSelect.addEventListener('change', (e) => {
+                if (e.target.value) {
+                     invSelect.value = ''; // Clear raw material if sub-recipe selected
+                     invSelect.disabled = true;
+                     // We need a unit for the sub-recipe quantity (e.g., how many g/mL/batch?)
+                     // Maybe add a unit input specifically for sub-recipes?
+                     // Or assume g/mL based on parent recipe context? This is complex.
+                     // For now, let's add a required unit input for sub-recipes too.
+                     // ---> Let's simplify: Keep original separate unit input for now <---
+                     // We will modify the HTML innerHTML string to re-add unit input
+
+                } else {
+                    invSelect.disabled = false;
+                }
+            });
         }
-        window.onload = addIngredient;
+        window.onload = addIngredient; // Start with one row
     </script>
 {% endblock %}

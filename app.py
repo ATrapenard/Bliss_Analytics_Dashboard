@@ -21,47 +21,55 @@ def get_db_connection():
 # --- RECURSIVE LOGIC ---
 resolved_cache = {}
 def get_base_ingredients(recipe_id, conn):
-    # (Function unchanged - See previous versions for full code)
     if recipe_id in resolved_cache:
         return resolved_cache[recipe_id]
     with conn.cursor(cursor_factory=DictCursor) as cur:
-        cur.execute("SELECT i.*, inv.id as inventory_item_id FROM ingredients i LEFT JOIN inventory_items inv ON LOWER(i.name) = LOWER(inv.name) AND LOWER(i.unit) = LOWER(inv.unit) WHERE i.recipe_id = %s;", (recipe_id,))
+        # Fetch ingredients linked to inventory items
+        cur.execute("""
+            SELECT i.*, inv.id as inventory_item_id, inv.name as inv_name, inv.unit as inv_unit
+            FROM ingredients i
+            LEFT JOIN inventory_items inv ON i.inventory_item_id = inv.id
+            WHERE i.recipe_id = %s;
+        """, (recipe_id,))
         ingredients = cur.fetchall()
+
         base_ingredients = []
         for ing in ingredients:
-            if ing['sub_recipe_id']:
+            if ing['sub_recipe_id']: # It's a sub-recipe
                 cur.execute("SELECT yield_quantity FROM recipes WHERE id = %s;", (ing['sub_recipe_id'],))
                 sub_recipe_yield_row = cur.fetchone()
                 if sub_recipe_yield_row and sub_recipe_yield_row['yield_quantity'] and float(sub_recipe_yield_row['yield_quantity']) != 0:
                     scaling_ratio = float(ing['quantity']) / float(sub_recipe_yield_row['yield_quantity'])
-                else: scaling_ratio = 1.0
+                else:
+                    scaling_ratio = 1.0 # Default if yield is missing/zero
+
                 sub_ingredients = get_base_ingredients(ing['sub_recipe_id'], conn)
                 for sub_ing in sub_ingredients:
                     scaled_ing = dict(sub_ing)
                     scaled_ing['quantity'] = float(scaled_ing['quantity']) * scaling_ratio
                     base_ingredients.append(scaled_ing)
-            else:
-                raw_ing = dict(ing)
-                raw_ing['quantity'] = float(raw_ing['quantity'])
-                 # Try to find matching inventory item ID based on name/unit if not directly linked yet
-                if not raw_ing.get('inventory_item_id'):
-                     cur.execute("SELECT id FROM inventory_items WHERE LOWER(name) = LOWER(%s) AND LOWER(unit) = LOWER(%s);", (raw_ing['name'], raw_ing['unit']))
-                     match = cur.fetchone()
-                     if match:
-                         raw_ing['inventory_item_id'] = match['id']
 
+            elif ing['inventory_item_id']: # It's a raw material linked to inventory
+                raw_ing = {
+                    'inventory_item_id': ing['inventory_item_id'],
+                    'name': ing['inv_name'], # Use name from inventory_items
+                    'unit': ing['inv_unit'], # Use unit from inventory_items
+                    'quantity': float(ing['quantity'])
+                }
                 base_ingredients.append(raw_ing)
+            # We remove the fallback logic now that linking is mandatory
+
     resolved_cache[recipe_id] = base_ingredients
     return base_ingredients
 
 
-# --- Standard Routes (Recipes, Products, Locations, etc.) ---
-# --- (These routes remain unchanged - see previous versions) ---
+# --- Standard Routes ---
 @app.route('/')
-def home(): return render_template('index.html')
+def home():
+    return render_template('index.html')
+
 @app.route('/recipes')
 def recipe_dashboard():
-    # ... (Code unchanged)
     recipes_list = []
     conn = get_db_connection()
     resolved_cache.clear()
@@ -70,60 +78,181 @@ def recipe_dashboard():
         recipes_from_db = cur.fetchall()
         for recipe in recipes_from_db:
             recipe_dict = dict(recipe)
-            cur.execute('SELECT name, quantity, unit FROM ingredients WHERE recipe_id = %s;', (recipe['id'],))
+            # Fetch ingredients joined with inventory items to get correct name/unit for display
+            cur.execute("""
+                SELECT i.quantity, i.sub_recipe_id,
+                       COALESCE(inv.name, r_sub.name, 'Unknown Ingredient') as name,
+                       COALESCE(inv.unit, 'batch') as unit -- Show 'batch' for sub-recipes, unit for inv items
+                FROM ingredients i
+                LEFT JOIN inventory_items inv ON i.inventory_item_id = inv.id
+                LEFT JOIN recipes r_sub ON i.sub_recipe_id = r_sub.id
+                WHERE i.recipe_id = %s;
+            """, (recipe['id'],))
             recipe_dict['ingredients'] = [dict(ing) for ing in cur.fetchall()]
+
             base_ingredients_for_totals = get_base_ingredients(recipe['id'], conn)
             totals = {'grams': 0, 'mLs': 0}
             for ing in base_ingredients_for_totals:
                 unit = ing.get('unit', '').lower()
                 quantity = float(ing.get('quantity', 0))
                 if unit == 'grams': totals['grams'] += quantity
-                elif unit == 'mls': totals['mLs'] += quantity # Corrected 'mls' if needed
+                elif unit == 'mls': totals['mLs'] += quantity # Ensure 'mls' matches your unit name
             recipe_dict['totals'] = { 'grams': round(totals['grams'], 2), 'mLs': round(totals['mLs'], 2) }
             recipes_list.append(recipe_dict)
     conn.close()
     return render_template('recipes.html', recipes=recipes_list)
 
+
 @app.route('/new')
 def new_recipe_form():
     conn = get_db_connection()
-    with conn.cursor(cursor_factory=DictCursor) as cur: cur.execute("SELECT id, name FROM recipes ORDER BY name;")
-    recipes = cur.fetchall(); conn.close(); return render_template('add_recipe.html', recipes=recipes)
+    with conn.cursor(cursor_factory=DictCursor) as cur:
+        cur.execute("SELECT id, name FROM recipes ORDER BY name;")
+        recipes = cur.fetchall()
+        cur.execute("SELECT id, name, unit FROM inventory_items ORDER BY name;")
+        inventory_items = cur.fetchall()
+    conn.close()
+    return render_template('add_recipe.html', recipes=recipes, inventory_items=inventory_items)
+
 @app.route('/create', methods=['POST'])
 def create_recipe():
-    conn = get_db_connection(); # ... (Code unchanged)
-    with conn.cursor() as cur:
-        recipe_name=request.form['recipe_name']; yield_quantity=request.form.get('yield_quantity') or None; yield_unit=request.form.get('yield_unit') or None; is_sold_product='is_sold_product' in request.form
-        cur.execute('INSERT INTO recipes (name, yield_quantity, yield_unit, is_sold_product) VALUES (%s, %s, %s, %s) RETURNING id;',(recipe_name,yield_quantity,yield_unit,is_sold_product)); recipe_id=cur.fetchone()[0]
-        ingredient_names=request.form.getlist('ingredient_name'); quantities=request.form.getlist('quantity'); units=request.form.getlist('unit'); sub_recipe_ids=request.form.getlist('sub_recipe_id')
-        for i in range(len(ingredient_names)):
-            sub_recipe_id = sub_recipe_ids[i] if sub_recipe_ids[i] else None
-            try: quantity_val = float(quantities[i]) if quantities[i] else 0
-            except ValueError: quantity_val = 0
-            cur.execute('INSERT INTO ingredients (recipe_id, name, quantity, unit, sub_recipe_id) VALUES (%s, %s, %s, %s, %s);',(recipe_id,ingredient_names[i],quantity_val,units[i],sub_recipe_id))
-    conn.commit(); conn.close(); return redirect(url_for('recipe_dashboard'))
+    conn = get_db_connection()
+    try:
+        with conn.cursor() as cur:
+            recipe_name = request.form['recipe_name']
+            yield_quantity = request.form.get('yield_quantity') or None
+            yield_unit = request.form.get('yield_unit') or None
+            is_sold_product = 'is_sold_product' in request.form
+            cur.execute('INSERT INTO recipes (name, yield_quantity, yield_unit, is_sold_product) VALUES (%s, %s, %s, %s) RETURNING id;',
+                        (recipe_name, yield_quantity, yield_unit, is_sold_product))
+            recipe_id = cur.fetchone()[0]
+
+            inventory_item_ids = request.form.getlist('inventory_item_id')
+            quantities = request.form.getlist('quantity')
+            sub_recipe_ids = request.form.getlist('sub_recipe_id')
+
+            for i in range(len(quantities)):
+                inventory_item_id = inventory_item_ids[i] if inventory_item_ids[i] else None
+                sub_recipe_id = sub_recipe_ids[i] if sub_recipe_ids[i] else None
+                quantity_str = quantities[i]
+
+                if not inventory_item_id and not sub_recipe_id:
+                    flash(f"Ingredient row {i+1} must select either a raw material or a sub-recipe.", "error")
+                    continue
+                if inventory_item_id and sub_recipe_id:
+                     flash(f"Ingredient row {i+1} cannot be both a raw material and a sub-recipe.", "error")
+                     continue
+
+                try:
+                    quantity_val = float(quantity_str) if quantity_str else 0
+                    if quantity_val <= 0:
+                         flash(f"Quantity for ingredient row {i+1} must be positive.", "error")
+                         continue
+                except ValueError:
+                    flash(f"Invalid quantity entered for ingredient row {i+1}.", "error")
+                    continue
+
+                # Fetch name/unit from DB based on ID to store for potential display (redundant but maybe useful)
+                item_name = None; item_unit = None
+                if inventory_item_id:
+                    cur.execute("SELECT name, unit FROM inventory_items WHERE id = %s;", (inventory_item_id,)); item_data = cur.fetchone()
+                    if item_data: item_name, item_unit = item_data
+                elif sub_recipe_id:
+                     cur.execute("SELECT name FROM recipes WHERE id = %s;", (sub_recipe_id,)); sub_recipe_data = cur.fetchone()
+                     if sub_recipe_data: item_name = sub_recipe_data[0]; item_unit = 'batch' # Unit for sub-recipe ref
+
+                cur.execute(
+                    """INSERT INTO ingredients (recipe_id, inventory_item_id, sub_recipe_id, quantity, name, unit)
+                       VALUES (%s, %s, %s, %s, %s, %s);""",
+                    (recipe_id, inventory_item_id, sub_recipe_id, quantity_val, item_name, item_unit)
+                )
+        conn.commit()
+    except psycopg2.Error as e:
+        conn.rollback()
+        flash(f"Database error creating recipe: {e}", "error")
+        print(f"DB Error creating recipe: {e}")
+        return redirect(url_for('new_recipe_form')) # Redirect back on error
+    finally:
+        if conn: conn.close()
+    return redirect(url_for('recipe_dashboard'))
+
+
 @app.route('/edit/<int:recipe_id>')
 def edit_recipe_form(recipe_id):
-    conn = get_db_connection(); # ... (Code unchanged)
+    conn = get_db_connection()
     with conn.cursor(cursor_factory=DictCursor) as cur:
-        cur.execute('SELECT * FROM recipes WHERE id = %s;', (recipe_id,)); recipe = cur.fetchone()
-        cur.execute('SELECT * FROM ingredients WHERE recipe_id = %s;', (recipe_id,)); ingredients = cur.fetchall()
-        cur.execute("SELECT id, name FROM recipes ORDER BY name;"); all_recipes = cur.fetchall()
-    conn.close(); return render_template('edit_recipe.html', recipe=recipe, ingredients=ingredients, recipes=all_recipes)
+        cur.execute('SELECT * FROM recipes WHERE id = %s;', (recipe_id,))
+        recipe = cur.fetchone()
+        cur.execute('SELECT * FROM ingredients WHERE recipe_id = %s;', (recipe_id,))
+        ingredients = cur.fetchall()
+        cur.execute("SELECT id, name FROM recipes ORDER BY name;")
+        all_recipes = cur.fetchall()
+        cur.execute("SELECT id, name, unit FROM inventory_items ORDER BY name;")
+        inventory_items = cur.fetchall()
+    conn.close()
+    return render_template('edit_recipe.html', recipe=recipe, ingredients=ingredients, recipes=all_recipes, inventory_items=inventory_items)
+
 @app.route('/update/<int:recipe_id>', methods=['POST'])
 def update_recipe(recipe_id):
-    conn = get_db_connection(); # ... (Code unchanged)
-    with conn.cursor() as cur:
-        new_name=request.form['recipe_name']; yield_quantity=request.form.get('yield_quantity') or None; yield_unit=request.form.get('yield_unit') or None; is_sold_product='is_sold_product' in request.form
-        cur.execute('UPDATE recipes SET name = %s, yield_quantity = %s, yield_unit = %s, is_sold_product = %s WHERE id = %s;',(new_name,yield_quantity,yield_unit,is_sold_product,recipe_id))
-        cur.execute('DELETE FROM ingredients WHERE recipe_id = %s;', (recipe_id,))
-        ingredient_names=request.form.getlist('ingredient_name'); quantities=request.form.getlist('quantity'); units=request.form.getlist('unit'); sub_recipe_ids=request.form.getlist('sub_recipe_id')
-        for i in range(len(ingredient_names)):
-            sub_recipe_id = sub_recipe_ids[i] if sub_recipe_ids[i] else None
-            try: quantity_val = float(quantities[i]) if quantities[i] else 0
-            except ValueError: quantity_val = 0
-            cur.execute('INSERT INTO ingredients (recipe_id, name, quantity, unit, sub_recipe_id) VALUES (%s, %s, %s, %s, %s);',(recipe_id,ingredient_names[i],quantity_val,units[i],sub_recipe_id))
-    conn.commit(); conn.close(); return redirect(url_for('recipe_dashboard'))
+    conn = get_db_connection()
+    try:
+        with conn.cursor() as cur:
+            new_name = request.form['recipe_name']
+            yield_quantity = request.form.get('yield_quantity') or None
+            yield_unit = request.form.get('yield_unit') or None
+            is_sold_product = 'is_sold_product' in request.form
+            cur.execute('UPDATE recipes SET name = %s, yield_quantity = %s, yield_unit = %s, is_sold_product = %s WHERE id = %s;',
+                        (new_name, yield_quantity, yield_unit, is_sold_product, recipe_id))
+            cur.execute('DELETE FROM ingredients WHERE recipe_id = %s;', (recipe_id,))
+            inventory_item_ids = request.form.getlist('inventory_item_id')
+            quantities = request.form.getlist('quantity')
+            sub_recipe_ids = request.form.getlist('sub_recipe_id')
+
+            for i in range(len(quantities)):
+                inventory_item_id = inventory_item_ids[i] if inventory_item_ids[i] else None
+                sub_recipe_id = sub_recipe_ids[i] if sub_recipe_ids[i] else None
+                quantity_str = quantities[i]
+
+                if not inventory_item_id and not sub_recipe_id:
+                    flash(f"Ingredient row {i+1} skipped: must select either a raw material or a sub-recipe.", "warning")
+                    continue
+                if inventory_item_id and sub_recipe_id:
+                     flash(f"Ingredient row {i+1} skipped: cannot be both a raw material and a sub-recipe.", "warning")
+                     continue
+
+                try:
+                    quantity_val = float(quantity_str) if quantity_str else 0
+                    if quantity_val <= 0:
+                         flash(f"Quantity for ingredient row {i+1} must be positive. Row skipped.", "warning")
+                         continue
+                except ValueError:
+                    flash(f"Invalid quantity for ingredient row {i+1}. Row skipped.", "warning")
+                    continue
+
+                item_name = None; item_unit = None
+                if inventory_item_id:
+                    cur.execute("SELECT name, unit FROM inventory_items WHERE id = %s;", (inventory_item_id,)); item_data = cur.fetchone()
+                    if item_data: item_name, item_unit = item_data
+                elif sub_recipe_id:
+                     cur.execute("SELECT name FROM recipes WHERE id = %s;", (sub_recipe_id,)); sub_recipe_data = cur.fetchone()
+                     if sub_recipe_data: item_name = sub_recipe_data[0]; item_unit = 'batch'
+
+                cur.execute(
+                    """INSERT INTO ingredients (recipe_id, inventory_item_id, sub_recipe_id, quantity, name, unit)
+                       VALUES (%s, %s, %s, %s, %s, %s);""",
+                    (recipe_id, inventory_item_id, sub_recipe_id, quantity_val, item_name, item_unit)
+                )
+        conn.commit()
+    except psycopg2.Error as e:
+        conn.rollback()
+        flash(f"Database error updating recipe: {e}", "error")
+        print(f"DB Error updating recipe {recipe_id}: {e}")
+        return redirect(url_for('edit_recipe_form', recipe_id=recipe_id))
+    finally:
+        if conn: conn.close()
+    return redirect(url_for('recipe_dashboard'))
+
+# --- (Delete Recipe, Totals, Products, Locations, Stock Minimums routes remain unchanged) ---
 @app.route('/delete/<int:recipe_id>', methods=['POST'])
 def delete_recipe(recipe_id):
     conn = get_db_connection(); # ... (Code unchanged)
@@ -238,25 +367,26 @@ def inventory_items_page():
         with conn.cursor() as cur:
             cur.execute("SELECT id FROM inventory_items WHERE LOWER(name) = LOWER(%s) AND LOWER(unit) = LOWER(%s);", (name, unit)); existing = cur.fetchone()
             if not existing: cur.execute("INSERT INTO inventory_items (name, unit, quantity_on_hand) VALUES (%s, %s, %s);", (name, unit, qty_on_hand)); conn.commit()
-    with conn.cursor(cursor_factory=DictCursor) as cur: cur.execute("SELECT * FROM inventory_items ORDER BY name;"); inventory_items = cur.fetchall(); conn.close(); return render_template('inventory_items.html', inventory_items=inventory_items)
+            else: flash('Inventory item with this name and unit already exists.', 'warning')
+    with conn.cursor(cursor_factory=DictCursor) as cur: cur.execute("SELECT *, (quantity_on_hand - quantity_allocated) as quantity_available FROM inventory_items ORDER BY name;"); inventory_items = cur.fetchall(); conn.close(); return render_template('inventory_items.html', inventory_items=inventory_items)
 @app.route('/inventory/edit/<int:id>', methods=['GET'])
 def edit_inventory_item(id):
     conn = get_db_connection(); # ... (Code unchanged)
     with conn.cursor(cursor_factory=DictCursor) as cur: cur.execute("SELECT * FROM inventory_items WHERE id = %s;", (id,)); item = cur.fetchone(); conn.close();
-    if item is None: return redirect(url_for('inventory_items_page')); return render_template('edit_inventory_item.html', item=item)
+    if item is None: flash(f"Inventory item ID {id} not found.", "error"); return redirect(url_for('inventory_items_page')); return render_template('edit_inventory_item.html', item=item)
 @app.route('/inventory/update/<int:id>', methods=['POST'])
 def update_inventory_item(id):
     conn = get_db_connection(); # ... (Code unchanged)
     name = request.form['name']; unit = request.form['unit']; qty_on_hand_str = request.form.get('quantity_on_hand')
     try: qty_on_hand = float(qty_on_hand_str) if qty_on_hand_str else 0.0
-    except ValueError: qty_on_hand = 0.0 # Defaulting to 0 if invalid
+    except ValueError: qty_on_hand = 0.0
     with conn.cursor() as cur: cur.execute("UPDATE inventory_items SET name = %s, unit = %s, quantity_on_hand = %s WHERE id = %s;", (name, unit, qty_on_hand, id)); conn.commit(); conn.close(); return redirect(url_for('inventory_items_page'))
 @app.route('/inventory/delete/<int:id>', methods=['POST'])
 def delete_inventory_item(id):
     conn = get_db_connection(); # ... (Code unchanged)
     try:
-        with conn.cursor() as cur: cur.execute("DELETE FROM inventory_items WHERE id = %s;", (id,)); conn.commit()
-    except psycopg2.Error as e: conn.rollback(); print(f"Error deleting inventory item {id}: {e}") # Basic error logging
+        with conn.cursor() as cur: cur.execute("DELETE FROM inventory_items WHERE id = %s;", (id,)); conn.commit(); flash("Inventory item deleted successfully.", "success")
+    except psycopg2.Error as e: conn.rollback(); print(f"Error deleting inventory item {id}: {e}"); flash(f"Cannot delete item: {e.diag.message_primary}", "error")
     finally: conn.close(); return redirect(url_for('inventory_items_page'))
 @app.route('/wip', methods=['GET', 'POST'])
 def wip_batches_page():
@@ -267,100 +397,44 @@ def wip_batches_page():
             target_jars_int = int(target_jars);
             if target_jars_int > 0:
                 with conn.cursor() as cur: cur.execute("INSERT INTO wip_batches (recipe_id, target_jars, status) VALUES (%s, %s, %s);", (recipe_id, target_jars_int, 'In Progress')); conn.commit()
-        except ValueError: flash('Invalid number entered for Target Jars.', 'error') # Example flash message
+            else: flash('Target Jars must be a positive number.', 'error')
+        except ValueError: flash('Invalid number entered for Target Jars.', 'error')
         finally: conn.close(); return redirect(url_for('wip_batches_page'))
     with conn.cursor(cursor_factory=DictCursor) as cur:
         cur.execute("""SELECT w.id, r.name as recipe_name, w.target_jars, w.status, w.created_at FROM wip_batches w JOIN recipes r ON w.recipe_id = r.id WHERE w.status = 'In Progress' ORDER BY w.created_at DESC;"""); wip_batches = cur.fetchall()
         cur.execute("""SELECT id, name FROM recipes WHERE is_sold_product = TRUE ORDER BY name;"""); sellable_recipes = cur.fetchall()
     conn.close(); return render_template('wip_batches.html', wip_batches=wip_batches, sellable_recipes=sellable_recipes)
-
-# --- NEW WIP BATCH DETAIL & ACTIONS ROUTES ---
 @app.route('/wip/<int:batch_id>')
 def wip_batch_detail(batch_id):
-    conn = get_db_connection()
+    conn = get_db_connection(); # ... (Code unchanged)
     resolved_cache.clear()
     with conn.cursor(cursor_factory=DictCursor) as cur:
-        # Fetch batch details
-        cur.execute("""
-            SELECT w.id, w.target_jars, w.status, w.created_at, r.id as recipe_id, r.name as recipe_name, r.yield_quantity as recipe_batch_yield, r.yield_unit as recipe_batch_unit
-            FROM wip_batches w
-            JOIN recipes r ON w.recipe_id = r.id
-            WHERE w.id = %s;
-        """, (batch_id,))
-        batch = cur.fetchone()
-
-        if not batch:
-            flash(f"WIP Batch ID {batch_id} not found.", "error")
-            return redirect(url_for('wip_batches_page'))
-
-        # Calculate total base ingredients needed for this batch size
+        cur.execute("""SELECT w.id, w.target_jars, w.status, w.created_at, r.id as recipe_id, r.name as recipe_name FROM wip_batches w JOIN recipes r ON w.recipe_id = r.id WHERE w.id = %s;""", (batch_id,)); batch = cur.fetchone()
+        if not batch: flash(f"WIP Batch ID {batch_id} not found.", "error"); return redirect(url_for('wip_batches_page'))
         required_ingredients = defaultdict(lambda: {'name': '', 'unit': '', 'total_needed': 0, 'inventory_item_id': None})
         base_ingredients_one_batch = get_base_ingredients(batch['recipe_id'], conn)
-
-        # Calculate scaling based on target jars and product yield (jars per batch)
-        # We need the product linked to this recipe
-        cur.execute("SELECT jars_per_batch FROM products WHERE recipe_id = %s LIMIT 1;", (batch['recipe_id'],))
-        product_info = cur.fetchone()
-        if product_info and product_info['jars_per_batch'] and float(product_info['jars_per_batch']) > 0:
-             batches_needed = math.ceil(float(batch['target_jars']) / float(product_info['jars_per_batch']))
-        else:
-             batches_needed = 1 # Default or error handling if product/yield not found
-
-
+        cur.execute("SELECT jars_per_batch FROM products WHERE recipe_id = %s LIMIT 1;", (batch['recipe_id'],)); product_info = cur.fetchone()
+        if product_info and product_info['jars_per_batch'] and float(product_info['jars_per_batch']) > 0: batches_needed = math.ceil(float(batch['target_jars']) / float(product_info['jars_per_batch']))
+        else: batches_needed = 1
         for ing in base_ingredients_one_batch:
-            name = ing.get('name', 'Unknown').strip()
-            unit = ing.get('unit', 'Unknown').strip()
-            key = (name.lower(), unit.lower())
-            required_ingredients[key]['name'] = name
-            required_ingredients[key]['unit'] = unit
-            required_ingredients[key]['inventory_item_id'] = ing.get('inventory_item_id') # Store inventory_item_id
-            required_ingredients[key]['total_needed'] += float(ing.get('quantity', 0)) * batches_needed
-
-        # Fetch current allocations for this batch
-        cur.execute("""
-            SELECT inv.id as inventory_item_id, inv.name, inv.unit, SUM(wa.quantity_allocated) as total_allocated
-            FROM wip_allocations wa
-            JOIN inventory_items inv ON wa.inventory_item_id = inv.id
-            WHERE wa.wip_batch_id = %s
-            GROUP BY inv.id, inv.name, inv.unit;
-        """, (batch_id,))
-        allocations_raw = cur.fetchall()
-
-        # Combine required and allocated amounts
+            name = ing.get('name', 'Unknown').strip(); unit = ing.get('unit', 'Unknown').strip(); key = (name.lower(), unit.lower())
+            required_ingredients[key]['name'] = name; required_ingredients[key]['unit'] = unit; required_ingredients[key]['inventory_item_id'] = ing.get('inventory_item_id'); required_ingredients[key]['total_needed'] += float(ing.get('quantity', 0)) * batches_needed
+        cur.execute("""SELECT inv.id as inventory_item_id, inv.name, inv.unit, SUM(wa.quantity_allocated) as total_allocated FROM wip_allocations wa JOIN inventory_items inv ON wa.inventory_item_id = inv.id WHERE wa.wip_batch_id = %s GROUP BY inv.id, inv.name, inv.unit;""", (batch_id,)); allocations_raw = cur.fetchall()
         current_allocations = {alloc['inventory_item_id']: alloc['total_allocated'] for alloc in allocations_raw}
-
         ingredient_summary = []
         for key, req in required_ingredients.items():
-             inv_item_id = req.get('inventory_item_id')
-             allocated = float(current_allocations.get(inv_item_id, 0)) if inv_item_id else 0
-             remaining = float(req['total_needed']) - allocated
-             ingredient_summary.append({
-                 'inventory_item_id': inv_item_id,
-                 'name': req['name'],
-                 'unit': req['unit'],
-                 'needed': round(float(req['total_needed']), 2),
-                 'allocated': round(allocated, 2),
-                 'remaining': round(remaining, 2)
-             })
+             inv_item_id = req.get('inventory_item_id'); allocated = float(current_allocations.get(inv_item_id, 0)) if inv_item_id else 0; remaining = float(req['total_needed']) - allocated
+             ingredient_summary.append({ 'inventory_item_id': inv_item_id, 'name': req['name'], 'unit': req['unit'], 'needed': round(float(req['total_needed']), 2), 'allocated': round(allocated, 2), 'remaining': round(remaining, 2) })
+        ingredient_summary.sort(key=lambda x: x['name'])
+        cur.execute("SELECT id, name, unit, (quantity_on_hand - quantity_allocated) as available FROM inventory_items WHERE (quantity_on_hand - quantity_allocated) > 0 ORDER BY name;"); inventory_items = cur.fetchall()
+    conn.close(); return render_template('wip_batch_detail.html', batch=batch, ingredient_summary=ingredient_summary, inventory_items=inventory_items)
 
-        ingredient_summary.sort(key=lambda x: x['name']) # Sort final list
-
-        # Fetch inventory items for the allocation dropdown
-        cur.execute("SELECT id, name, unit FROM inventory_items ORDER BY name;")
-        inventory_items = cur.fetchall()
-
-    conn.close()
-    return render_template('wip_batch_detail.html',
-                           batch=batch,
-                           ingredient_summary=ingredient_summary,
-                           inventory_items=inventory_items)
-
+# --- CORRECTED allocate_ingredient function ---
 @app.route('/wip/<int:batch_id>/allocate', methods=['POST'])
 def allocate_ingredient(batch_id):
     inventory_item_id = request.form.get('inventory_item_id')
     quantity_str = request.form.get('quantity_allocated')
 
-    # Basic Validation
     if not inventory_item_id or not quantity_str:
         flash("Missing ingredient or quantity.", "error")
         return redirect(url_for('wip_batch_detail', batch_id=batch_id))
@@ -374,14 +448,15 @@ def allocate_ingredient(batch_id):
         return redirect(url_for('wip_batch_detail', batch_id=batch_id))
 
     conn = get_db_connection()
-    try:
+    try: # Start database transaction block
         with conn.cursor() as cur:
-            # Check available stock (On Hand - Allocated)
-            cur.execute("SELECT (quantity_on_hand - quantity_allocated) as available FROM inventory_items WHERE id = %s;", (inventory_item_id,))
+            # Lock the inventory item row to prevent race conditions
+            cur.execute("SELECT (quantity_on_hand - quantity_allocated) as available FROM inventory_items WHERE id = %s FOR UPDATE;", (inventory_item_id,))
             result = cur.fetchone()
+
             if result is None or result[0] < quantity:
-                flash(f"Not enough available stock for this item (Available: {result[0] if result else 'N/A'}).", "error")
-                conn.rollback() # Not strictly needed as no changes made yet, but good practice
+                flash(f"Not enough available stock (Available: {result[0] if result else 'N/A'}). Allocation failed.", "error")
+                # No changes made yet, so just end transaction
             else:
                 # 1. Add allocation record
                 cur.execute("INSERT INTO wip_allocations (wip_batch_id, inventory_item_id, quantity_allocated) VALUES (%s, %s, %s);",
@@ -389,79 +464,40 @@ def allocate_ingredient(batch_id):
                 # 2. Update inventory_items allocated quantity
                 cur.execute("UPDATE inventory_items SET quantity_allocated = quantity_allocated + %s WHERE id = %s;",
                             (quantity, inventory_item_id))
-                conn.commit()
+                conn.commit() # Commit changes if successful
                 flash("Ingredient allocated successfully.", "success")
-    except psycopg2.Error as e:
-        conn.rollback()
+
+    except psycopg2.Error as e: # Catch database errors
+        conn.rollback() # Rollback transaction on error
         flash(f"Database error during allocation: {e}", "error")
         print(f"DB Error allocating to batch {batch_id}: {e}") # Log detailed error
-    finally:
-        conn.close()
+    finally: # Ensure connection is always closed
+        if conn:
+            conn.close()
 
     return redirect(url_for('wip_batch_detail', batch_id=batch_id))
-
+# --- END CORRECTION ---
 
 @app.route('/wip/<int:batch_id>/complete', methods=['POST'])
 def complete_wip_batch(batch_id):
-    conn = get_db_connection()
+    conn = get_db_connection(); # ... (Code unchanged)
     try:
         with conn.cursor(cursor_factory=DictCursor) as cur:
-             # Fetch all allocations for this batch
-            cur.execute("SELECT inventory_item_id, SUM(quantity_allocated) as total_allocated FROM wip_allocations WHERE wip_batch_id = %s GROUP BY inventory_item_id;", (batch_id,))
-            allocations = cur.fetchall()
-
-            # Update inventory: Decrease On Hand, Decrease Allocated
-            for alloc in allocations:
-                cur.execute("""
-                    UPDATE inventory_items
-                    SET quantity_on_hand = quantity_on_hand - %s,
-                        quantity_allocated = quantity_allocated - %s
-                    WHERE id = %s;
-                """, (alloc['total_allocated'], alloc['total_allocated'], alloc['inventory_item_id']))
-
-            # Update batch status and completion time
-            cur.execute("UPDATE wip_batches SET status = 'Completed', completed_at = NOW() WHERE id = %s;", (batch_id,))
-
-        conn.commit()
-        flash(f"Batch {batch_id} marked as complete and inventory updated.", "success")
-    except psycopg2.Error as e:
-        conn.rollback()
-        flash(f"Database error completing batch: {e}", "error")
-        print(f"DB Error completing batch {batch_id}: {e}")
-    finally:
-        conn.close()
-
-    return redirect(url_for('wip_batches_page')) # Redirect to the main WIP list
-
+            cur.execute("SELECT inventory_item_id, SUM(quantity_allocated) as total_allocated FROM wip_allocations WHERE wip_batch_id = %s GROUP BY inventory_item_id;", (batch_id,)); allocations = cur.fetchall()
+            for alloc in allocations: cur.execute("""UPDATE inventory_items SET quantity_on_hand = quantity_on_hand - %s, quantity_allocated = quantity_allocated - %s WHERE id = %s;""", (alloc['total_allocated'], alloc['total_allocated'], alloc['inventory_item_id']))
+            cur.execute("UPDATE wip_batches SET status = 'Completed', completed_at = NOW() WHERE id = %s;", (batch_id,)); conn.commit(); flash(f"Batch {batch_id} marked as complete and inventory updated.", "success")
+    except psycopg2.Error as e: conn.rollback(); flash(f"Database error completing batch: {e}", "error"); print(f"DB Error completing batch {batch_id}: {e}")
+    finally: conn.close(); return redirect(url_for('wip_batches_page'))
 @app.route('/wip/delete/<int:batch_id>', methods=['POST'])
 def delete_wip_batch(batch_id):
-    # Deleting a WIP batch should also reverse its allocations
-    conn = get_db_connection()
+    conn = get_db_connection(); # ... (Code unchanged)
     try:
         with conn.cursor(cursor_factory=DictCursor) as cur:
-            # Find allocations to reverse
-            cur.execute("SELECT inventory_item_id, SUM(quantity_allocated) as total_allocated FROM wip_allocations WHERE wip_batch_id = %s GROUP BY inventory_item_id;", (batch_id,))
-            allocations_to_reverse = cur.fetchall()
-
-            # Reverse the allocations in inventory_items
-            for alloc in allocations_to_reverse:
-                cur.execute("UPDATE inventory_items SET quantity_allocated = quantity_allocated - %s WHERE id = %s;",
-                            (alloc['total_allocated'], alloc['inventory_item_id']))
-
-            # Delete the batch itself (ON DELETE CASCADE handles wip_allocations table)
-            cur.execute("DELETE FROM wip_batches WHERE id = %s;", (batch_id,))
-
-        conn.commit()
-        flash(f"WIP Batch {batch_id} deleted and allocations reversed.", "success")
-    except psycopg2.Error as e:
-        conn.rollback()
-        flash(f"Database error deleting batch: {e}", "error")
-        print(f"DB Error deleting batch {batch_id}: {e}")
-    finally:
-        conn.close()
-    return redirect(url_for('wip_batches_page'))
-
-# --- END NEW WIP ROUTES ---
+            cur.execute("SELECT inventory_item_id, SUM(quantity_allocated) as total_allocated FROM wip_allocations WHERE wip_batch_id = %s GROUP BY inventory_item_id;", (batch_id,)); allocations_to_reverse = cur.fetchall()
+            for alloc in allocations_to_reverse: cur.execute("UPDATE inventory_items SET quantity_allocated = quantity_allocated - %s WHERE id = %s;", (alloc['total_allocated'], alloc['inventory_item_id']))
+            cur.execute("DELETE FROM wip_batches WHERE id = %s;", (batch_id,)); conn.commit(); flash(f"WIP Batch {batch_id} deleted and allocations reversed.", "success")
+    except psycopg2.Error as e: conn.rollback(); flash(f"Database error deleting batch: {e}", "error"); print(f"DB Error deleting batch {batch_id}: {e}")
+    finally: conn.close(); return redirect(url_for('wip_batches_page'))
 
 
 if __name__ == '__main__':

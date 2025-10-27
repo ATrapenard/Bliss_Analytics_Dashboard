@@ -1,0 +1,51 @@
+{% extends "_layout.html" %}
+
+{% block title %}Edit Supplier{% endblock %}
+
+{% block content %}
+<style>
+    .form-container {
+        max-width: 700px; /* Wider form for more fields */
+        margin: 0 auto;
+    }
+     textarea { width: 100%; min-height: 80px; font-family: var(--font-body); padding: 10px 12px; border-radius: 6px; border: 1px solid var(--input-border); margin-bottom: 15px;}
+</style>
+
+<div class="form-container content-card">
+    <h1>Edit Supplier</h1>
+    {% if supplier %}
+    <form method="POST" action="{{ url_for('update_supplier', id=supplier.id) }}">
+        <div>
+            <label for="name">Supplier Name</label>
+            <input type="text" id="name" name="name" required value="{{ supplier.name }}">
+        </div>
+        <div>
+            <label for="contact_person">Contact Person</label>
+            <input type="text" id="contact_person" name="contact_person" value="{{ supplier.contact_person or '' }}">
+        </div>
+         <div>
+            <label for="email">Email</label>
+            <input type="email" id="email" name="email" value="{{ supplier.email or '' }}">
+        </div>
+         <div>
+            <label for="phone">Phone</label>
+            <input type="tel" id="phone" name="phone" value="{{ supplier.phone or '' }}">
+        </div>
+        <div>
+            <label for="website">Website</label>
+            <input type="url" id="website" name="website" value="{{ supplier.website or '' }}" placeholder="https://...">
+        </div>
+         <div>
+            <label for="notes">Notes</label>
+            <textarea id="notes" name="notes">{{ supplier.notes or '' }}</textarea>
+        </div>
+        <button type="submit" class="submit-btn">Save Changes</button>
+    </form>
+    {% else %}
+        <p>Supplier not found.</p>
+    {% endif %}
+     <div style="margin-top: 20px;">
+        <a href="{{ url_for('suppliers_page') }}">&larr; Back to Suppliers List</a>
+    </div>
+</div>
+{% endblock %}

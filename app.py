@@ -21,6 +21,7 @@ resolved_cache = {}
 def get_base_ingredients(recipe_id, conn):
     if recipe_id in resolved_cache:
         return [ing.copy() for ing in resolved_cache[recipe_id]]
+    
     with conn.cursor(cursor_factory=DictCursor) as cur:
         cur.execute("""
             SELECT i.*, inv.id as inventory_item_id, inv.name as inv_name, inv.unit as inv_unit
@@ -28,23 +29,50 @@ def get_base_ingredients(recipe_id, conn):
             WHERE i.recipe_id = %s; """, (recipe_id,))
         ingredients = cur.fetchall()
         base_ingredients = []
+        
         for ing in ingredients:
             if ing['sub_recipe_id']:
-                cur.execute("SELECT yield_quantity FROM recipes WHERE id = %s;", (ing['sub_recipe_id'],))
+                # --- THIS IS THE UPDATED LOGIC ---
+                # Fetch the sub-recipe's yield quantity AND unit
+                cur.execute("SELECT yield_quantity, yield_unit FROM recipes WHERE id = %s;", (ing['sub_recipe_id'],))
                 sub_recipe_yield_row = cur.fetchone()
-                if sub_recipe_yield_row and sub_recipe_yield_row['yield_quantity'] and float(sub_recipe_yield_row['yield_quantity']) != 0:
-                    scaling_ratio = float(ing['quantity']) / float(sub_recipe_yield_row['yield_quantity'])
-                else: scaling_ratio = 1.0
+                
+                scaling_ratio = 1.0 # Default scaling
+                
+                if sub_recipe_yield_row:
+                    yield_qty = sub_recipe_yield_row.get('yield_quantity')
+                    yield_unit = sub_recipe_yield_row.get('yield_unit')
+
+                    if yield_unit in ('grams', 'mLs'):
+                        # Use weight/volume ratio logic if yield_qty is valid
+                        if yield_qty and float(yield_qty) != 0:
+                            scaling_ratio = float(ing['quantity']) / float(yield_qty)
+                    elif yield_unit == 'batches':
+                        # Use direct batch scaling logic
+                        scaling_ratio = float(ing['quantity'])
+                    # If yield_unit is null or something else, default ratio of 1.0 is used
+                
+                # --- END OF UPDATED LOGIC ---
+
                 sub_ingredients = get_base_ingredients(ing['sub_recipe_id'], conn)
                 for sub_ing in sub_ingredients:
-                    scaled_ing = dict(sub_ing); scaled_ing['quantity'] = float(scaled_ing.get('quantity', 0)) * scaling_ratio; base_ingredients.append(scaled_ing)
+                    scaled_ing = dict(sub_ing)
+                    scaled_ing['quantity'] = float(scaled_ing.get('quantity', 0)) * scaling_ratio
+                    base_ingredients.append(scaled_ing)
+                    
             elif ing['inventory_item_id']:
-                raw_ing = {'inventory_item_id': ing['inventory_item_id'], 'name': ing['inv_name'], 'unit': ing['inv_unit'], 'quantity': float(ing.get('quantity', 0))}
+                raw_ing = {
+                    'inventory_item_id': ing['inventory_item_id'],
+                    'name': ing['inv_name'],
+                    'unit': ing['inv_unit'],
+                    'quantity': float(ing.get('quantity', 0))
+                }
                 base_ingredients.append(raw_ing)
+                
     resolved_cache[recipe_id] = [ing.copy() for ing in base_ingredients]
     return base_ingredients
 
-# --- NEW DASHBOARD ROUTE ---
+# --- Standard Routes ---
 @app.route('/')
 def home():
     conn = get_db_connection()
@@ -54,27 +82,19 @@ def home():
         'low_stock_count': 0
     }
     try:
-        resolved_cache.clear() # Clear cache for fresh data
+        resolved_cache.clear()
         all_base_ingredients = []
         inventory_levels = {}
         with conn.cursor(cursor_factory=DictCursor) as cur:
-            # 1. Get count of active WIP batches
             cur.execute("SELECT COUNT(id) as count FROM wip_batches WHERE status = 'In Progress';")
             dashboard_data['wip_batches_count'] = cur.fetchone()['count']
-
-            # 2. Get count of open purchase orders
             cur.execute("SELECT COUNT(id) as count FROM purchase_orders WHERE status = 'Placed' OR status = 'Shipped';")
             dashboard_data['open_pos_count'] = cur.fetchone()['count']
-
-            # 3. Calculate Low Stock Items (based on requirements report logic)
-            # 3a. Fetch current inventory levels
-            cur.execute("SELECT id, name, unit, quantity_on_hand, quantity_allocated FROM inventory_items;")
+            cur.execute("SELECT id, name, unit, quantity_on_hand, quantity_allocated FROM inventory_items;");
             for item in cur.fetchall():
                 inventory_levels[item['id']] = {
                     'available': float(item.get('quantity_on_hand', 0)) - float(item.get('quantity_allocated', 0))
                 }
-            
-            # 3b. Get total jars needed
             cur.execute("""
                 SELECT p.recipe_id, p.jars_per_batch, SUM(sm.min_jars) as total_jars
                 FROM stock_minimums sm
@@ -84,8 +104,6 @@ def home():
                 GROUP BY p.recipe_id, p.jars_per_batch;
             """)
             products_to_make = cur.fetchall()
-            
-            # 3c. Calculate total base ingredients needed
             for prod in products_to_make:
                 batches_needed = math.ceil(float(prod['total_jars']) / float(prod['jars_per_batch']))
                 base_ingredients_one_batch = get_base_ingredients(prod['recipe_id'], conn)
@@ -93,30 +111,23 @@ def home():
                     scaled_ing = dict(ing)
                     scaled_ing['quantity'] = float(scaled_ing['quantity']) * batches_needed
                     all_base_ingredients.append(scaled_ing)
-
-            # 3d. Aggregate totals needed
             totals_needed = defaultdict(lambda: {'total_needed': 0})
             for ing in all_base_ingredients:
                 inv_item_id = ing.get('inventory_item_id')
                 if inv_item_id:
                     totals_needed[inv_item_id]['total_needed'] += float(ing.get('quantity', 0))
-            
-            # 3e. Count low stock items
             low_stock_count = 0
             for inv_id, needed_data in totals_needed.items():
                 available = inventory_levels.get(inv_id, {'available': 0})['available']
                 net_needed = needed_data['total_needed'] - available
                 if net_needed > 0:
                     low_stock_count += 1
-            
             dashboard_data['low_stock_count'] = low_stock_count
-
     except psycopg2.Error as e:
         flash(f"Error fetching dashboard data: {e}", "error")
         print(f"DB Error fetching dashboard data: {e}")
     finally:
         if conn: conn.close()
-
     return render_template('index.html', dashboard_data=dashboard_data)
 
 @app.route('/recipes')
@@ -174,10 +185,14 @@ def create_recipe():
                     if quantity_val <= 0: flash(f"Quantity row {i+1} invalid. Row skipped.", "warning"); continue
                 except ValueError: flash(f"Invalid quantity row {i+1}. Row skipped.", "warning"); continue
                 item_name = None; item_unit = None
-                if inventory_item_id: cur.execute("SELECT name, unit FROM inventory_items WHERE id = %s;", (inventory_item_id,)); item_data = cur.fetchone();
-                if item_data: item_name, item_unit = item_data
-                elif sub_recipe_id: cur.execute("SELECT name FROM recipes WHERE id = %s;", (sub_recipe_id,)); sub_recipe_data = cur.fetchone();
-                if sub_recipe_data: item_name = sub_recipe_data[0]; item_unit = 'batch'
+                if inventory_item_id:
+                    cur.execute("SELECT name, unit FROM inventory_items WHERE id = %s;", (inventory_item_id,))
+                    item_data = cur.fetchone()
+                    if item_data: item_name, item_unit = item_data
+                elif sub_recipe_id:
+                    cur.execute("SELECT name FROM recipes WHERE id = %s;", (sub_recipe_id,))
+                    sub_recipe_data = cur.fetchone()
+                    if sub_recipe_data: item_name = sub_recipe_data[0]; item_unit = 'batch'
                 cur.execute("""INSERT INTO ingredients (recipe_id, inventory_item_id, sub_recipe_id, quantity, name, unit) VALUES (%s, %s, %s, %s, %s, %s);""", (recipe_id, inventory_item_id, sub_recipe_id, quantity_val, item_name, item_unit))
         conn.commit(); flash("Recipe created successfully!", "success"); return redirect(url_for('recipe_dashboard'))
     except (psycopg2.Error, ValueError) as e:
@@ -228,10 +243,15 @@ def update_recipe(recipe_id):
                     if quantity_val <= 0: flash(f"Quantity row {i+1} invalid. Row skipped.", "warning"); continue
                 except ValueError: flash(f"Invalid quantity row {i+1}. Row skipped.", "warning"); continue
                 item_name = None; item_unit = None
-                if inventory_item_id: cur.execute("SELECT name, unit FROM inventory_items WHERE id = %s;", (inventory_item_id,)); item_data = cur.fetchone();
-                if item_data: item_name, item_unit = item_data
-                elif sub_recipe_id: cur.execute("SELECT name FROM recipes WHERE id = %s;", (sub_recipe_id,)); sub_recipe_data = cur.fetchone();
-                if sub_recipe_data: item_name = sub_recipe_data[0]; item_unit = 'batch'
+                if inventory_item_id:
+                    cur.execute("SELECT name, unit FROM inventory_items WHERE id = %s;", (inventory_item_id,))
+                    item_data = cur.fetchone()
+                    if item_data:
+                        item_name, item_unit = item_data
+                elif sub_recipe_id:
+                    cur.execute("SELECT name FROM recipes WHERE id = %s;", (sub_recipe_id,))
+                    sub_recipe_data = cur.fetchone()
+                    if sub_recipe_data: item_name = sub_recipe_data[0]; item_unit = 'batch'
                 cur.execute("""INSERT INTO ingredients (recipe_id, inventory_item_id, sub_recipe_id, quantity, name, unit) VALUES (%s, %s, %s, %s, %s, %s);""", (recipe_id, inventory_item_id, sub_recipe_id, quantity_val, item_name, item_unit))
         conn.commit(); flash("Recipe updated successfully!", "success"); return redirect(url_for('recipe_dashboard'))
     except (psycopg2.Error, ValueError) as e:
@@ -244,9 +264,10 @@ def update_recipe(recipe_id):
 def delete_recipe(recipe_id):
     conn = get_db_connection()
     try:
-        with conn.cursor() as cur: cur.execute('DELETE FROM recipes WHERE id = %s;', (recipe_id,))
-        conn.commit(); flash("Recipe deleted.", "success")
-    except psycopg2.Error as e: conn.rollback(); flash(f"Error deleting recipe: {e}", "error"); print(f"DB Error delete recipe {recipe_id}: {e}")
+        with conn.cursor() as cur: cur.execute('DELETE FROM recipes WHERE id = %s;', (recipe_id,)); conn.commit(); flash("Recipe deleted.", "success")
+    except psycopg2.Error as e: 
+        if conn: conn.rollback()
+        flash(f"Error deleting recipe: {e.diag.message_primary}", "error"); print(f"DB Error delete recipe {recipe_id}: {e}")
     finally:
         if conn: conn.close()
     return redirect(url_for('recipe_dashboard'))
@@ -287,7 +308,9 @@ def add_product():
     try:
         sku = request.form['sku']; recipe_id = request.form['recipe_id']; jars_per_batch = request.form.get('jars_per_batch') or None
         with conn.cursor() as cur: cur.execute('INSERT INTO products (sku, recipe_id, jars_per_batch) VALUES (%s, %s, %s);', (sku, recipe_id, jars_per_batch)); conn.commit(); flash("Product added.", "success")
-    except psycopg2.Error as e: conn.rollback(); flash(f"Error adding product: {e}", "error"); print(f"DB Error add product: {e}")
+    except psycopg2.Error as e: 
+        if conn: conn.rollback()
+        flash(f"Error adding product: {e}", "error"); print(f"DB Error add product: {e}")
     finally:
         if conn: conn.close()
     return redirect(url_for('products_page'))
@@ -300,7 +323,9 @@ def edit_product(id):
             cur.execute("SELECT * FROM products WHERE id = %s;", (id,)); product = cur.fetchone()
             if not product: flash(f"Product ID {id} not found.", "error"); return redirect(url_for('products_page'))
             cur.execute("SELECT id, name FROM recipes WHERE is_sold_product = TRUE ORDER BY name;"); recipes = cur.fetchall()
-    except psycopg2.Error as e: flash(f"Error fetching product data: {e}", "error"); print(f"DB Error edit product GET {id}: {e}"); return redirect(url_for('products_page'))
+    except psycopg2.Error as e: 
+        flash(f"Error fetching product data: {e}", "error"); print(f"DB Error edit product GET {id}: {e}")
+        return redirect(url_for('products_page'))
     finally:
         if conn: conn.close()
     return render_template('edit_product.html', product=product, recipes=recipes)
@@ -311,7 +336,9 @@ def update_product(id):
     try:
         sku = request.form['sku']; recipe_id = request.form['recipe_id']; jars_per_batch = request.form.get('jars_per_batch') or None
         with conn.cursor() as cur: cur.execute("UPDATE products SET sku = %s, recipe_id = %s, jars_per_batch = %s WHERE id = %s;", (sku, recipe_id, jars_per_batch, id)); conn.commit(); flash("Product updated.", "success")
-    except psycopg2.Error as e: conn.rollback(); flash(f"Error updating product: {e}", "error"); print(f"DB Error update product {id}: {e}")
+    except psycopg2.Error as e: 
+        if conn: conn.rollback()
+        flash(f"Error updating product: {e}", "error"); print(f"DB Error update product {id}: {e}")
     finally:
         if conn: conn.close()
     return redirect(url_for('products_page'))
@@ -321,7 +348,9 @@ def delete_product(id):
     conn = get_db_connection()
     try:
         with conn.cursor() as cur: cur.execute("DELETE FROM products WHERE id = %s;", (id,)); conn.commit(); flash("Product deleted.", "success")
-    except psycopg2.Error as e: conn.rollback(); flash(f"Error deleting product: {e.diag.message_primary}", "error"); print(f"DB Error delete product {id}: {e}")
+    except psycopg2.Error as e: 
+        if conn: conn.rollback()
+        flash(f"Error deleting product: {e.diag.message_primary}", "error"); print(f"DB Error delete product {id}: {e}")
     finally:
         if conn: conn.close()
     return redirect(url_for('products_page'))
@@ -347,7 +376,9 @@ def delete_location(id):
     conn = get_db_connection()
     try:
         with conn.cursor() as cur: cur.execute("DELETE FROM locations WHERE id = %s;", (id,)); conn.commit(); flash("Location deleted.", "success")
-    except psycopg2.Error as e: conn.rollback(); flash(f"Error deleting location: {e.diag.message_primary}", "error"); print(f"DB Error delete location {id}: {e}")
+    except psycopg2.Error as e: 
+        if conn: conn.rollback()
+        flash(f"Error deleting location: {e.diag.message_primary}", "error"); print(f"DB Error delete location {id}: {e}")
     finally:
         if conn: conn.close()
     return redirect(url_for('locations_page'))
@@ -376,7 +407,9 @@ def delete_stock_minimum(id):
     conn = get_db_connection()
     try:
         with conn.cursor() as cur: cur.execute("DELETE FROM stock_minimums WHERE id = %s;", (id,)); conn.commit(); flash("Stock minimum deleted.", "success")
-    except psycopg2.Error as e: conn.rollback(); flash(f"Error deleting stock minimum: {e}", "error"); print(f"DB Error delete stock min {id}: {e}")
+    except psycopg2.Error as e: 
+        if conn: conn.rollback()
+        flash(f"Error deleting stock minimum: {e}", "error"); print(f"DB Error delete stock min {id}: {e}")
     finally:
         if conn: conn.close()
     return redirect(url_for('stock_minimums_page'))
@@ -504,7 +537,6 @@ def delete_inventory_item(id):
     except psycopg2.Error as e: conn.rollback(); print(f"Error delete item {id}: {e}"); flash(f"Cannot delete item: {e.diag.message_primary}", "error")
     finally: conn.close(); return redirect(url_for('inventory_items_page'))
 
-# --- NEW INVENTORY ADJUSTMENT ROUTES ---
 @app.route('/inventory/adjust/<int:id>', methods=['GET'])
 def adjust_inventory_item(id):
     conn = get_db_connection(); item = None
@@ -528,7 +560,7 @@ def process_adjustment(id):
     conn = get_db_connection()
     try:
         adjustment_qty_str = request.form.get('adjustment_quantity')
-        reason = request.form.get('reason') or "Manual Adjustment" # Default reason
+        reason = request.form.get('reason') or "Manual Adjustment"
         
         if not adjustment_qty_str:
             flash("Adjustment quantity is required.", "error")
@@ -545,7 +577,6 @@ def process_adjustment(id):
             return redirect(url_for('adjust_inventory_item', id=id))
 
         with conn.cursor(cursor_factory=DictCursor) as cur:
-            # Lock the row
             cur.execute(
                 "SELECT quantity_on_hand FROM inventory_items WHERE id = %s FOR UPDATE;", (id,)
             )
@@ -578,7 +609,6 @@ def process_adjustment(id):
     finally:
         if conn: conn.close()
     return redirect(url_for('inventory_items_page'))
-# --- END INVENTORY ADJUSTMENT ROUTES ---
 
 @app.route('/wip', methods=['GET', 'POST'])
 def wip_batches_page():
@@ -954,7 +984,11 @@ def po_update_header(po_id):
 
         with conn.cursor(cursor_factory=DictCursor) as cur:
             cur.execute("SELECT status FROM purchase_orders WHERE id = %s;", (po_id,))
-            current_status = cur.fetchone()['status']
+            current_status_row = cur.fetchone()
+            if not current_status_row:
+                flash("PO not found.", "error")
+                raise Exception("PO not found")
+            current_status = current_status_row['status']
 
             cur.execute("""
                 UPDATE purchase_orders
@@ -993,7 +1027,7 @@ def po_update_header(po_id):
                  
         conn.commit()
             
-    except psycopg2.Error as e:
+    except Exception as e:
         if conn: conn.rollback()
         flash(f"Database error updating PO: {e}", "error")
         print(f"DB Error PO update {po_id}: {e}")

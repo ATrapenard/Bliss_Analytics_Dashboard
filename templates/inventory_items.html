@@ -11,53 +11,58 @@
         align-items: start; /* Prevent columns stretching vertically */
     }
     table { table-layout: fixed; }
-    th:nth-child(1) { width: 10%; } /* ID */
-    th:nth-child(2) { width: 30%; } /* Name */
+    /* Adjusted column widths */
+    th:nth-child(1) { width: 8%; }  /* ID */
+    th:nth-child(2) { width: 27%; } /* Name */
     th:nth-child(3) { width: 10%; } /* Unit */
-    th:nth-child(4) { width: 12%; } /* On Hand */
-    th:nth-child(5) { width: 12%; } /* Allocated */
-    th:nth-child(6) { width: 12%; } /* Available */
-    th:nth-child(7) { width: 14%; } /* Actions */
+    th:nth-child(4) { width: 10%; } /* On Hand */
+    th:nth-child(5) { width: 10%; } /* Allocated */
+    th:nth-child(6) { width: 10%; } /* Available */
+    th:nth-child(7) { width: 25%; } /* Actions (Wider) */
 
-    .actions-cell { display: flex; gap: 5px; align-items: center; }
+
+    .actions-cell { display: flex; gap: 5px; align-items: center; flex-wrap: wrap; } /* Allow wrapping */
     .action-form { margin: 0; display: flex; align-items: center; }
-    .edit-btn, .delete-btn { font-size: 0.8em; padding: 4px 8px; }
+    .edit-btn, .delete-btn, .adjust-btn { 
+        font-size: 0.8em; 
+        padding: 4px 8px; 
+        text-decoration: none; /* Apply to <a> tag */
+        display: inline-block; /* Apply to <a> tag */
+        color: white; /* Apply to <a> tag */
+        border-radius: 5px; /* Apply to <a> tag */
+    }
+    .adjust-btn {
+         background-color: var(--primary-color); /* Use brand orange */
+         margin: 2px 0;
+    }
+     .adjust-btn:hover {
+        background-color: var(--primary-color);
+        opacity: 0.85;
+     }
+
     input[type="number"] { text-align: right; }
 
     /* Collapsible Form Styles */
     .collapsible-header {
-        cursor: pointer;
-        display: flex;
-        justify-content: space-between;
-        align-items: center;
-        margin-bottom: 0; /* Remove default h2 margin */
-        padding-bottom: 15px; /* Add space below header */
-        border-bottom: 1px solid var(--border-color); /* Separator line */
+        cursor: pointer; display: flex; justify-content: space-between;
+        align-items: center; margin-bottom: 0; padding-bottom: 15px;
+        border-bottom: 1px solid var(--border-color);
     }
      .collapsible-header::after {
-        content: '\002B'; /* Plus sign */
-        font-weight: bold;
-        color: var(--text-medium);
-        font-size: 1.2em;
-        transition: transform 0.2s ease-out;
+        content: '\002B'; font-weight: bold; color: var(--text-medium);
+        font-size: 1.2em; transition: transform 0.2s ease-out;
      }
      .collapsible-header.active::after {
-        content: "\2212"; /* Minus sign */
-        transform: rotate(180deg);
+        content: "\2212"; transform: rotate(180deg);
      }
     .form-content {
-        max-height: 0;
-        overflow: hidden;
+        max-height: 0; overflow: hidden;
         transition: max-height 0.3s ease-out;
-        padding-top: 15px; /* Add space above form when open */
+        padding-top: 15px;
     }
 
-
     @media screen and (max-width: 900px) {
-        /* Stack order */
-        .form-container {
-            order: -1; /* Move form to the top */
-        }
+        .form-container { order: -1; }
     }
 </style>
 
@@ -101,6 +106,8 @@
                         <form class="action-form" method="GET" action="{{ url_for('edit_inventory_item', id=item.id) }}">
                             <button type="submit" class="edit-btn">Edit</button>
                         </form>
+                        <a href="{{ url_for('adjust_inventory_item', id=item.id) }}" class="adjust-btn">Adjust</a>
+                        
                         <form class="action-form" method="POST" action="{{ url_for('delete_inventory_item', id=item.id) }}" onsubmit="return confirm('Are you sure? Deleting may fail if item is used in recipes or allocated.');">
                             <button type="submit" class="delete-btn">Delete</button>
                         </form>
@@ -140,7 +147,7 @@
 
         toggleButton.addEventListener('click', () => {
             toggleButton.classList.toggle('active');
-            content.classList.toggle('active'); // Add active class to content too
+            content.classList.toggle('active');
 
             if (content.style.maxHeight) {
                 content.style.maxHeight = null; // Collapse
@@ -148,11 +155,6 @@
                 content.style.maxHeight = content.scrollHeight + "px"; // Expand
             }
         });
-
-        // Optional: Start collapsed by default?
-        // toggleButton.classList.remove('active');
-        // content.classList.remove('active');
-        // content.style.maxHeight = null;
     });
 </script>
 

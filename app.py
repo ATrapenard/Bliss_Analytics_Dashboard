@@ -152,7 +152,7 @@ def update_recipe(recipe_id):
                 inventory_item_id = inventory_item_ids[i] if inventory_item_ids[i] else None; sub_recipe_id = sub_recipe_ids[i] if sub_recipe_ids[i] else None; quantity_str = quantities[i]
                 if not inventory_item_id and not sub_recipe_id: flash(f"Row {i+1} skipped.", "warning"); continue
                 if inventory_item_id and sub_recipe_id: flash(f"Row {i+1} skipped.", "warning"); continue
-                try: 
+                try:
                     quantity_val = float(quantity_str) if quantity_str else 0;
                     if quantity_val <= 0: flash(f"Quantity row {i+1} invalid. Row skipped.", "warning"); continue
                 except ValueError: flash(f"Invalid quantity row {i+1}. Row skipped.", "warning"); continue
@@ -356,7 +356,7 @@ def production_planner():
                 try: jars_to_make = int(jars_to_make_str) if jars_to_make_str else 0
                 except ValueError: jars_to_make = 0
                 if jars_to_make > 0:
-                    batches_needed = math.ceil(jars_to_make / float(product['jars_per_batch'])); base_ingredients_one_batch = get_base_ingredients(product['recipe_id'], conn) # Need conn here
+                    batches_needed = math.ceil(jars_to_make / float(product['jars_per_batch'])); base_ingredients_one_batch = get_base_ingredients(product['recipe_id'], conn)
                     for ing in base_ingredients_one_batch: scaled_ing = dict(ing); scaled_ing['quantity'] = float(scaled_ing['quantity']) * batches_needed; all_base_ingredients_run.append(scaled_ing)
             totals_run_needed = defaultdict(lambda: {'name': '', 'unit': '', 'total_needed': 0, 'inventory_item_id': None})
             for ing in all_base_ingredients_run:
@@ -432,6 +432,93 @@ def delete_inventory_item(id):
         conn.commit(); flash("Item deleted.", "success")
     except psycopg2.Error as e: conn.rollback(); print(f"Error delete item {id}: {e}"); flash(f"Cannot delete item: {e.diag.message_primary}", "error")
     finally: conn.close(); return redirect(url_for('inventory_items_page'))
+
+# --- NEW INVENTORY ADJUSTMENT ROUTES ---
+@app.route('/inventory/adjust/<int:id>', methods=['GET'])
+def adjust_inventory_item(id):
+    conn = get_db_connection(); item = None
+    try:
+        with conn.cursor(cursor_factory=DictCursor) as cur:
+            cur.execute("SELECT * FROM inventory_items WHERE id = %s;", (id,))
+            item = cur.fetchone()
+        if item is None:
+            flash(f"Inventory item ID {id} not found.", "error")
+            return redirect(url_for('inventory_items_page'))
+    except psycopg2.Error as e:
+        flash(f"Error fetching item: {e}", "error")
+        if conn: conn.close() # Ensure close on error
+        return redirect(url_for('inventory_items_page'))
+    finally:
+        # Note: Connection is closed here, or in the finally block of the calling code if one exists
+        if conn: conn.close()
+    return render_template('adjust_inventory_item.html', item=item)
+
+@app.route('/inventory/process-adjustment/<int:id>', methods=['POST'])
+def process_adjustment(id):
+    conn = get_db_connection()
+    try:
+        adjustment_qty_str = request.form.get('adjustment_quantity')
+        reason = request.form.get('reason') or "Manual Adjustment" # Default reason
+        
+        if not adjustment_qty_str:
+            flash("Adjustment quantity is required.", "error")
+            return redirect(url_for('adjust_inventory_item', id=id))
+
+        try:
+            adjustment_quantity = float(adjustment_qty_str)
+        except ValueError:
+            flash("Invalid quantity. Please enter a number.", "error")
+            return redirect(url_for('adjust_inventory_item', id=id))
+
+        if adjustment_quantity == 0:
+            flash("Adjustment quantity cannot be zero.", "warning")
+            return redirect(url_for('adjust_inventory_item', id=id))
+
+        with conn.cursor(cursor_factory=DictCursor) as cur:
+            # 1. Update the inventory_items table
+            # We lock the row FOR UPDATE to prevent race conditions.
+            cur.execute(
+                "SELECT quantity_on_hand FROM inventory_items WHERE id = %s FOR UPDATE;", (id,)
+            )
+            item = cur.fetchone()
+            if item is None:
+                flash("Item not found.", "error")
+                raise Exception("Item not found during adjustment") # Trigger rollback
+            
+            # Check if adjustment would make stock negative (optional, but good practice)
+            # if (item['quantity_on_hand'] + adjustment_quantity) < 0:
+            #    flash(f"Adjustment would result in negative stock. Only {item['quantity_on_hand']} on hand.", "error")
+            #    raise Exception("Adjustment results in negative stock")
+
+            cur.execute(
+                "UPDATE inventory_items SET quantity_on_hand = quantity_on_hand + %s WHERE id = %s RETURNING quantity_on_hand;",
+                (adjustment_quantity, id)
+            )
+            updated_qty = cur.fetchone()
+                
+            # 2. Log the adjustment in the new table
+            cur.execute(
+                "INSERT INTO inventory_adjustments (inventory_item_id, adjustment_quantity, reason) VALUES (%s, %s, %s);",
+                (id, adjustment_quantity, reason)
+            )
+        conn.commit()
+        flash(f"Inventory adjusted by {adjustment_quantity}. New QOH: {round(updated_qty[0], 2)}", "success")
+
+    except Exception as e: # Catch any error
+        if conn: conn.rollback()
+        # Avoid flashing the raw Exception 'e' which might not be user-friendly
+        if "negative stock" in str(e):
+             flash(str(e), "error")
+        else:
+            flash(f"Error processing adjustment. Check logs.", "error")
+        print(f"Error process adjustment {id}: {e}")
+        return redirect(url_for('adjust_inventory_item', id=id))
+    finally:
+        if conn: conn.close()
+    
+    return redirect(url_for('inventory_items_page'))
+# --- END NEW INVENTORY ADJUSTMENT ROUTES ---
+
 
 @app.route('/wip', methods=['GET', 'POST'])
 def wip_batches_page():
@@ -644,7 +731,7 @@ def purchase_orders_page():
 
             if not supplier_id:
                 flash("Supplier is required.", "error")
-                raise ValueError("Supplier not provided") # Raise error to trigger reload
+                raise ValueError("Supplier not provided")
 
             with conn.cursor(cursor_factory=DictCursor) as cur:
                 cur.execute(
@@ -653,9 +740,9 @@ def purchase_orders_page():
                     (supplier_id, order_date, expected_delivery, 'Placed')
                 )
                 new_po_id = cur.fetchone()['id']
-            conn.commit()
-            flash("Purchase Order created. Now add items.", "success")
-            return redirect(url_for('po_detail', po_id=new_po_id))
+                conn.commit()
+                flash("Purchase Order created. Now add items.", "success")
+                return redirect(url_for('po_detail', po_id=new_po_id))
 
         # GET Request Logic
         with conn.cursor(cursor_factory=DictCursor) as cur:
@@ -672,28 +759,27 @@ def purchase_orders_page():
         if conn and request.method == 'POST': conn.rollback()
         flash(f"Error accessing purchase orders: {e}", "error")
         print(f"DB Error PO page: {e}")
-        # Need to fetch suppliers again if POST fails and we re-render
-        if request.method == 'POST':
-            conn_err = get_db_connection()
-            with conn_err.cursor(cursor_factory=DictCursor) as cur_err:
-                cur_err.execute("SELECT id, name FROM suppliers ORDER BY name;"); suppliers = cur_err.fetchall()
-            conn_err.close()
+        if request.method == 'POST' or not suppliers:
+             try:
+                 if not conn or conn.closed: conn = get_db_connection()
+                 with conn.cursor(cursor_factory=DictCursor) as cur_err:
+                    cur_err.execute("SELECT id, name FROM suppliers ORDER BY name;")
+                    suppliers = cur_err.fetchall()
+             except psycopg2.Error as e_inner:
+                 print(f"DB Error fetching suppliers for PO form: {e_inner}")
     finally:
         if conn: conn.close()
     
     return render_template('purchase_orders.html', purchase_orders=purchase_orders, suppliers=suppliers, now=datetime.now())
 
-# --- NEW/UPDATED PO DETAIL ROUTES ---
 @app.route('/po/<int:po_id>')
 def po_detail(po_id):
     conn = get_db_connection(); po = None; items = []; inventory_items = []; total_cost = 0.0
     try:
         with conn.cursor(cursor_factory=DictCursor) as cur:
-            # Get PO header info
             cur.execute("""
                 SELECT po.*, s.name as supplier_name
-                FROM purchase_orders po
-                JOIN suppliers s ON po.supplier_id = s.id
+                FROM purchase_orders po JOIN suppliers s ON po.supplier_id = s.id
                 WHERE po.id = %s;
             """, (po_id,))
             po = cur.fetchone()
@@ -702,23 +788,17 @@ def po_detail(po_id):
                 flash(f"Purchase Order ID {po_id} not found.", "error")
                 return redirect(url_for('purchase_orders_page'))
 
-            # Get PO line items
             cur.execute("""
                 SELECT poi.id, inv.name, inv.unit, poi.quantity_ordered, poi.unit_cost
                 FROM purchase_order_items poi
                 JOIN inventory_items inv ON poi.inventory_item_id = inv.id
-                WHERE poi.purchase_order_id = %s
-                ORDER BY inv.name;
+                WHERE poi.purchase_order_id = %s ORDER BY inv.name;
             """, (po_id,))
             items = cur.fetchall()
             
-            # Calculate sub-total
-            item_subtotal = sum(item['quantity_ordered'] * item['unit_cost'] for item in items if item['unit_cost'] is not None)
-            # Calculate total cost
-            total_cost = (item_subtotal + (po['shipping_cost'] or 0) + (po['tax'] or 0)) - (po['discount'] or 0)
+            item_subtotal = sum(float(item['quantity_ordered'] or 0) * float(item['unit_cost'] or 0) for item in items)
+            total_cost = (item_subtotal + float(po['shipping_cost'] or 0) + float(po['tax'] or 0)) - float(po['discount'] or 0)
 
-
-            # Get inventory items for the 'Add Item' dropdown
             cur.execute("SELECT id, name, unit FROM inventory_items ORDER BY name;")
             inventory_items = cur.fetchall()
             
@@ -742,9 +822,8 @@ def po_add_item(po_id):
     try:
         inventory_item_id = request.form.get('inventory_item_id')
         quantity = request.form.get('quantity_ordered')
-        unit_cost = request.form.get('unit_cost') or 0 # Default to 0 if not provided
+        unit_cost = request.form.get('unit_cost') or 0
 
-        # Validate
         if not inventory_item_id or not quantity:
             flash("Item and quantity are required.", "error"); raise ValueError("Missing item/qty")
         try:
@@ -754,7 +833,6 @@ def po_add_item(po_id):
              flash("Invalid quantity or unit cost.", "error"); raise ValueError("Invalid numbers")
 
         with conn.cursor() as cur:
-            # Use ON CONFLICT to update quantity if item is already on PO
             cur.execute("""
                 INSERT INTO purchase_order_items (purchase_order_id, inventory_item_id, quantity_ordered, unit_cost)
                 VALUES (%s, %s, %s, %s)
@@ -775,7 +853,7 @@ def po_add_item(po_id):
 
 @app.route('/po/item/delete/<int:item_id>', methods=['POST'])
 def po_remove_item(item_id):
-    po_id = request.form.get('po_id') # Get PO ID from a hidden field in the form
+    po_id = request.form.get('po_id')
     if not po_id:
         flash("Error: Missing Purchase Order ID.", "error")
         return redirect(url_for('purchase_orders_page'))
@@ -783,10 +861,9 @@ def po_remove_item(item_id):
     conn = get_db_connection()
     try:
         with conn.cursor(cursor_factory=DictCursor) as cur:
-             # Check PO status before allowing deletion of items
             cur.execute("SELECT status FROM purchase_orders WHERE id = %s;", (po_id,))
-            po_status = cur.fetchone()
-            if po_status and po_status['status'] == 'Received':
+            po_status_row = cur.fetchone()
+            if po_status_row and po_status_row['status'] == 'Received':
                 flash("Cannot remove items from a received order.", "error")
             else:
                 cur.execute("DELETE FROM purchase_order_items WHERE id = %s;", (item_id,))
@@ -804,7 +881,6 @@ def po_remove_item(item_id):
 def po_update_header(po_id):
     conn = get_db_connection()
     try:
-        # Get all form data
         supplier_id = request.form.get('supplier_id')
         order_date_str = request.form.get('order_date') or None
         expected_delivery_str = request.form.get('expected_delivery_date') or None
@@ -814,16 +890,13 @@ def po_update_header(po_id):
         notes = request.form.get('notes')
         new_status = request.form.get('status')
         
-        # Convert dates
         order_date = datetime.strptime(order_date_str, '%Y-%m-%d').date() if order_date_str else None
         expected_delivery = datetime.strptime(expected_delivery_str, '%Y-%m-%d').date() if expected_delivery_str else None
 
         with conn.cursor(cursor_factory=DictCursor) as cur:
-            # Get current PO status *before* updating
             cur.execute("SELECT status FROM purchase_orders WHERE id = %s;", (po_id,))
             current_status = cur.fetchone()['status']
 
-            # Update header info
             cur.execute("""
                 UPDATE purchase_orders
                 SET supplier_id = %s, order_date = %s, expected_delivery_date = %s,
@@ -832,44 +905,37 @@ def po_update_header(po_id):
             """, (supplier_id, order_date, expected_delivery, shipping_cost, tax, discount, notes, new_status, po_id))
 
             # --- Inventory Receiving Logic ---
-            # If status changed to "Received" and was not "Received" before
             if new_status == 'Received' and current_status != 'Received':
-                # Get all items on this PO
                 cur.execute("SELECT inventory_item_id, quantity_ordered FROM purchase_order_items WHERE purchase_order_id = %s;", (po_id,))
                 items_to_receive = cur.fetchall()
                 if not items_to_receive:
                      flash("Cannot mark empty order as Received.", "warning")
-                     conn.rollback() # Cancel the status update
-                     return redirect(url_for('po_detail', po_id=po_id))
+                     conn.rollback(); return redirect(url_for('po_detail', po_id=po_id))
 
-                # Update inventory_items for each item
                 for item in items_to_receive:
                     cur.execute(
                         "UPDATE inventory_items SET quantity_on_hand = quantity_on_hand + %s WHERE id = %s;",
                         (item['quantity_ordered'], item['inventory_item_id'])
                     )
-                # Set received timestamp
                 cur.execute("UPDATE purchase_orders SET received_at = NOW() WHERE id = %s;", (po_id,))
-                flash("Order marked as Received. Inventory has been updated.", "success")
+                flash("Order marked as Received. Inventory updated.", "success")
             
-            # --- Inventory Reversal Logic (if status changed *away* from Received) ---
+            # --- Inventory Reversal Logic ---
             elif new_status != 'Received' and current_status == 'Received':
-                 # Get all items on this PO
                 cur.execute("SELECT inventory_item_id, quantity_ordered FROM purchase_order_items WHERE purchase_order_id = %s;", (po_id,))
                 items_to_unreceive = cur.fetchall()
-                # Reverse inventory update
                 for item in items_to_unreceive:
                     cur.execute(
                         "UPDATE inventory_items SET quantity_on_hand = quantity_on_hand - %s WHERE id = %s;",
                         (item['quantity_ordered'], item['inventory_item_id'])
                     )
-                # Clear received timestamp
                 cur.execute("UPDATE purchase_orders SET received_at = NULL WHERE id = %s;", (po_id,))
-                flash(f"Order status changed from Received. Inventory updates have been reversed.", "warning")
-
-            conn.commit()
-            if new_status != 'Received' and current_status != 'Received':
-                 flash("PO details updated.", "success") # Generic update if status didn't trigger inventory change
+                flash(f"Order status changed from Received. Inventory reversed.", "warning")
+            
+            else:
+                 flash("PO details updated.", "success") # Generic update if status didn't trigger
+                 
+        conn.commit()
             
     except psycopg2.Error as e:
         if conn: conn.rollback()
@@ -884,14 +950,11 @@ def po_delete(po_id):
     conn = get_db_connection()
     try:
         with conn.cursor(cursor_factory=DictCursor) as cur:
-            # Check if order was received
             cur.execute("SELECT status, received_at FROM purchase_orders WHERE id = %s;", (po_id,))
             po = cur.fetchone()
             if not po:
-                 flash("PO not found.", "error")
-                 conn.rollback()
+                 flash("PO not found.", "error"); conn.rollback()
             else:
-                 # If it was received, reverse the inventory changes
                  if po['status'] == 'Received' or po['received_at'] is not None:
                      cur.execute("SELECT inventory_item_id, quantity_ordered FROM purchase_order_items WHERE purchase_order_id = %s;", (po_id,))
                      items_to_unreceive = cur.fetchall()
@@ -902,15 +965,14 @@ def po_delete(po_id):
                          )
                      flash_msg = "PO deleted. Inventory updates have been reversed."
                  else:
-                     flash_msg = "PO deleted." # Not received, just delete
+                     flash_msg = "PO deleted."
                  
-                 # Delete the PO. Line items will cascade delete.
                  cur.execute("DELETE FROM purchase_orders WHERE id = %s;", (po_id,))
                  conn.commit()
                  flash(flash_msg, "success")
     except psycopg2.Error as e:
         if conn: conn.rollback()
-        flash(f"Error deleting PO: {e}", "error")
+        flash(f"Error deleting PO: {e.diag.message_primary}", "error") # More specific error
         print(f"DB Error PO delete {po_id}: {e}")
     finally:
         if conn: conn.close()

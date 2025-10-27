@@ -370,7 +370,7 @@ def production_planner():
     except psycopg2.Error as e:
         flash(f"Error in production planner: {e}", "error"); print(f"DB Error planner page: {e}")
     finally:
-        if conn: conn.close() # Close connection after calculation or error
+        if conn: conn.close()
     return render_template('planner.html', products=sellable_products, requirements=calculated_requirements)
 
 @app.route('/inventory', methods=['GET', 'POST'])
@@ -488,7 +488,6 @@ def wip_batch_detail(batch_id):
 def allocate_ingredient(batch_id):
     inventory_item_id = request.form.get('inventory_item_id'); quantity_str = request.form.get('quantity_allocated')
     conn = get_db_connection()
-    # Corrected closing logic on initial checks
     if not inventory_item_id or not quantity_str:
         flash("Missing ingredient or quantity.", "error")
         if conn: conn.close()
@@ -500,7 +499,6 @@ def allocate_ingredient(batch_id):
         flash("Invalid quantity entered.", "error")
         if conn: conn.close()
         return redirect(url_for('wip_batch_detail', batch_id=batch_id))
-    # Keep conn open for DB operations
     try:
         with conn.cursor(cursor_factory=DictCursor) as cur:
             cur.execute("SELECT quantity_on_hand, quantity_allocated, (quantity_on_hand - quantity_allocated) as available FROM inventory_items WHERE id = %s FOR UPDATE;", (inventory_item_id,)); result = cur.fetchone()
@@ -509,7 +507,7 @@ def allocate_ingredient(batch_id):
             else: cur.execute("INSERT INTO wip_allocations (wip_batch_id, inventory_item_id, quantity_allocated) VALUES (%s, %s, %s);",(batch_id, inventory_item_id, quantity)); cur.execute("UPDATE inventory_items SET quantity_allocated = quantity_allocated + %s WHERE id = %s;", (quantity, inventory_item_id)); conn.commit(); flash("Allocated.", "success")
     except psycopg2.Error as e: conn.rollback(); flash(f"DB error: {e}", "error"); print(f"DB Error allocate batch {batch_id}: {e}")
     finally:
-        if conn: conn.close() # Now close after try/except completes
+        if conn: conn.close()
     return redirect(url_for('wip_batch_detail', batch_id=batch_id))
 
 @app.route('/wip/<int:batch_id>/complete', methods=['POST'])
@@ -550,8 +548,7 @@ def suppliers_page():
             cur.execute("SELECT * FROM suppliers ORDER BY name;")
             suppliers = cur.fetchall()
     except psycopg2.Error as e:
-        flash(f"Error fetching suppliers: {e}", "error")
-        print(f"DB Error suppliers page: {e}")
+        flash(f"Error fetching suppliers: {e}", "error"); print(f"DB Error suppliers page GET: {e}")
     finally:
         if conn: conn.close()
     return render_template('suppliers.html', suppliers=suppliers)
@@ -560,21 +557,20 @@ def suppliers_page():
 def add_supplier():
     conn = get_db_connection()
     try:
-        name = request.form['name']
-        contact = request.form.get('contact_person')
-        email = request.form.get('email')
-        phone = request.form.get('phone')
-        website = request.form.get('website')
-        notes = request.form.get('notes')
+        name = request.form['name']; contact = request.form.get('contact_person'); email = request.form.get('email')
+        phone = request.form.get('phone'); website = request.form.get('website'); notes = request.form.get('notes')
         with conn.cursor() as cur:
-            cur.execute("INSERT INTO suppliers (name, contact_person, email, phone, website, notes) VALUES (%s, %s, %s, %s, %s, %s);",
-                        (name, contact, email, phone, website, notes))
-        conn.commit()
-        flash("Supplier added successfully.", "success")
+            cur.execute("SELECT id FROM suppliers WHERE LOWER(name) = LOWER(%s);", (name,))
+            existing = cur.fetchone()
+            if existing:
+                flash(f"Supplier '{name}' already exists.", "warning")
+            else:
+                cur.execute("INSERT INTO suppliers (name, contact_person, email, phone, website, notes) VALUES (%s, %s, %s, %s, %s, %s);",
+                            (name, contact, email, phone, website, notes))
+                conn.commit(); flash("Supplier added.", "success")
     except psycopg2.Error as e:
-        conn.rollback()
-        flash(f"Error adding supplier: {e}", "error")
-        print(f"DB Error add supplier: {e}")
+        if conn: conn.rollback()
+        flash(f"Database error adding supplier: {e}", "error"); print(f"DB Error add supplier POST: {e}")
     finally:
         if conn: conn.close()
     return redirect(url_for('suppliers_page'))
@@ -584,15 +580,11 @@ def edit_supplier(id):
     conn = get_db_connection(); supplier = None
     try:
         with conn.cursor(cursor_factory=DictCursor) as cur:
-            cur.execute("SELECT * FROM suppliers WHERE id = %s;", (id,))
-            supplier = cur.fetchone()
+            cur.execute("SELECT * FROM suppliers WHERE id = %s;", (id,)); supplier = cur.fetchone()
         if supplier is None:
             flash(f"Supplier ID {id} not found.", "error")
             return redirect(url_for('suppliers_page'))
-    except psycopg2.Error as e:
-        flash(f"Error fetching supplier data: {e}", "error")
-        print(f"DB Error edit supplier GET {id}: {e}")
-        return redirect(url_for('suppliers_page'))
+    except psycopg2.Error as e: flash(f"Error fetching supplier: {e}", "error"); print(f"DB Error edit supplier GET {id}: {e}"); return redirect(url_for('suppliers_page'))
     finally:
         if conn: conn.close()
     return render_template('edit_supplier.html', supplier=supplier)
@@ -601,22 +593,22 @@ def edit_supplier(id):
 def update_supplier(id):
     conn = get_db_connection()
     try:
-        name = request.form['name']
-        contact = request.form.get('contact_person')
-        email = request.form.get('email')
-        phone = request.form.get('phone')
-        website = request.form.get('website')
-        notes = request.form.get('notes')
+        name = request.form['name']; contact = request.form.get('contact_person'); email = request.form.get('email')
+        phone = request.form.get('phone'); website = request.form.get('website'); notes = request.form.get('notes')
         with conn.cursor() as cur:
-            cur.execute("""UPDATE suppliers SET name=%s, contact_person=%s, email=%s, phone=%s, website=%s, notes=%s
-                           WHERE id=%s;""",
-                        (name, contact, email, phone, website, notes, id))
-        conn.commit()
-        flash("Supplier updated successfully.", "success")
+            cur.execute("SELECT id FROM suppliers WHERE LOWER(name) = LOWER(%s) AND id != %s;", (name, id))
+            existing = cur.fetchone()
+            if existing:
+                 flash(f"Another supplier with the name '{name}' already exists.", "error")
+                 return redirect(url_for('edit_supplier', id=id))
+            else:
+                cur.execute("""UPDATE suppliers SET name=%s, contact_person=%s, email=%s, phone=%s, website=%s, notes=%s WHERE id=%s;""",
+                            (name, contact, email, phone, website, notes, id))
+                conn.commit(); flash("Supplier updated.", "success")
     except psycopg2.Error as e:
-        conn.rollback()
-        flash(f"Error updating supplier: {e}", "error")
-        print(f"DB Error update supplier {id}: {e}")
+        if conn: conn.rollback()
+        flash(f"Database error updating supplier: {e}", "error"); print(f"DB Error update supplier POST {id}: {e}")
+        return redirect(url_for('edit_supplier', id=id))
     finally:
         if conn: conn.close()
     return redirect(url_for('suppliers_page'))
@@ -625,24 +617,43 @@ def update_supplier(id):
 def delete_supplier(id):
     conn = get_db_connection()
     try:
-        with conn.cursor() as cur:
-            cur.execute("DELETE FROM suppliers WHERE id = %s;", (id,))
-        conn.commit()
-        flash("Supplier deleted successfully.", "success")
+        with conn.cursor() as cur: cur.execute("DELETE FROM suppliers WHERE id = %s;", (id,)); conn.commit(); flash("Supplier deleted.", "success")
     except psycopg2.Error as e:
-        conn.rollback()
-        # Provide a more specific error message if it's a foreign key violation
-        if e.pgcode == '23503': # Foreign key violation code
-            flash(f"Cannot delete supplier: They are linked to existing purchase orders.", "error")
-        else:
-            flash(f"Error deleting supplier: {e}", "error")
+        if conn: conn.rollback()
+        if hasattr(e, 'pgcode') and e.pgcode == '23503': # Check pgcode attribute
+             flash(f"Cannot delete supplier: Linked to purchase orders.", "error")
+        else: flash(f"Error deleting supplier: {e}", "error")
         print(f"DB Error delete supplier {id}: {e}")
     finally:
         if conn: conn.close()
     return redirect(url_for('suppliers_page'))
 # --- END SUPPLIER ROUTES ---
 
+# --- PURCHASE ORDER ROUTES (Placeholder for now) ---
+@app.route('/purchase-orders', methods=['GET'])
+def purchase_orders_page():
+    conn = get_db_connection(); purchase_orders = []; suppliers = []
+    try:
+        with conn.cursor(cursor_factory=DictCursor) as cur:
+            cur.execute("""
+                SELECT po.id, s.name as supplier_name, po.order_date, po.expected_delivery_date, po.status
+                FROM purchase_orders po
+                JOIN suppliers s ON po.supplier_id = s.id
+                ORDER BY po.order_date DESC, po.id DESC;
+            """)
+            purchase_orders = cur.fetchall()
+            cur.execute("SELECT id, name FROM suppliers ORDER BY name;")
+            suppliers = cur.fetchall()
+    except psycopg2.Error as e:
+        flash(f"Error fetching purchase orders: {e}", "error")
+        print(f"DB Error PO page GET: {e}")
+    finally:
+        if conn: conn.close()
+    
+    # This page isn't built yet, so we'll create the template now.
+    return render_template('purchase_orders.html', purchase_orders=purchase_orders, suppliers=suppliers)
+# --- END PURCHASE ORDER ROUTES ---
+
 
 if __name__ == '__main__':
     app.run(debug=True)
-

@@ -5,14 +5,25 @@
 {% block content %}
 <style>
     .form-container {
-        max-width: 700px; /* Wider form for more fields */
-        margin: 0 auto;
+        max-width: 700px;
+        margin: 0 auto; /* Center the form card */
     }
-     textarea { width: 100%; min-height: 80px; font-family: var(--font-body); padding: 10px 12px; border-radius: 6px; border: 1px solid var(--input-border); margin-bottom: 15px;}
+     textarea { min-height: 80px; }
+    input[type="text"], input[type="email"], input[type="tel"], input[type="url"], textarea {
+        width: 100%;
+    }
 </style>
 
 <div class="form-container content-card">
     <h1>Edit Supplier</h1>
+     {% with messages = get_flashed_messages(with_categories=true) %}
+        {% if messages %}
+            {% for category, message in messages %}
+            <div class="flash-{{ category }}">{{ message }}</div>
+            {% endfor %}
+        {% endif %}
+    {% endwith %}
+
     {% if supplier %}
     <form method="POST" action="{{ url_for('update_supplier', id=supplier.id) }}">
         <div>

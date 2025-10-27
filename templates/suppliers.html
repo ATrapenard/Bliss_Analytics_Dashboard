@@ -4,7 +4,7 @@
 
 {% block content %}
 <style>
-    .container { display: grid; grid-template-columns: 2fr 1fr; gap: 40px; }
+    .container { display: grid; grid-template-columns: 2fr 1fr; gap: 40px; align-items: start;}
     table { table-layout: fixed; }
     th:nth-child(1) { width: 30%; } /* Name */
     th:nth-child(2) { width: 25%; } /* Contact */
@@ -14,7 +14,10 @@
     .actions-cell { display: flex; gap: 10px; align-items: center; }
     .action-form { margin: 0; display: flex; align-items: center; }
     .edit-btn, .delete-btn { font-size: 0.9em; padding: 6px 12px; }
-    textarea { width: 100%; min-height: 80px; font-family: var(--font-body); padding: 10px 12px; border-radius: 6px; border: 1px solid var(--input-border); margin-bottom: 15px;}
+    textarea { min-height: 80px; }
+    input[type="text"], input[type="email"], input[type="tel"], input[type="url"], textarea {
+        width: 100%;
+    }
 </style>
 
 <h1>Manage Suppliers</h1>
@@ -23,7 +26,7 @@
 {% with messages = get_flashed_messages(with_categories=true) %}
     {% if messages %}
         {% for category, message in messages %}
-        <div class="flash-{{ category }}">{{ message }}</div>
+        <div classclass="flash-{{ category }}">{{ message }}</div>
         {% endfor %}
     {% endif %}
 {% endwith %}
@@ -31,6 +34,7 @@
 <div class="container">
     <div class="list-container content-card">
         <h2>Existing Suppliers</h2>
+        {% if suppliers %}
         <table>
             <thead>
                 <tr>
@@ -43,17 +47,23 @@
             <tbody>
                 {% for supplier in suppliers %}
                 <tr>
-                    <td>{{ supplier.name }}</td>
+                    <td>
+                        {% if supplier.website %}
+                            <a href="{{ supplier.website }}" target="_blank" rel="noopener noreferrer">{{ supplier.name }}</a>
+                        {% else %}
+                            {{ supplier.name }}
+                        {% endif %}
+                    </td>
                     <td>{{ supplier.contact_person or 'N/A' }}</td>
                     <td>
-                        {{ supplier.email or '' }}<br>
+                        {% if supplier.email %}<a href="mailto:{{ supplier.email }}">{{ supplier.email }}</a><br>{% endif %}
                         {{ supplier.phone or '' }}
                     </td>
                     <td class="actions-cell">
                         <form class="action-form" method="GET" action="{{ url_for('edit_supplier', id=supplier.id) }}">
                             <button type="submit" class="edit-btn">Edit</button>
                         </form>
-                        <form class="action-form" method="POST" action="{{ url_for('delete_supplier', id=supplier.id) }}" onsubmit="return confirm('Are you sure you want to delete this supplier?');">
+                        <form class="action-form" method="POST" action="{{ url_for('delete_supplier', id=supplier.id) }}" onsubmit="return confirm('Are you sure? Deleting may fail if supplier is linked to orders.');">
                             <button type="submit" class="delete-btn">Delete</button>
                         </form>
                     </td>
@@ -61,6 +71,9 @@
                 {% endfor %}
             </tbody>
         </table>
+        {% else %}
+         <p>No suppliers added yet.</p>
+        {% endif %}
     </div>
 
     <div class="form-container content-card">

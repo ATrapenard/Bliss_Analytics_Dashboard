@@ -1,0 +1,86 @@
+{% extends "_layout.html" %}
+
+{% block title %}Purchase Orders{% endblock %}
+
+{% block content %}
+<style>
+    .container { display: grid; grid-template-columns: 2fr 1fr; gap: 40px; align-items: start;}
+    table { table-layout: fixed; }
+    th:nth-child(1) { width: 10%; } /* ID */
+    th:nth-child(2) { width: 30%; } /* Supplier */
+    th:nth-child(3) { width: 20%; } /* Order Date */
+    th:nth-child(4) { width: 20%; } /* Status */
+    th:nth-child(5) { width: 20%; } /* Actions */
+    
+    .actions-cell { display: flex; gap: 10px; align-items: center; }
+    .action-form { margin: 0; display: flex; align-items: center; }
+    .edit-btn { font-size: 0.9em; padding: 6px 12px; }
+</style>
+
+<h1>Purchase Orders</h1>
+<p>Create and manage your ingredient purchase orders.</p>
+
+{% with messages = get_flashed_messages(with_categories=true) %}
+    {% if messages %}
+        {% for category, message in messages %}
+        <div class="flash-{{ category }}">{{ message }}</div>
+        {% endfor %}
+    {% endif %}
+{% endwith %}
+
+<div class="container">
+    <div class="list-container content-card">
+        <h2>Existing Purchase Orders</h2>
+        {% if purchase_orders %}
+        <table>
+            <thead>
+                <tr>
+                    <th>PO ID</th>
+                    <th>Supplier</th>
+                    <th>Order Date</th>
+                    <th>Status</th>
+                    <th>Actions</th>
+                </tr>
+            </thead>
+            <tbody>
+                {% for po in purchase_orders %}
+                <tr>
+                    <td>{{ po.id }}</td>
+                    <td>{{ po.supplier_name }}</td>
+                    <td>{{ po.order_date.strftime('%Y-%m-%d') if po.order_date else 'N/A' }}</td>
+                    <td>{{ po.status }}</td>
+                    <td class="actions-cell">
+                        <a href="#" class="edit-btn">Details</a> </td>
+                </tr>
+                {% endfor %}
+            </tbody>
+        </table>
+        {% else %}
+         <p>No purchase orders created yet.</p>
+        {% endif %}
+    </div>
+
+    <div class="form-container content-card">
+        <h2>Create New Purchase Order</h2>
+        <form method="POST" action="#"> <div>
+                <label for="supplier_id">Supplier</label>
+                <select id="supplier_id" name="supplier_id" class="select2-enable" required>
+                    <option value="" disabled selected>-- Select a Supplier --</option>
+                    {% for supplier in suppliers %}
+                        <option value="{{ supplier.id }}">{{ supplier.name }}</option>
+                    {% endfor %}
+                </select>
+            </div>
+            <div>
+                <label for="order_date">Order Date</label>
+                <input type="date" id="order_date" name="order_date" value="{{ now.strftime('%Y-%m-%d') }}">
+            </div>
+            <div>
+                <label for="expected_delivery_date">Expected Delivery (Optional)</label>
+                <input type="date" id="expected_delivery_date" name="expected_delivery_date">
+            </div>
+            <button type="submit" class="submit-btn">Create Order & Add Items</button>
+        </form>
+    </div>
+</div>
+{% endblock %}

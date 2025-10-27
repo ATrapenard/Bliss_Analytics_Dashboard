@@ -7,12 +7,10 @@
 
     <link rel="icon" href="{{ url_for('static', filename='bliss_logo.jpg') }}" type="image/jpeg">
 
-    <!-- Google Fonts -->
     <link rel="preconnect" href="https://fonts.googleapis.com">
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
     <link href="https://fonts.googleapis.com/css2?family=Lato:wght@400;700&family=Montserrat:wght@600;700&display=swap" rel="stylesheet">
 
-    <!-- Select2 CSS -->
     <link href="https://cdn.jsdelivr.net/npm/select2@4.1.0-rc.0/dist/css/select2.min.css" rel="stylesheet" />
 
     <style>
@@ -30,20 +28,11 @@
             min-height: 100vh; background-attachment: fixed; color: var(--text-dark);
         }
         h1, h2, h3 { font-family: var(--font-heading); color: var(--text-dark); }
-
-        /* --- Navbar Styles --- */
         .navbar {
             background-color: var(--nav-bg); overflow: visible; display: flex;
-            justify-content: space-between; /* This pushes logo left and links right */
-            align-items: center; padding: 0 10px; position: relative;
+            justify-content: space-between; align-items: center; padding: 0 10px; position: relative;
         }
-        .nav-links {
-            display: flex; /* Kept flex */
-            flex-wrap: wrap;
-            /* REMOVED flex-grow: 1; */
-            /* REMOVED justify-content: flex-start; */
-            align-items: center;
-        }
+        .nav-links { display: flex; flex-wrap: wrap; align-items: center; }
         .navbar a, .navbar .dropdown .dropbtn {
             color: var(--white); text-decoration: none; padding: 14px 10px;
             display: block; font-family: var(--font-body); transition: background-color 0.2s ease;
@@ -53,33 +42,19 @@
         .navbar a.logo {
             font-family: var(--font-heading); font-size: 1.2em;
             font-weight: bold; display: flex; align-items: center; gap: 8px; padding-left: 0;
-            padding-right: 15px;
-            /* Ensure logo doesn't shrink */
-            flex-shrink: 0;
+            padding-right: 15px; flex-shrink: 0;
         }
         .navbar img.logo-img { height: 30px; width: auto; }
-
-        /* --- Dropdown Styles --- */
         .dropdown { position: relative; display: inline-block; }
         .dropdown-content {
             display: none; position: absolute; background-color: var(--nav-bg);
             min-width: 180px; box-shadow: 0px 8px 16px 0px rgba(0,0,0,0.2);
-            z-index: 100; border-radius: 0 0 5px 5px; overflow: hidden;
-            /* Position dropdown correctly when links are on the right */
-             right: 0; /* Align dropdown to the right edge of the button */
-             left: auto;
+            z-index: 100; border-radius: 0 0 5px 5px; overflow: hidden; right: 0; left: auto;
         }
-        .dropdown-content a {
-            color: var(--white); padding: 12px 16px; text-decoration: none;
-            display: block; font-size: 0.85em;
-        }
+        .dropdown-content a { color: var(--white); padding: 12px 16px; text-decoration: none; display: block; font-size: 0.85em; }
         .dropdown-content a:hover { background-color: rgba(255, 255, 255, 0.2); }
         .dropdown:hover .dropdown-content { display: block; }
-        .dropbtn::after {
-            content: ' ▼'; font-size: 0.7em; vertical-align: middle; margin-left: 4px;
-        }
-
-
+        .dropbtn::after { content: ' ▼'; font-size: 0.7em; vertical-align: middle; margin-left: 4px; }
         .hamburger { display: none; cursor: pointer; padding: 14px 15px; }
         .hamburger .bar { display: block; width: 25px; height: 3px; margin: 5px auto; background-color: var(--white); }
         .content-container { padding: 20px 40px; }
@@ -104,15 +79,14 @@
         .add-btn:hover { background-color: #0056b3; opacity: 1;}
         .submit-btn:hover { background-color: #218838; opacity: 1;}
         .remove-btn:hover { background-color: #c82333; opacity: 1;}
-        input[type="text"], input[type="number"], input[type="email"], input[type="tel"], input[type="url"], select, textarea {
+        /* Include input types used in new supplier forms */
+        input[type="text"], input[type="number"], input[type="email"], input[type="tel"], input[type="url"], input[type="date"], select, textarea {
              padding: 10px 12px; font-size: 1em; font-family: var(--font-body); border-radius: 6px;
              border: 1px solid var(--input-border); width: 100%; margin-bottom: 15px; background-color: var(--white);
-             transition: border-color 0.2s ease, box-shadow 0.2s ease;
-             appearance: none;
+             transition: border-color 0.2s ease, box-shadow 0.2s ease; appearance: none;
         }
-        input[type="text"]:focus, input[type="number"]:focus, input[type="email"]:focus, input[type="tel"]:focus, input[type="url"]:focus, select:focus, textarea:focus {
-            outline: none; border-color: var(--input-focus-border);
-            box-shadow: 0 0 0 2px rgba(0, 123, 255, 0.25);
+        input[type="text"]:focus, input[type="number"]:focus, input[type="email"]:focus, input[type="tel"]:focus, input[type="url"]:focus, input[type="date"]:focus, select:focus, textarea:focus {
+            outline: none; border-color: var(--input-focus-border); box-shadow: 0 0 0 2px rgba(0, 123, 255, 0.25);
         }
         select {
             background-image: url('data:image/svg+xml;utf8,<svg fill="%236b7280" height="24" viewBox="0 0 24 24" width="24" xmlns="http://www.w3.org/2000/svg"><path d="M7 10l5 5 5-5z"/><path d="M0 0h24v24H0z" fill="none"/></svg>');
@@ -127,22 +101,21 @@
         .flash-success { background-color: #d4edda; color: #155724; padding: 10px; border: 1px solid #c3e6cb; border-radius: 5px; margin-bottom: 15px; }
         .flash-warning { background-color: #fff3cd; color: #856404; padding: 10px; border: 1px solid #ffeeba; border-radius: 5px; margin-bottom: 15px; }
 
-        @media screen and (max-width: 1100px) { /* Adjust breakpoint if needed */
+        @media screen and (max-width: 1100px) {
              .navbar a, .navbar .dropdown .dropbtn { padding: 10px 6px; font-size: 0.8em; }
         }
-        @media screen and (max-width: 900px) { /* Hamburger activates */
-            .navbar { justify-content: space-between; } /* Ensure logo left, hamburger right */
+        @media screen and (max-width: 900px) {
+            .navbar { justify-content: space-between; }
             .nav-links { display: none; flex-direction: column; width: 100%; position: absolute; top: 58px; left: 0; background-color: var(--nav-bg); z-index: 10; align-items: flex-start; }
             .nav-links.active { display: flex; }
             .navbar a, .navbar .dropdown .dropbtn { width: 100%; text-align: left; padding: 12px 20px; }
             .dropdown { width: 100%; }
-            .dropdown-content { position: static; box-shadow: none; border-radius: 0; background-color: #444; width: 100%; } /* Ensure full width */
+            .dropdown-content { position: static; box-shadow: none; border-radius: 0; background-color: #444; width: 100%; }
             .dropdown-content a { padding-left: 30px; }
             .dropbtn::after { display: none; }
             .dropdown .dropbtn { display: block; width: 100%; text-align: left;}
             .dropdown:hover .dropdown-content { display: none; }
             .dropdown .dropbtn.active + .dropdown-content { display: block; }
-
             .hamburger { display: block; }
             .content-container { padding: 15px; }
             .container { grid-template-columns: 1fr !important; }
@@ -155,29 +128,22 @@
             <img src="{{ url_for('static', filename='bliss_logo.jpg') }}" alt="Bliss Energetics Logo" class="logo-img">
             <span>Bliss Energetics</span>
         </a>
-
-        <!-- Hamburger Icon -->
         <div class="hamburger">
             <span class="bar"></span>
             <span class="bar"></span>
             <span class="bar"></span>
         </div>
-
-        <!-- Links Container -->
         <div class="nav-links">
             <a href="{{ url_for('recipe_dashboard') }}">Recipes</a>
             <a href="{{ url_for('products_page') }}">Products</a>
-
             <div class="dropdown">
                 <button class="dropbtn">Inventory</button>
                 <div class="dropdown-content">
                     <a href="{{ url_for('inventory_items_page') }}">Inventory Items</a>
                     <a href="{{ url_for('wip_batches_page') }}">WIP Batches</a>
                     <a href="{{ url_for('suppliers_page') }}">Suppliers</a>
-                    <!-- Add Purchase Orders link here later -->
-                </div>
+                    <a href="{{ url_for('purchase_orders_page') }}">Purchase Orders</a> </div>
             </div>
-
             <div class="dropdown">
                 <button class="dropbtn">Planning & Reports</button>
                 <div class="dropdown-content">
@@ -187,79 +153,52 @@
                     <a href="{{ url_for('stock_minimums_page') }}">Stock Minimums</a>
                 </div>
             </div>
-
              <div class="dropdown">
                 <button class="dropbtn">Settings</button>
                 <div class="dropdown-content">
                     <a href="{{ url_for('locations_page') }}">Locations</a>
-                    <!-- Add other settings links here later -->
                 </div>
             </div>
         </div>
     </nav>
-
     <div class="content-container">
         {% block content %}{% endblock %}
     </div>
-
-    <!-- Scripts at the bottom -->
     <script src="https://code.jquery.com/jquery-3.6.0.min.js"></script>
     <script src="https://cdn.jsdelivr.net/npm/select2@4.1.0-rc.0/dist/js/select2.min.js"></script>
     <script>
-        // Hamburger Menu Toggle
         const hamburger = document.querySelector(".hamburger");
         const navLinks = document.querySelector(".nav-links");
         hamburger.addEventListener("click", () => {
             navLinks.classList.toggle("active");
-             // Close any open mobile dropdowns when hamburger is toggled
             document.querySelectorAll('.dropdown .dropbtn.active').forEach(button => {
                 button.classList.remove('active');
                 let content = button.nextElementSibling;
-                if (content && content.classList.contains('dropdown-content')) {
-                    content.style.display = "none";
-                }
+                if (content && content.classList.contains('dropdown-content')) { content.style.display = "none"; }
             });
         });
-
-        // Dropdown Toggle for Mobile (Click instead of Hover)
         document.querySelectorAll('.dropdown .dropbtn').forEach(button => {
             button.addEventListener('click', (event) => {
                 if (window.getComputedStyle(hamburger).display !== 'none') {
                     event.preventDefault();
-                    // Close other open dropdowns first
                     document.querySelectorAll('.dropdown .dropbtn.active').forEach(otherButton => {
                         if (otherButton !== button) {
                             otherButton.classList.remove('active');
                             let otherContent = otherButton.nextElementSibling;
-                             if (otherContent && otherContent.classList.contains('dropdown-content')) {
-                                otherContent.style.display = "none";
-                            }
+                             if (otherContent && otherContent.classList.contains('dropdown-content')) { otherContent.style.display = "none"; }
                         }
                     });
-                    // Toggle current dropdown
                     button.classList.toggle('active');
                     let content = button.nextElementSibling;
                     if (content && content.classList.contains('dropdown-content')) {
-                       if (content.style.display === "block") {
-                           content.style.display = "none";
-                       } else {
-                           content.style.display = "block";
-                       }
+                       if (content.style.display === "block") { content.style.display = "none"; }
+                       else { content.style.display = "block"; }
                     }
                 }
             });
         });
-
-
-        // Global Select2 Initializer
-        $(document).ready(function() {
-            initializeSelect2('.select2-enable');
-        });
-        function initializeSelect2(selector) {
-             $(selector).select2({ theme: "default" });
-        }
+        $(document).ready(function() { initializeSelect2('.select2-enable'); });
+        function initializeSelect2(selector) { $(selector).select2({ theme: "default" }); }
     </script>
-
 </body>
 </html>
-

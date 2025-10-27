@@ -539,7 +539,7 @@ def delete_wip_batch(batch_id):
     except psycopg2.Error as e: conn.rollback(); flash(f"DB error deleting batch: {e}", "error"); print(f"DB Error delete batch {batch_id}: {e}")
     finally: conn.close(); return redirect(url_for('wip_batches_page'))
 
-# --- NEW SUPPLIER ROUTES ---
+# --- SUPPLIER ROUTES ---
 @app.route('/suppliers', methods=['GET'])
 def suppliers_page():
     conn = get_db_connection(); suppliers = []
@@ -635,29 +635,26 @@ def purchase_orders_page():
     conn = get_db_connection(); purchase_orders = []; suppliers = []
     try:
         if request.method == 'POST':
-            # Create a new Purchase Order Header
             supplier_id = request.form.get('supplier_id')
-            order_date = request.form.get('order_date') or None # Handle optional date
-            expected_delivery = request.form.get('expected_delivery_date') or None
+            order_date_str = request.form.get('order_date') or None
+            expected_delivery_str = request.form.get('expected_delivery_date') or None
             
+            order_date = datetime.strptime(order_date_str, '%Y-%m-%d').date() if order_date_str else datetime.now().date()
+            expected_delivery = datetime.strptime(expected_delivery_str, '%Y-%m-%d').date() if expected_delivery_str else None
+
             if not supplier_id:
                 flash("Supplier is required.", "error")
-                # Need to reload suppliers for the form
-                with conn.cursor(cursor_factory=DictCursor) as cur:
-                    cur.execute("SELECT id, name FROM suppliers ORDER BY name;")
-                    suppliers = cur.fetchall()
-                return render_template('purchase_orders.html', purchase_orders=purchase_orders, suppliers=suppliers, now=datetime.now())
+                raise ValueError("Supplier not provided") # Raise error to trigger reload
 
-            with conn.cursor() as cur:
+            with conn.cursor(cursor_factory=DictCursor) as cur:
                 cur.execute(
                     """INSERT INTO purchase_orders (supplier_id, order_date, expected_delivery_date, status)
                        VALUES (%s, %s, %s, %s) RETURNING id;""",
                     (supplier_id, order_date, expected_delivery, 'Placed')
                 )
-                new_po_id = cur.fetchone()[0]
+                new_po_id = cur.fetchone()['id']
             conn.commit()
             flash("Purchase Order created. Now add items.", "success")
-            # Redirect to the detail page for this new PO
             return redirect(url_for('po_detail', po_id=new_po_id))
 
         # GET Request Logic
@@ -665,25 +662,261 @@ def purchase_orders_page():
             cur.execute("""
                 SELECT po.id, s.name as supplier_name, po.order_date, po.expected_delivery_date, po.status
                 FROM purchase_orders po JOIN suppliers s ON po.supplier_id = s.id
-                ORDER BY po.order_date DESC, po.id DESC;
+                ORDER BY po.status, po.order_date DESC, po.id DESC;
             """)
             purchase_orders = cur.fetchall()
             cur.execute("SELECT id, name FROM suppliers ORDER BY name;")
             suppliers = cur.fetchall()
-    except psycopg2.Error as e:
+
+    except (psycopg2.Error, ValueError) as e:
         if conn and request.method == 'POST': conn.rollback()
         flash(f"Error accessing purchase orders: {e}", "error")
         print(f"DB Error PO page: {e}")
+        # Need to fetch suppliers again if POST fails and we re-render
+        if request.method == 'POST':
+            conn_err = get_db_connection()
+            with conn_err.cursor(cursor_factory=DictCursor) as cur_err:
+                cur_err.execute("SELECT id, name FROM suppliers ORDER BY name;"); suppliers = cur_err.fetchall()
+            conn_err.close()
     finally:
         if conn: conn.close()
     
     return render_template('purchase_orders.html', purchase_orders=purchase_orders, suppliers=suppliers, now=datetime.now())
 
+# --- NEW/UPDATED PO DETAIL ROUTES ---
 @app.route('/po/<int:po_id>')
 def po_detail(po_id):
-    # This is a placeholder for our next step
-    return f"This will be the detail page for PO #{po_id}."
+    conn = get_db_connection(); po = None; items = []; inventory_items = []; total_cost = 0.0
+    try:
+        with conn.cursor(cursor_factory=DictCursor) as cur:
+            # Get PO header info
+            cur.execute("""
+                SELECT po.*, s.name as supplier_name
+                FROM purchase_orders po
+                JOIN suppliers s ON po.supplier_id = s.id
+                WHERE po.id = %s;
+            """, (po_id,))
+            po = cur.fetchone()
+
+            if not po:
+                flash(f"Purchase Order ID {po_id} not found.", "error")
+                return redirect(url_for('purchase_orders_page'))
+
+            # Get PO line items
+            cur.execute("""
+                SELECT poi.id, inv.name, inv.unit, poi.quantity_ordered, poi.unit_cost
+                FROM purchase_order_items poi
+                JOIN inventory_items inv ON poi.inventory_item_id = inv.id
+                WHERE poi.purchase_order_id = %s
+                ORDER BY inv.name;
+            """, (po_id,))
+            items = cur.fetchall()
+            
+            # Calculate sub-total
+            item_subtotal = sum(item['quantity_ordered'] * item['unit_cost'] for item in items if item['unit_cost'] is not None)
+            # Calculate total cost
+            total_cost = (item_subtotal + (po['shipping_cost'] or 0) + (po['tax'] or 0)) - (po['discount'] or 0)
+
+
+            # Get inventory items for the 'Add Item' dropdown
+            cur.execute("SELECT id, name, unit FROM inventory_items ORDER BY name;")
+            inventory_items = cur.fetchall()
+            
+    except psycopg2.Error as e:
+        flash(f"Error fetching PO details: {e}", "error")
+        print(f"DB Error PO Detail page GET {po_id}: {e}")
+        return redirect(url_for('purchase_orders_page'))
+    finally:
+        if conn: conn.close()
+
+    return render_template('po_detail.html',
+                           po=po,
+                           items=items,
+                           inventory_items=inventory_items,
+                           item_subtotal=item_subtotal,
+                           total_cost=total_cost)
+
+@app.route('/po/<int:po_id>/add-item', methods=['POST'])
+def po_add_item(po_id):
+    conn = get_db_connection()
+    try:
+        inventory_item_id = request.form.get('inventory_item_id')
+        quantity = request.form.get('quantity_ordered')
+        unit_cost = request.form.get('unit_cost') or 0 # Default to 0 if not provided
+
+        # Validate
+        if not inventory_item_id or not quantity:
+            flash("Item and quantity are required.", "error"); raise ValueError("Missing item/qty")
+        try:
+             quantity_float = float(quantity); unit_cost_float = float(unit_cost)
+             if quantity_float <= 0: raise ValueError("Quantity must be positive.")
+        except ValueError:
+             flash("Invalid quantity or unit cost.", "error"); raise ValueError("Invalid numbers")
+
+        with conn.cursor() as cur:
+            # Use ON CONFLICT to update quantity if item is already on PO
+            cur.execute("""
+                INSERT INTO purchase_order_items (purchase_order_id, inventory_item_id, quantity_ordered, unit_cost)
+                VALUES (%s, %s, %s, %s)
+                ON CONFLICT (purchase_order_id, inventory_item_id)
+                DO UPDATE SET
+                    quantity_ordered = purchase_order_items.quantity_ordered + EXCLUDED.quantity_ordered,
+                    unit_cost = EXCLUDED.unit_cost; 
+            """, (po_id, inventory_item_id, quantity_float, unit_cost_float))
+        conn.commit()
+        flash("Item added/updated successfully.", "success")
+    except (psycopg2.Error, ValueError) as e:
+        if conn: conn.rollback()
+        flash(f"Error adding item: {e}", "error")
+        print(f"DB Error PO add item {po_id}: {e}")
+    finally:
+        if conn: conn.close()
+    return redirect(url_for('po_detail', po_id=po_id))
+
+@app.route('/po/item/delete/<int:item_id>', methods=['POST'])
+def po_remove_item(item_id):
+    po_id = request.form.get('po_id') # Get PO ID from a hidden field in the form
+    if not po_id:
+        flash("Error: Missing Purchase Order ID.", "error")
+        return redirect(url_for('purchase_orders_page'))
+        
+    conn = get_db_connection()
+    try:
+        with conn.cursor(cursor_factory=DictCursor) as cur:
+             # Check PO status before allowing deletion of items
+            cur.execute("SELECT status FROM purchase_orders WHERE id = %s;", (po_id,))
+            po_status = cur.fetchone()
+            if po_status and po_status['status'] == 'Received':
+                flash("Cannot remove items from a received order.", "error")
+            else:
+                cur.execute("DELETE FROM purchase_order_items WHERE id = %s;", (item_id,))
+                conn.commit()
+                flash("Item removed from PO.", "success")
+    except psycopg2.Error as e:
+        if conn: conn.rollback()
+        flash(f"Error removing item: {e}", "error")
+        print(f"DB Error PO remove item {item_id}: {e}")
+    finally:
+        if conn: conn.close()
+    return redirect(url_for('po_detail', po_id=po_id))
+
+@app.route('/po/<int:po_id>/update-details', methods=['POST'])
+def po_update_header(po_id):
+    conn = get_db_connection()
+    try:
+        # Get all form data
+        supplier_id = request.form.get('supplier_id')
+        order_date_str = request.form.get('order_date') or None
+        expected_delivery_str = request.form.get('expected_delivery_date') or None
+        shipping_cost = request.form.get('shipping_cost') or 0
+        tax = request.form.get('tax') or 0
+        discount = request.form.get('discount') or 0
+        notes = request.form.get('notes')
+        new_status = request.form.get('status')
+        
+        # Convert dates
+        order_date = datetime.strptime(order_date_str, '%Y-%m-%d').date() if order_date_str else None
+        expected_delivery = datetime.strptime(expected_delivery_str, '%Y-%m-%d').date() if expected_delivery_str else None
+
+        with conn.cursor(cursor_factory=DictCursor) as cur:
+            # Get current PO status *before* updating
+            cur.execute("SELECT status FROM purchase_orders WHERE id = %s;", (po_id,))
+            current_status = cur.fetchone()['status']
+
+            # Update header info
+            cur.execute("""
+                UPDATE purchase_orders
+                SET supplier_id = %s, order_date = %s, expected_delivery_date = %s,
+                    shipping_cost = %s, tax = %s, discount = %s, notes = %s, status = %s
+                WHERE id = %s;
+            """, (supplier_id, order_date, expected_delivery, shipping_cost, tax, discount, notes, new_status, po_id))
+
+            # --- Inventory Receiving Logic ---
+            # If status changed to "Received" and was not "Received" before
+            if new_status == 'Received' and current_status != 'Received':
+                # Get all items on this PO
+                cur.execute("SELECT inventory_item_id, quantity_ordered FROM purchase_order_items WHERE purchase_order_id = %s;", (po_id,))
+                items_to_receive = cur.fetchall()
+                if not items_to_receive:
+                     flash("Cannot mark empty order as Received.", "warning")
+                     conn.rollback() # Cancel the status update
+                     return redirect(url_for('po_detail', po_id=po_id))
+
+                # Update inventory_items for each item
+                for item in items_to_receive:
+                    cur.execute(
+                        "UPDATE inventory_items SET quantity_on_hand = quantity_on_hand + %s WHERE id = %s;",
+                        (item['quantity_ordered'], item['inventory_item_id'])
+                    )
+                # Set received timestamp
+                cur.execute("UPDATE purchase_orders SET received_at = NOW() WHERE id = %s;", (po_id,))
+                flash("Order marked as Received. Inventory has been updated.", "success")
+            
+            # --- Inventory Reversal Logic (if status changed *away* from Received) ---
+            elif new_status != 'Received' and current_status == 'Received':
+                 # Get all items on this PO
+                cur.execute("SELECT inventory_item_id, quantity_ordered FROM purchase_order_items WHERE purchase_order_id = %s;", (po_id,))
+                items_to_unreceive = cur.fetchall()
+                # Reverse inventory update
+                for item in items_to_unreceive:
+                    cur.execute(
+                        "UPDATE inventory_items SET quantity_on_hand = quantity_on_hand - %s WHERE id = %s;",
+                        (item['quantity_ordered'], item['inventory_item_id'])
+                    )
+                # Clear received timestamp
+                cur.execute("UPDATE purchase_orders SET received_at = NULL WHERE id = %s;", (po_id,))
+                flash(f"Order status changed from Received. Inventory updates have been reversed.", "warning")
+
+            conn.commit()
+            if new_status != 'Received' and current_status != 'Received':
+                 flash("PO details updated.", "success") # Generic update if status didn't trigger inventory change
+            
+    except psycopg2.Error as e:
+        if conn: conn.rollback()
+        flash(f"Database error updating PO: {e}", "error")
+        print(f"DB Error PO update {po_id}: {e}")
+    finally:
+        if conn: conn.close()
+    return redirect(url_for('po_detail', po_id=po_id))
+
+@app.route('/po/delete/<int:po_id>', methods=['POST'])
+def po_delete(po_id):
+    conn = get_db_connection()
+    try:
+        with conn.cursor(cursor_factory=DictCursor) as cur:
+            # Check if order was received
+            cur.execute("SELECT status, received_at FROM purchase_orders WHERE id = %s;", (po_id,))
+            po = cur.fetchone()
+            if not po:
+                 flash("PO not found.", "error")
+                 conn.rollback()
+            else:
+                 # If it was received, reverse the inventory changes
+                 if po['status'] == 'Received' or po['received_at'] is not None:
+                     cur.execute("SELECT inventory_item_id, quantity_ordered FROM purchase_order_items WHERE purchase_order_id = %s;", (po_id,))
+                     items_to_unreceive = cur.fetchall()
+                     for item in items_to_unreceive:
+                         cur.execute(
+                             "UPDATE inventory_items SET quantity_on_hand = quantity_on_hand - %s WHERE id = %s;",
+                             (item['quantity_ordered'], item['inventory_item_id'])
+                         )
+                     flash_msg = "PO deleted. Inventory updates have been reversed."
+                 else:
+                     flash_msg = "PO deleted." # Not received, just delete
+                 
+                 # Delete the PO. Line items will cascade delete.
+                 cur.execute("DELETE FROM purchase_orders WHERE id = %s;", (po_id,))
+                 conn.commit()
+                 flash(flash_msg, "success")
+    except psycopg2.Error as e:
+        if conn: conn.rollback()
+        flash(f"Error deleting PO: {e}", "error")
+        print(f"DB Error PO delete {po_id}: {e}")
+    finally:
+        if conn: conn.close()
+    return redirect(url_for('purchase_orders_page'))
 # --- END PURCHASE ORDER ROUTES ---
+
 
 if __name__ == '__main__':
     app.run(debug=True)

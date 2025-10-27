@@ -64,7 +64,6 @@
                     <td>{{ po.order_date.strftime('%Y-%m-%d') if po.order_date else 'N/A' }}</td>
                     <td>{{ po.status }}</td>
                     <td class="actions-cell">
-                        <!-- Link to the detail page we will build next -->
                         <a href="{{ url_for('po_detail', po_id=po.id) }}" class="details-btn">Details</a>
                     </td>
                 </tr>

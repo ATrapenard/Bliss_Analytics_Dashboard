@@ -13,8 +13,22 @@
     th:nth-child(5) { width: 20%; } /* Actions */
     
     .actions-cell { display: flex; gap: 10px; align-items: center; }
-    .action-form { margin: 0; display: flex; align-items: center; }
-    .edit-btn { font-size: 0.9em; padding: 6px 12px; }
+    /* Style link as a button */
+    .details-btn {
+        font-size: 0.9em;
+        padding: 6px 12px;
+        text-decoration: none;
+        display: inline-block;
+        color: white;
+        background-color: var(--edit-blue);
+        border: none;
+        border-radius: 5px;
+        cursor: pointer;
+        transition: background-color 0.2s ease;
+    }
+    .details-btn:hover {
+        background-color: #0056b3;
+    }
 </style>
 
 <h1>Purchase Orders</h1>
@@ -50,7 +64,9 @@
                     <td>{{ po.order_date.strftime('%Y-%m-%d') if po.order_date else 'N/A' }}</td>
                     <td>{{ po.status }}</td>
                     <td class="actions-cell">
-                        <a href="#" class="edit-btn">Details</a> </td>
+                        <!-- Link to the detail page we will build next -->
+                        <a href="{{ url_for('po_detail', po_id=po.id) }}" class="details-btn">Details</a>
+                    </td>
                 </tr>
                 {% endfor %}
             </tbody>
@@ -62,7 +78,8 @@
 
     <div class="form-container content-card">
         <h2>Create New Purchase Order</h2>
-        <form method="POST" action="#"> <div>
+        <form method="POST" action="{{ url_for('purchase_orders_page') }}">
+            <div>
                 <label for="supplier_id">Supplier</label>
                 <select id="supplier_id" name="supplier_id" class="select2-enable" required>
                     <option value="" disabled selected>-- Select a Supplier --</option>

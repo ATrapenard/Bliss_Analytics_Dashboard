@@ -620,7 +620,7 @@ def delete_supplier(id):
         with conn.cursor() as cur: cur.execute("DELETE FROM suppliers WHERE id = %s;", (id,)); conn.commit(); flash("Supplier deleted.", "success")
     except psycopg2.Error as e:
         if conn: conn.rollback()
-        if hasattr(e, 'pgcode') and e.pgcode == '23503': # Check pgcode attribute
+        if hasattr(e, 'pgcode') and e.pgcode == '23503':
              flash(f"Cannot delete supplier: Linked to purchase orders.", "error")
         else: flash(f"Error deleting supplier: {e}", "error")
         print(f"DB Error delete supplier {id}: {e}")
@@ -629,31 +629,61 @@ def delete_supplier(id):
     return redirect(url_for('suppliers_page'))
 # --- END SUPPLIER ROUTES ---
 
-# --- PURCHASE ORDER ROUTES (Placeholder for now) ---
-@app.route('/purchase-orders', methods=['GET'])
+# --- PURCHASE ORDER ROUTES ---
+@app.route('/purchase-orders', methods=['GET', 'POST'])
 def purchase_orders_page():
     conn = get_db_connection(); purchase_orders = []; suppliers = []
     try:
+        if request.method == 'POST':
+            # Create a new Purchase Order Header
+            supplier_id = request.form.get('supplier_id')
+            order_date = request.form.get('order_date') or None # Handle optional date
+            expected_delivery = request.form.get('expected_delivery_date') or None
+            
+            if not supplier_id:
+                flash("Supplier is required.", "error")
+                # Need to reload suppliers for the form
+                with conn.cursor(cursor_factory=DictCursor) as cur:
+                    cur.execute("SELECT id, name FROM suppliers ORDER BY name;")
+                    suppliers = cur.fetchall()
+                return render_template('purchase_orders.html', purchase_orders=purchase_orders, suppliers=suppliers, now=datetime.now())
+
+            with conn.cursor() as cur:
+                cur.execute(
+                    """INSERT INTO purchase_orders (supplier_id, order_date, expected_delivery_date, status)
+                       VALUES (%s, %s, %s, %s) RETURNING id;""",
+                    (supplier_id, order_date, expected_delivery, 'Placed')
+                )
+                new_po_id = cur.fetchone()[0]
+            conn.commit()
+            flash("Purchase Order created. Now add items.", "success")
+            # Redirect to the detail page for this new PO
+            return redirect(url_for('po_detail', po_id=new_po_id))
+
+        # GET Request Logic
         with conn.cursor(cursor_factory=DictCursor) as cur:
             cur.execute("""
                 SELECT po.id, s.name as supplier_name, po.order_date, po.expected_delivery_date, po.status
-                FROM purchase_orders po
-                JOIN suppliers s ON po.supplier_id = s.id
+                FROM purchase_orders po JOIN suppliers s ON po.supplier_id = s.id
                 ORDER BY po.order_date DESC, po.id DESC;
             """)
             purchase_orders = cur.fetchall()
             cur.execute("SELECT id, name FROM suppliers ORDER BY name;")
             suppliers = cur.fetchall()
     except psycopg2.Error as e:
-        flash(f"Error fetching purchase orders: {e}", "error")
-        print(f"DB Error PO page GET: {e}")
+        if conn and request.method == 'POST': conn.rollback()
+        flash(f"Error accessing purchase orders: {e}", "error")
+        print(f"DB Error PO page: {e}")
     finally:
         if conn: conn.close()
     
-    # This page isn't built yet, so we'll create the template now.
-    return render_template('purchase_orders.html', purchase_orders=purchase_orders, suppliers=suppliers)
-# --- END PURCHASE ORDER ROUTES ---
+    return render_template('purchase_orders.html', purchase_orders=purchase_orders, suppliers=suppliers, now=datetime.now())
 
+@app.route('/po/<int:po_id>')
+def po_detail(po_id):
+    # This is a placeholder for our next step
+    return f"This will be the detail page for PO #{po_id}."
+# --- END PURCHASE ORDER ROUTES ---
 
 if __name__ == '__main__':
     app.run(debug=True)

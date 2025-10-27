@@ -7,10 +7,12 @@
 
     <link rel="icon" href="{{ url_for('static', filename='bliss_logo.jpg') }}" type="image/jpeg">
 
+    <!-- Google Fonts -->
     <link rel="preconnect" href="https://fonts.googleapis.com">
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
     <link href="https://fonts.googleapis.com/css2?family=Lato:wght@400;700&family=Montserrat:wght@600;700&display=swap" rel="stylesheet">
 
+    <!-- Select2 CSS -->
     <link href="https://cdn.jsdelivr.net/npm/select2@4.1.0-rc.0/dist/css/select2.min.css" rel="stylesheet" />
 
     <style>
@@ -79,7 +81,7 @@
         .add-btn:hover { background-color: #0056b3; opacity: 1;}
         .submit-btn:hover { background-color: #218838; opacity: 1;}
         .remove-btn:hover { background-color: #c82333; opacity: 1;}
-        /* Include input types used in new supplier forms */
+        /* Include input types used in new supplier/PO forms */
         input[type="text"], input[type="number"], input[type="email"], input[type="tel"], input[type="url"], input[type="date"], select, textarea {
              padding: 10px 12px; font-size: 1em; font-family: var(--font-body); border-radius: 6px;
              border: 1px solid var(--input-border); width: 100%; margin-bottom: 15px; background-color: var(--white);
@@ -92,6 +94,15 @@
             background-image: url('data:image/svg+xml;utf8,<svg fill="%236b7280" height="24" viewBox="0 0 24 24" width="24" xmlns="http://www.w3.org/2000/svg"><path d="M7 10l5 5 5-5z"/><path d="M0 0h24v24H0z" fill="none"/></svg>');
             background-repeat: no-repeat; background-position: right 10px center; background-size: 20px; padding-right: 40px;
         }
+        /* Fix for date input showing arrow */
+        input[type="date"] { padding-right: 12px; }
+        input[type="date"]::-webkit-calendar-picker-indicator {
+             cursor: pointer; opacity: 0.6;
+        }
+        input[type="date"]::-webkit-calendar-picker-indicator:hover {
+             opacity: 1;
+        }
+
         label { display: block; margin-bottom: 8px; font-weight: 600; color: var(--text-medium); font-size: 0.9em; }
         small { font-size: 0.8em; color: var(--text-medium); display: block; margin-top: -10px; margin-bottom: 10px; }
         table { width: 100%; border-collapse: collapse; margin-top: 20px; }
@@ -142,7 +153,8 @@
                     <a href="{{ url_for('inventory_items_page') }}">Inventory Items</a>
                     <a href="{{ url_for('wip_batches_page') }}">WIP Batches</a>
                     <a href="{{ url_for('suppliers_page') }}">Suppliers</a>
-                    <a href="{{ url_for('purchase_orders_page') }}">Purchase Orders</a> </div>
+                    <a href="{{ url_for('purchase_orders_page') }}">Purchase Orders</a> <!-- ADDED -->
+                </div>
             </div>
             <div class="dropdown">
                 <button class="dropbtn">Planning & Reports</button>

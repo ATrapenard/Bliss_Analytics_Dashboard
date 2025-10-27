@@ -44,9 +44,80 @@ def get_base_ingredients(recipe_id, conn):
     resolved_cache[recipe_id] = [ing.copy() for ing in base_ingredients]
     return base_ingredients
 
-# --- Standard Routes ---
+# --- NEW DASHBOARD ROUTE ---
 @app.route('/')
-def home(): return render_template('index.html')
+def home():
+    conn = get_db_connection()
+    dashboard_data = {
+        'wip_batches_count': 0,
+        'open_pos_count': 0,
+        'low_stock_count': 0
+    }
+    try:
+        resolved_cache.clear() # Clear cache for fresh data
+        all_base_ingredients = []
+        inventory_levels = {}
+        with conn.cursor(cursor_factory=DictCursor) as cur:
+            # 1. Get count of active WIP batches
+            cur.execute("SELECT COUNT(id) as count FROM wip_batches WHERE status = 'In Progress';")
+            dashboard_data['wip_batches_count'] = cur.fetchone()['count']
+
+            # 2. Get count of open purchase orders
+            cur.execute("SELECT COUNT(id) as count FROM purchase_orders WHERE status = 'Placed' OR status = 'Shipped';")
+            dashboard_data['open_pos_count'] = cur.fetchone()['count']
+
+            # 3. Calculate Low Stock Items (based on requirements report logic)
+            # 3a. Fetch current inventory levels
+            cur.execute("SELECT id, name, unit, quantity_on_hand, quantity_allocated FROM inventory_items;")
+            for item in cur.fetchall():
+                inventory_levels[item['id']] = {
+                    'available': float(item.get('quantity_on_hand', 0)) - float(item.get('quantity_allocated', 0))
+                }
+            
+            # 3b. Get total jars needed
+            cur.execute("""
+                SELECT p.recipe_id, p.jars_per_batch, SUM(sm.min_jars) as total_jars
+                FROM stock_minimums sm
+                JOIN products p ON sm.product_id = p.id
+                JOIN recipes r ON p.recipe_id = r.id
+                WHERE r.is_sold_product = TRUE AND p.jars_per_batch IS NOT NULL AND p.jars_per_batch > 0
+                GROUP BY p.recipe_id, p.jars_per_batch;
+            """)
+            products_to_make = cur.fetchall()
+            
+            # 3c. Calculate total base ingredients needed
+            for prod in products_to_make:
+                batches_needed = math.ceil(float(prod['total_jars']) / float(prod['jars_per_batch']))
+                base_ingredients_one_batch = get_base_ingredients(prod['recipe_id'], conn)
+                for ing in base_ingredients_one_batch:
+                    scaled_ing = dict(ing)
+                    scaled_ing['quantity'] = float(scaled_ing['quantity']) * batches_needed
+                    all_base_ingredients.append(scaled_ing)
+
+            # 3d. Aggregate totals needed
+            totals_needed = defaultdict(lambda: {'total_needed': 0})
+            for ing in all_base_ingredients:
+                inv_item_id = ing.get('inventory_item_id')
+                if inv_item_id:
+                    totals_needed[inv_item_id]['total_needed'] += float(ing.get('quantity', 0))
+            
+            # 3e. Count low stock items
+            low_stock_count = 0
+            for inv_id, needed_data in totals_needed.items():
+                available = inventory_levels.get(inv_id, {'available': 0})['available']
+                net_needed = needed_data['total_needed'] - available
+                if net_needed > 0:
+                    low_stock_count += 1
+            
+            dashboard_data['low_stock_count'] = low_stock_count
+
+    except psycopg2.Error as e:
+        flash(f"Error fetching dashboard data: {e}", "error")
+        print(f"DB Error fetching dashboard data: {e}")
+    finally:
+        if conn: conn.close()
+
+    return render_template('index.html', dashboard_data=dashboard_data)
 
 @app.route('/recipes')
 def recipe_dashboard():
@@ -152,7 +223,7 @@ def update_recipe(recipe_id):
                 inventory_item_id = inventory_item_ids[i] if inventory_item_ids[i] else None; sub_recipe_id = sub_recipe_ids[i] if sub_recipe_ids[i] else None; quantity_str = quantities[i]
                 if not inventory_item_id and not sub_recipe_id: flash(f"Row {i+1} skipped.", "warning"); continue
                 if inventory_item_id and sub_recipe_id: flash(f"Row {i+1} skipped.", "warning"); continue
-                try:
+                try: 
                     quantity_val = float(quantity_str) if quantity_str else 0;
                     if quantity_val <= 0: flash(f"Quantity row {i+1} invalid. Row skipped.", "warning"); continue
                 except ValueError: flash(f"Invalid quantity row {i+1}. Row skipped.", "warning"); continue
@@ -446,10 +517,9 @@ def adjust_inventory_item(id):
             return redirect(url_for('inventory_items_page'))
     except psycopg2.Error as e:
         flash(f"Error fetching item: {e}", "error")
-        if conn: conn.close() # Ensure close on error
+        if conn: conn.close()
         return redirect(url_for('inventory_items_page'))
     finally:
-        # Note: Connection is closed here, or in the finally block of the calling code if one exists
         if conn: conn.close()
     return render_template('adjust_inventory_item.html', item=item)
 
@@ -475,28 +545,21 @@ def process_adjustment(id):
             return redirect(url_for('adjust_inventory_item', id=id))
 
         with conn.cursor(cursor_factory=DictCursor) as cur:
-            # 1. Update the inventory_items table
-            # We lock the row FOR UPDATE to prevent race conditions.
+            # Lock the row
             cur.execute(
                 "SELECT quantity_on_hand FROM inventory_items WHERE id = %s FOR UPDATE;", (id,)
             )
             item = cur.fetchone()
             if item is None:
                 flash("Item not found.", "error")
-                raise Exception("Item not found during adjustment") # Trigger rollback
+                raise Exception("Item not found during adjustment")
             
-            # Check if adjustment would make stock negative (optional, but good practice)
-            # if (item['quantity_on_hand'] + adjustment_quantity) < 0:
-            #    flash(f"Adjustment would result in negative stock. Only {item['quantity_on_hand']} on hand.", "error")
-            #    raise Exception("Adjustment results in negative stock")
-
             cur.execute(
                 "UPDATE inventory_items SET quantity_on_hand = quantity_on_hand + %s WHERE id = %s RETURNING quantity_on_hand;",
                 (adjustment_quantity, id)
             )
             updated_qty = cur.fetchone()
                 
-            # 2. Log the adjustment in the new table
             cur.execute(
                 "INSERT INTO inventory_adjustments (inventory_item_id, adjustment_quantity, reason) VALUES (%s, %s, %s);",
                 (id, adjustment_quantity, reason)
@@ -504,21 +567,18 @@ def process_adjustment(id):
         conn.commit()
         flash(f"Inventory adjusted by {adjustment_quantity}. New QOH: {round(updated_qty[0], 2)}", "success")
 
-    except Exception as e: # Catch any error
+    except Exception as e:
         if conn: conn.rollback()
-        # Avoid flashing the raw Exception 'e' which might not be user-friendly
         if "negative stock" in str(e):
              flash(str(e), "error")
         else:
-            flash(f"Error processing adjustment. Check logs.", "error")
+            flash(f"Error processing adjustment: {e}", "error")
         print(f"Error process adjustment {id}: {e}")
         return redirect(url_for('adjust_inventory_item', id=id))
     finally:
         if conn: conn.close()
-    
     return redirect(url_for('inventory_items_page'))
-# --- END NEW INVENTORY ADJUSTMENT ROUTES ---
-
+# --- END INVENTORY ADJUSTMENT ROUTES ---
 
 @app.route('/wip', methods=['GET', 'POST'])
 def wip_batches_page():
@@ -763,8 +823,7 @@ def purchase_orders_page():
              try:
                  if not conn or conn.closed: conn = get_db_connection()
                  with conn.cursor(cursor_factory=DictCursor) as cur_err:
-                    cur_err.execute("SELECT id, name FROM suppliers ORDER BY name;")
-                    suppliers = cur_err.fetchall()
+                    cur_err.execute("SELECT id, name FROM suppliers ORDER BY name;"); suppliers = cur_err.fetchall()
              except psycopg2.Error as e_inner:
                  print(f"DB Error fetching suppliers for PO form: {e_inner}")
     finally:
@@ -904,14 +963,12 @@ def po_update_header(po_id):
                 WHERE id = %s;
             """, (supplier_id, order_date, expected_delivery, shipping_cost, tax, discount, notes, new_status, po_id))
 
-            # --- Inventory Receiving Logic ---
             if new_status == 'Received' and current_status != 'Received':
                 cur.execute("SELECT inventory_item_id, quantity_ordered FROM purchase_order_items WHERE purchase_order_id = %s;", (po_id,))
                 items_to_receive = cur.fetchall()
                 if not items_to_receive:
                      flash("Cannot mark empty order as Received.", "warning")
                      conn.rollback(); return redirect(url_for('po_detail', po_id=po_id))
-
                 for item in items_to_receive:
                     cur.execute(
                         "UPDATE inventory_items SET quantity_on_hand = quantity_on_hand + %s WHERE id = %s;",
@@ -920,7 +977,6 @@ def po_update_header(po_id):
                 cur.execute("UPDATE purchase_orders SET received_at = NOW() WHERE id = %s;", (po_id,))
                 flash("Order marked as Received. Inventory updated.", "success")
             
-            # --- Inventory Reversal Logic ---
             elif new_status != 'Received' and current_status == 'Received':
                 cur.execute("SELECT inventory_item_id, quantity_ordered FROM purchase_order_items WHERE purchase_order_id = %s;", (po_id,))
                 items_to_unreceive = cur.fetchall()
@@ -933,7 +989,7 @@ def po_update_header(po_id):
                 flash(f"Order status changed from Received. Inventory reversed.", "warning")
             
             else:
-                 flash("PO details updated.", "success") # Generic update if status didn't trigger
+                 flash("PO details updated.", "success")
                  
         conn.commit()
             
@@ -972,13 +1028,12 @@ def po_delete(po_id):
                  flash(flash_msg, "success")
     except psycopg2.Error as e:
         if conn: conn.rollback()
-        flash(f"Error deleting PO: {e.diag.message_primary}", "error") # More specific error
+        flash(f"Error deleting PO: {e.diag.message_primary}", "error")
         print(f"DB Error PO delete {po_id}: {e}")
     finally:
         if conn: conn.close()
     return redirect(url_for('purchase_orders_page'))
 # --- END PURCHASE ORDER ROUTES ---
-
 
 if __name__ == '__main__':
     app.run(debug=True)

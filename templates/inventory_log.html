@@ -1,0 +1,145 @@
+{% extends "_layout.html" %}
+
+{% block title %}Inventory Adjustments Log{% endblock %}
+
+{% block content %}
+<style>
+    .filter-card {
+        margin-bottom: 20px;
+        background-color: var(--background-light); /* Lighter background for filter */
+    }
+    .filter-form {
+        display: grid;
+        grid-template-columns: 3fr 1fr 1fr;
+        gap: 15px;
+        align-items: flex-end;
+    }
+    .filter-form label {
+        margin-bottom: 5px;
+    }
+    .filter-form .select2-container {
+        width: 100% !important; /* Ensure Select2 spans full width */
+    }
+    .filter-form button {
+        height: 42px; /* Match Select2 height */
+    }
+    .clear-btn {
+        background-color: var(--text-medium);
+        color: var(--white);
+        text-align: center;
+        text-decoration: none;
+        padding: 10px 15px;
+        border-radius: 5px;
+        height: 42px;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        transition: opacity 0.2s ease;
+    }
+    .clear-btn:hover {
+        opacity: 0.85;
+    }
+
+    /* Table styles */
+    table { table-layout: fixed; }
+    th:nth-child(1) { width: 20%; } /* Date */
+    th:nth-child(2) { width: 30%; } /* Item */
+    th:nth-child(3) { width: 15%; } /* Change */
+    th:nth-child(4) { width: 15%; } /* New QOH */
+    th:nth-child(5) { width: 20%; } /* Reason */
+    
+    .badge-success {
+        background-color: #d1fae5; /* Tailwind green-100 */
+        color: #065f46; /* Tailwind green-800 */
+        font-size: 0.9em;
+        padding: 4px 10px;
+        border-radius: 12px;
+    }
+    .badge-danger {
+        background-color: #fee2e2; /* Tailwind red-100 */
+        color: #991b1b; /* Tailwind red-800 */
+        font-size: 0.9em;
+        padding: 4px 10px;
+        border-radius: 12px;
+    }
+
+</style>
+
+<div class="d-flex justify-content-between align-items-center mb-3">
+    <h1 class="h2">Inventory Adjustments Log</h1>
+</div>
+
+{% with messages = get_flashed_messages(with_categories=true) %}
+    {% if messages %}
+        {% for category, message in messages %}
+        <div class="flash-{{ category }}">{{ message }}</div>
+        {% endfor %}
+    {% endif %}
+{% endwith %}
+
+<div class="filter-card content-card">
+    <form method="GET" action="{{ url_for('inventory_log') }}" class="filter-form">
+        <div>
+            <label for="inventory_item_id">Filter by Ingredient</label>
+            <select id="inventory_item_id" name="inventory_item_id" class="select2-enable">
+                <option value="">-- Show All Ingredients --</option>
+                {% for item in inventory_items %}
+                    <option value="{{ item.id }}" {% if item.id == selected_item_id %}selected{% endif %}>
+                        {{ item.name }} ({{ item.unit }})
+                    </option>
+                {% endfor %}
+            </select>
+        </div>
+        
+        <button type="submit" class="button-link">Filter</button>
+        <a href="{{ url_for('inventory_log') }}" class="clear-btn">Clear</a>
+    </form>
+</div>
+
+<div class="card shadow-sm content-card">
+    <div class="card-body">
+        <div class="table-responsive">
+            <table class="table table-hover align-middle">
+                <thead class="table-light">
+                    <tr>
+                        <th scope="col">Date & Time</th>
+                        <th scope="col">Item Name</th>
+                        <th scope="col" class="text-center">Change</th>
+                        <th scope="col" class="text-center">New QOH</th>
+                        <th scope="col">Reason</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    {% for adj in adjustments %}
+                    <tr>
+                        <!-- Format the timestamp for readability -->
+                        <td>{{ adj.adjustment_date.strftime('%Y-%m-%d %I:%M %p') if adj.adjustment_date else 'N/A' }}</td>
+                        <td>{{ adj.item_name }}</td>
+                        
+                        <!-- Add conditional badges for positive/negative changes -->
+                        <td class="text-center">
+                            {% if adj.change_quantity > 0 %}
+                                <span class="badge-success">
+                                    +{{ adj.change_quantity | round(2) }}
+                                </span>
+                            {% else %}
+                                <span class="badge-danger">
+                                    {{ adj.change_quantity | round(2) }}
+                                </span>
+                            {% endif %}
+                        </td>
+                        
+                        <td class="text-center">{{ adj.new_quantity | round(2) }}</td>
+                        <td>{{ adj.reason | default('N/A', true) }}</td>
+                    </tr>
+                    {% else %}
+                    <tr>
+                        <td colspan="5" class="text-center">No adjustments found matching this filter.</td>
+                    </tr>
+                    {% endfor %}
+                </tbody>
+            </table>
+        </div>
+    </div>
+</div>
+{% endblock %}

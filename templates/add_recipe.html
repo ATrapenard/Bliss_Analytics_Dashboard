@@ -11,8 +11,8 @@
         .checkbox-container { display: flex; align-items: center; margin-bottom: 20px; }
         .remove-btn { padding: 6px 10px; font-size: 0.9em; }
         .ingredient-row label { display: none; }
-        .ingredient-row .select2-container { width: 100% !important; } /* Ensure Select2 fits */
-         /* Flash message styles */
+        .ingredient-row .select2-container { width: 100% !important; }
+        /* Flash message styles */
         .flash-error { background-color: #f8d7da; color: #721c24; padding: 10px; border: 1px solid #f5c6cb; border-radius: 5px; margin-bottom: 15px; }
         .flash-success { background-color: #d4edda; color: #155724; padding: 10px; border: 1px solid #c3e6cb; border-radius: 5px; margin-bottom: 15px; }
         .flash-warning { background-color: #fff3cd; color: #856404; padding: 10px; border: 1px solid #ffeeba; border-radius: 5px; margin-bottom: 15px; }
@@ -20,6 +20,7 @@
 
     <h1>Add a New Recipe</h1>
 
+     <!-- Display Flash Messages -->
     {% with messages = get_flashed_messages(with_categories=true) %}
         {% if messages %}
             {% for category, message in messages %}
@@ -33,7 +34,7 @@
             <label for="recipe_name">Recipe Name</label>
             <input type="text" id="recipe_name" name="recipe_name" required style="max-width: 400px; margin-bottom: 20px;">
         </div>
-
+        
         <div class="checkbox-container">
              <input type="checkbox" id="is_sold_product" name="is_sold_product" value="true" checked>
              <label for="is_sold_product">This recipe is a final product sold in jars</label>
@@ -41,20 +42,23 @@
 
         <div class="form-grid">
             <div class="yield-section">
-                <label for="yield_quantity">Total Batch Weight/Volume (g or mL)</label>
-                <input type="number" step="any" id="yield_quantity" name="yield_quantity" placeholder="e.g., 8934">
-                <small>Used for nested recipe calculations.</small>
+                <label for="yield_quantity">Batch Yield Quantity</label>
+                <input type="number" step="any" id="yield_quantity" name="yield_quantity" placeholder="e.g., 1 or 8934">
+                <small>e.g., '1' if unit is 'batches', or '8934' if unit is 'grams'.</small>
             </div>
             <div class="yield-section">
                 <label for="yield_unit">Yield Unit</label>
-                <input type="text" id="yield_unit" name="yield_unit" placeholder="e.g., grams">
-                <small>The unit for the batch weight (g or mLs).</small>
+                <select id="yield_unit" name="yield_unit">
+                    <option value="grams">grams (Weight-based scaling)</option>
+                    <option value="mLs">mLs (Volume-based scaling)</option>
+                    <option value="batches">batches (Batch-based scaling)</option>
+                </select>
+                <small>Select 'batches' for intermediate recipes.</small>
             </div>
         </div>
 
         <h3>Ingredients</h3>
-        <div id="ingredients-container">
-            </div>
+        <div id="ingredients-container"></div>
 
         <button type="button" class="add-btn" onclick="addIngredient()">＋ Add Ingredient</button>
         <br>
@@ -108,24 +112,16 @@
              $(invSelect).on('change', function(e) {
                  if ($(this).val()) { // If raw material is selected
                      $(subSelect).val('').trigger('change'); // Clear sub-recipe value
-                     // $(subSelect).prop('disabled', true); // REMOVED disable
                  }
-                 // else { $(subSelect).prop('disabled', false); } // REMOVED enable
-                  // $(subSelect).select2({ theme: "default" }); // Re-init might not be needed now
              });
 
              $(subSelect).on('change', function(e) {
                  if ($(this).val()) { // If sub-recipe is selected
                      $(invSelect).val('').trigger('change'); // Clear raw material value
-                     // $(invSelect).prop('disabled', true); // REMOVED disable
                  }
-                 // else { $(invSelect).prop('disabled', false); } // REMOVED enable
-                 // $(invSelect).select2({ theme: "default" }); // Re-init might not be needed now
              });
 
-             // Ensure initial state is correct (in case of browser back button)
-             if ($(invSelect).val()) { $(subSelect).prop('disabled', true); }
-             if ($(subSelect).val()) { $(invSelect).prop('disabled', true); }
+             // ALL "prop('disabled', true)" lines are now GONE.
         }
 
         document.addEventListener('DOMContentLoaded', () => {

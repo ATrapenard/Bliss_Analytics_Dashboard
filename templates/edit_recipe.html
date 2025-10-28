@@ -41,14 +41,24 @@
 
         <div class="form-grid">
             <div class="yield-section">
-                <label for="yield_quantity">Total Batch Weight/Volume (g or mL)</label>
+                <label for="yield_quantity">Batch Yield Quantity</label>
                 <input type="number" step="any" id="yield_quantity" name="yield_quantity" value="{{ recipe.yield_quantity or '' }}">
-                <small>Used for nested recipe calculations.</small>
+                <small>e.g., '1' if unit is 'batches', or '8934' if unit is 'grams'.</small>
             </div>
             <div class="yield-section">
                 <label for="yield_unit">Yield Unit</label>
-                <input type="text" id="yield_unit" name="yield_unit" value="{{ recipe.yield_unit or '' }}" placeholder="e.g., grams">
-                <small>The unit for the batch weight (g or mLs).</small>
+                <select id="yield_unit" name="yield_unit">
+                    <option value="grams" {% if recipe.yield_unit == 'grams' %}selected{% endif %}>
+                        grams (Weight-based scaling)
+                    </option>
+                    <option value="mLs" {% if recipe.yield_unit == 'mLs' %}selected{% endif %}>
+                        mLs (Volume-based scaling)
+                    </option>
+                    <option value="batches" {% if recipe.yield_unit == 'batches' %}selected{% endif %}>
+                        batches (Batch-based scaling)
+                    </option>
+                </select>
+                <small>Select 'batches' for intermediate recipes.</small>
             </div>
         </div>
 
@@ -86,7 +96,7 @@
                 <button type="button" class="remove-btn" onclick="removeIngredientRow(this)">X</button>
             </div>
             {% endfor %}
-        </div>
+            </div>
 
         <button type="button" class="add-btn" onclick="addIngredient()">＋ Add Ingredient</button>
         <br>
@@ -94,7 +104,7 @@
     </form>
 
     <script>
-        // Function to add a new ingredient row (identical to add_recipe.html)
+        // Function to add a new ingredient row
         function addIngredient() {
             const container = document.getElementById('ingredients-container');
             const newRow = document.createElement('div');
@@ -134,54 +144,33 @@
             button.parentElement.remove();
         }
 
-        // CORRECTED: Do not disable, just clear the other value
+        // Corrected logic: only clears the other dropdown, NEVER disables
         function addDropdownLogic(row) {
             const invSelect = row.querySelector('.ingredient-select');
             const subSelect = row.querySelector('.subrecipe-select');
 
              $(invSelect).on('change', function(e) {
-                 if ($(this).val()) { // If raw material is selected
-                     $(subSelect).val('').trigger('change'); // Clear sub-recipe value and trigger Select2 update
-                     // $(subSelect).prop('disabled', true); // REMOVED
+                 if ($(this).val()) {
+                     // If raw material is selected, clear sub-recipe
+                     $(subSelect).val('').trigger('change');
                  }
-                 // else { $(subSelect).prop('disabled', false); } // REMOVED
-                  // $(subSelect).select2({ theme: "default" }); // Re-init might be needed?
              });
 
              $(subSelect).on('change', function(e) {
-                 if ($(this).val()) { // If sub-recipe is selected
-                     $(invSelect).val('').trigger('change'); // Clear raw material value and trigger Select2 update
-                     // $(invSelect).prop('disabled', true); // REMOVED
+                 if ($(this).val()) {
+                     // If sub-recipe is selected, clear raw material
+                     $(invSelect).val('').trigger('change');
                  }
-                 // else { $(invSelect).prop('disabled', false); } // REMOVED
-                 // $(invSelect).select2({ theme: "default" }); // Re-init might be needed?
              });
-
-             // Set initial disabled state VISUALLY (optional, but helps UI) without disabling submission
-             // This requires checking the initial values when the page loads
-             // However, simply clearing the opposite value on change is sufficient for functionality
         }
 
         document.addEventListener('DOMContentLoaded', () => {
              // Initialize Select2 on dropdowns loaded with the page
             $('.select2-enable').select2({ theme: "default" });
 
-            // Attach enable/disable logic to existing rows
+            // Attach logic to existing rows
             document.querySelectorAll('.ingredient-row').forEach(row => {
                 addDropdownLogic(row);
-
-                // --- ADDED INITIAL STATE LOGIC ---
-                // Check initial values and potentially visually disable (but don't disable submission)
-                // This part ensures the UI looks right on load, but removing .prop('disabled') fixes the core issue.
-                const invSelect = row.querySelector('.ingredient-select');
-                const subSelect = row.querySelector('.subrecipe-select');
-                if ($(invSelect).val()) {
-                    // Visually indicate disabled state if needed, e.g., add a CSS class
-                    // $(subSelect).addClass('visually-disabled'); // Example CSS class
-                } else if ($(subSelect).val()) {
-                    // $(invSelect).addClass('visually-disabled'); // Example CSS class
-                }
-                // --- END INITIAL STATE LOGIC ---
             });
         });
     </script>

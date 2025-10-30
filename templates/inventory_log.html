@@ -62,7 +62,15 @@
         padding: 4px 10px;
         border-radius: 12px;
     }
-
+    @media screen and (max-width: 768px) {
+        .filter-form {
+            grid-template-columns: 1fr;
+            gap: 10px;
+        }
+        .filter-form button {
+            height: 42px; /* Maintain height */
+        }
+    }
 </style>
 
 <div class="d-flex justify-content-between align-items-center mb-3">

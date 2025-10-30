@@ -20,12 +20,25 @@
             background-color: #f2f2f2; /* Original header background */
         }
         /* No border-bottom override needed if using full borders */
+        .search-container {
+        width: 100%;
+        margin-bottom: 20px;
+        }
+        .search-container input[type="text"] {
+        width: 100%;
+        margin-bottom: 0;
+        font-size: 1.1em;
+        padding: 12px 15px;
+        }
     </style>
 
     <h1>Aggregated Ingredient Totals</h1>
     <p>This page shows the total amount of each ingredient needed for all recipes.</p>
 
     <div class="content-card">
+        <div class="search-container">
+            <input type="text" id="totalsSearch" placeholder="Search for ingredients by name...">
+        </div>
         <h2>Total Raw Materials</h2>
         <table>
             <thead>
@@ -46,4 +59,26 @@
             </tbody>
         </table>
     </div>
+    <script>
+    document.addEventListener('DOMContentLoaded', () => {
+        const searchInput = document.getElementById('totalsSearch');
+        const tableBody = document.querySelector('.content-card tbody');
+        const allRows = tableBody.querySelectorAll('tr');
+
+        searchInput.addEventListener('input', function(e) {
+            const searchTerm = e.target.value.toLowerCase();
+
+            allRows.forEach(row => {
+                // Get the text from the 1st cell (Ingredient)
+                const itemName = row.cells[0].textContent.toLowerCase(); 
+                
+                if (itemName.includes(searchTerm)) {
+                    row.style.display = ''; // Show the row
+                } else {
+                    row.style.display = 'none'; // Hide the row
+                }
+            });
+        });
+    });
+    </script>
 {% endblock %}

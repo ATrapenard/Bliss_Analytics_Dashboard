@@ -167,13 +167,10 @@
 
         /* --- Mobile Responsive --- */
         @media screen and (max-width: 1100px) {
-             .navbar a, .navbar .dropdown .dropbtn { padding: 10px 6px; font-size: 0.8em; }
-        }
-        @media screen and (max-width: 1100px) {
             .navbar { justify-content: space-between; }
             .nav-links { display: none; flex-direction: column; width: 100%; position: absolute; top: 58px; left: 0; background-color: var(--nav-bg); z-index: 10; align-items: flex-start; }
             .nav-links.active { display: flex; }
-            .navbar a, .navbar .dropdown .dropbtn { width: 100%; text-align: left; padding: 12px 20px; }
+            .nav-links a, .nav-links .dropdown .dropbtn { width: 100%; text-align: left; padding: 12px 20px; }
             .dropdown { width: 100%; }
             .dropdown-content { position: static; box-shadow: none; border-radius: 0; background-color: #444; width: 100%; }
             .dropdown-content a { padding-left: 30px; }
@@ -187,6 +184,7 @@
                 padding: var(--space-md); /* Less padding in cards on mobile */
             }
             .container { grid-template-columns: 1fr !important; }
+            .navbar a, .navbar .dropdown .dropbtn { padding: 10px 6px; font-size: 0.8em; }
         }
     </style>
 </head>

@@ -15,6 +15,20 @@
     .actions-cell { display: flex; gap: 10px; align-items: center; }
     .action-form { margin: 0; display: flex; align-items: center; }
     .edit-btn, .delete-btn { font-size: 0.9em; padding: 6px 12px; }
+    @media screen and (max-width: 1200px) {
+        .actions-cell {
+            flex-direction: column;
+            align-items: stretch;
+            gap: 4px;
+        }
+        .actions-cell .action-form {
+            width: 100%;
+            margin: 0;
+        }
+        .actions-cell .action-form button {
+            width: 100%;
+        }
+    }
 </style>
 
 <h1>Manage Products</h1>

@@ -35,7 +35,21 @@
      .actions-cell a { background-color: var(--edit-blue); /* Blue for details link */ }
      .actions-cell a:hover { background-color: #0056b3; }
      .delete-form { margin: 0; display: flex; } /* Align form/button correctly */
-
+    @media screen and (max-width: 1200px) {
+        .actions-cell {
+            flex-direction: column;
+            align-items: stretch;
+            gap: 4px;
+        }
+        .actions-cell a, .actions-cell .delete-form {
+            width: 100%;
+            margin: 0;
+        }
+        .actions-cell a, .actions-cell .delete-form button {
+            width: 100%;
+            text-align: center;
+        }
+    }
 </style>
 
 <h1>Work In Progress (WIP) Batches</h1>

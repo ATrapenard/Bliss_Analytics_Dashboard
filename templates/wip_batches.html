@@ -57,7 +57,7 @@
                 <thead>
                     <tr>
                         <th>Batch ID</th>
-                        <th>Recipe</th>
+                        <th>Product</th>
                         <th>Target Jars</th>
                         <th>Started At</th>
                         <th>Actions</th>
@@ -67,7 +67,7 @@
                     {% for batch in wip_batches %}
                     <tr>
                         <td>{{ batch.id }}</td>
-                        <td>{{ batch.recipe_name }}</td>
+                        <td>{{ batch.product_name or 'N/A' }}<br><small>Recipe: {{ batch.recipe_name }}</small></td>
                         <td>{{ batch.target_jars }}</td>
                         <td>{{ batch.created_at.strftime('%Y-%m-%d %H:%M') if batch.created_at else 'N/A' }}</td>
                         <td class="actions-cell">
@@ -88,12 +88,12 @@
     <div class="form-container content-card">
         <h2>Start New Batch</h2>
         <form method="POST" action="{{ url_for('wip_batches_page') }}">
-            <div>
-                <label for="recipe_id">Select Recipe</label>
-                <select id="recipe_id" name="recipe_id" required>
-                    <option value="" disabled selected>-- Choose a recipe --</option>
-                    {% for recipe in sellable_recipes %}
-                        <option value="{{ recipe.id }}">{{ recipe.name }}</option>
+        <div>
+            <label for="product_id">Select Product</label>
+                <select id="product_id" name="product_id" required>
+                    <option value="" disabled selected>-- Choose a product --</option>
+                    {% for product in sellable_products %}
+                        <option value="{{ product.id }}">{{ product.product_name }} ({{ product.sku }})</option>
                     {% endfor %}
                 </select>
             </div>

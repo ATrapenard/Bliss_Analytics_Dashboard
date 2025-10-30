@@ -48,7 +48,8 @@
 <div class="detail-grid">
     <div class="info-card content-card">
         <h2>Batch Information</h2>
-        <p><strong>Recipe:</strong> {{ batch.recipe_name }}</p>
+        <p><strong>Product:</strong> {{ batch.product_name or 'N/A' }}</p>
+        <p><strong>Recipe:</strong> <small>{{ batch.recipe_name }}</small></p>
         <p><strong>Target Jars:</strong> {{ batch.target_jars }}</p>
         <p><strong>Status:</strong> {{ batch.status }}</p>
         <p><strong>Started:</strong> {{ batch.created_at.strftime('%Y-%m-%d %H:%M') if batch.created_at else 'N/A' }}</p>

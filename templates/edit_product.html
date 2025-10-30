@@ -18,6 +18,10 @@
             <input type="text" id="sku" name="sku" required value="{{ product.sku }}">
         </div>
         <div>
+            <label for="product_name">Product Title</label>
+            <input type="text" id="product_name" name="product_name" required value="{{ product.product_name or '' }}">
+        </div>
+        <div>
             <label for="recipe_id">Select Recipe</label>
             <select id="recipe_id" name="recipe_id" required>
                 <option value="" disabled>-- Choose a recipe --</option>
@@ -29,8 +33,8 @@
             </select>
         </div>
         <div>
-            <label for="jars_per_batch">Jars Produced Per Batch</label>
-            <input type="number" id="jars_per_batch" name="jars_per_batch" min="1" value="{{ product.jars_per_batch or '' }}" placeholder="e.g., 50">
+            <label for="jars_per_batch">Average Jars Produced Per Batch</label>
+            <input type="number" step="any" id="jars_per_batch" name="jars_per_batch" min="0.01" value="{{ product.jars_per_batch or '' }}" placeholder="e.g., 50.5">
         </div>
         <button type="submit" class="submit-btn">Save Changes</button>
     </form>

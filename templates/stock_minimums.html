@@ -40,7 +40,7 @@
             <thead>
                 <tr>
                     <th>Location</th>
-                    <th>Product (SKU)</th>
+                    <th>Product</th>
                     <th>Min. Jars</th>
                     <th>Actions</th> </tr>
             </thead>
@@ -48,7 +48,7 @@
                 {% for item in minimums %}
                 <tr>
                     <td>{{ item.location_name }}</td>
-                    <td>{{ item.recipe_name }} ({{ item.sku }})</td>
+                    <td>{{ item.product_name or 'N/A' }} ({{ item.sku }})<br><small>Recipe: {{ item.recipe_name }}</small></td>
                     <td>{{ item.min_jars }}</td>
                     <td>
                         <form class="delete-form" method="POST" action="{{ url_for('delete_stock_minimum', id=item.id) }}" onsubmit="return confirm('Are you sure you want to delete this minimum setting?');">
@@ -78,7 +78,7 @@
                 <select id="product_id" name="product_id" required>
                     <option value="" disabled selected>-- Choose a product --</option>
                     {% for prod in products %}
-                        <option value="{{ prod.id }}">{{ prod.recipe_name }} ({{ prod.sku }})</option>
+                        <option value="{{ prod.id }}">{{ prod.product_name }} ({{ prod.sku }})</option>
                     {% endfor %}
                 </select>
             </div>

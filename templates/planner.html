@@ -31,7 +31,7 @@
         <form method="POST" action="{{ url_for('production_planner') }}">
             {% for product in products %}
             <div class="product-input-row">
-                <label for="jars_product_{{ product.id }}">{{ product.recipe_name }} ({{ product.sku }})</label>
+                <label for="jars_product_{{ product.id }}">{{ product.product_name }} ({{ product.sku }})</label>
                 <input type="number" id="jars_product_{{ product.id }}" name="jars_product_{{ product.id }}" min="0" placeholder="0" value="{{ request.form.get('jars_product_' + product.id|string, '') }}"> {# Retain input value #}
             </div>
             {% endfor %}

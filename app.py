@@ -295,7 +295,7 @@ def products_page():
     conn = get_db_connection(); products = []; recipes = []
     try:
         with conn.cursor(cursor_factory=DictCursor) as cur:
-            cur.execute("""SELECT p.id, p.sku, p.jars_per_batch, r.name as recipe_name FROM products p LEFT JOIN recipes r ON p.recipe_id = r.id ORDER BY p.sku;"""); products = cur.fetchall()
+            cur.execute("""SELECT p.id, p.sku, p.product_name, p.jars_per_batch, r.name as recipe_name FROM products p LEFT JOIN recipes r ON p.recipe_id = r.id ORDER BY p.product_name, p.sku;"""); products = cur.fetchall()
             cur.execute("SELECT id, name FROM recipes WHERE is_sold_product = TRUE ORDER BY name;"); recipes = cur.fetchall()
     except psycopg2.Error as e: flash(f"Error fetching products: {e}", "error"); print(f"DB Error products page: {e}")
     finally:
@@ -306,8 +306,8 @@ def products_page():
 def add_product():
     conn = get_db_connection()
     try:
-        sku = request.form['sku']; recipe_id = request.form['recipe_id']; jars_per_batch = request.form.get('jars_per_batch') or None
-        with conn.cursor() as cur: cur.execute('INSERT INTO products (sku, recipe_id, jars_per_batch) VALUES (%s, %s, %s);', (sku, recipe_id, jars_per_batch)); conn.commit(); flash("Product added.", "success")
+        sku = request.form['sku']; product_name = request.form['product_name']; recipe_id = request.form['recipe_id']; jars_per_batch = request.form.get('jars_per_batch') or None
+        with conn.cursor() as cur: cur.execute('INSERT INTO products (sku, product_name, recipe_id, jars_per_batch) VALUES (%s, %s, %s, %s);', (sku, product_name, recipe_id, jars_per_batch)); conn.commit(); flash("Product added.", "success")   
     except psycopg2.Error as e: 
         if conn: conn.rollback()
         flash(f"Error adding product: {e}", "error"); print(f"DB Error add product: {e}")
@@ -334,8 +334,8 @@ def edit_product(id):
 def update_product(id):
     conn = get_db_connection()
     try:
-        sku = request.form['sku']; recipe_id = request.form['recipe_id']; jars_per_batch = request.form.get('jars_per_batch') or None
-        with conn.cursor() as cur: cur.execute("UPDATE products SET sku = %s, recipe_id = %s, jars_per_batch = %s WHERE id = %s;", (sku, recipe_id, jars_per_batch, id)); conn.commit(); flash("Product updated.", "success")
+        sku = request.form['sku']; product_name = request.form['product_name']; recipe_id = request.form['recipe_id']; jars_per_batch = request.form.get('jars_per_batch') or None
+        with conn.cursor() as cur: cur.execute("UPDATE products SET sku = %s, product_name = %s, recipe_id = %s, jars_per_batch = %s WHERE id = %s;", (sku, product_name, recipe_id, jars_per_batch, id)); conn.commit(); flash("Product updated.", "success")
     except psycopg2.Error as e: 
         if conn: conn.rollback()
         flash(f"Error updating product: {e}", "error"); print(f"DB Error update product {id}: {e}")
@@ -393,8 +393,8 @@ def stock_minimums_page():
             if conn: conn.close(); return redirect(url_for('stock_minimums_page'))
         with conn.cursor(cursor_factory=DictCursor) as cur:
             cur.execute("SELECT * FROM locations ORDER BY name;"); locations = cur.fetchall()
-            cur.execute("""SELECT p.id, p.sku, r.name as recipe_name FROM products p JOIN recipes r ON p.recipe_id = r.id WHERE r.is_sold_product = TRUE ORDER BY p.sku;"""); products = cur.fetchall()
-            cur.execute("""SELECT sm.id, l.name as location_name, p.sku, r.name as recipe_name, sm.min_jars FROM stock_minimums sm JOIN locations l ON sm.location_id = l.id JOIN products p ON sm.product_id = p.id JOIN recipes r ON p.recipe_id = r.id ORDER BY l.name, p.sku;"""); minimums = cur.fetchall()
+            cur.execute("""SELECT p.id, p.sku, p.product_name, r.name as recipe_name FROM products p JOIN recipes r ON p.recipe_id = r.id WHERE r.is_sold_product = TRUE ORDER BY p.product_name, p.sku;"""); products = cur.fetchall()
+            cur.execute("""SELECT sm.id, l.name as location_name, p.sku, p.product_name, r.name as recipe_name, sm.min_jars FROM stock_minimums sm JOIN locations l ON sm.location_id = l.id JOIN products p ON sm.product_id = p.id JOIN recipes r ON p.recipe_id = r.id ORDER BY l.name, p.sku;"""); minimums = cur.fetchall()
     except psycopg2.Error as e:
         if conn and request.method == 'POST': conn.rollback()
         flash(f"Error accessing stock minimums: {e}", "error"); print(f"DB Error stock minimums page: {e}")
@@ -459,7 +459,7 @@ def production_planner():
         with conn.cursor(cursor_factory=DictCursor) as cur:
             cur.execute("SELECT id, name, unit, quantity_on_hand, quantity_allocated FROM inventory_items;");
             for item in cur.fetchall(): inventory_levels[item['id']] = {'name': item['name'], 'unit': item['unit'], 'on_hand': float(item.get('quantity_on_hand', 0)), 'allocated': float(item.get('quantity_allocated', 0)), 'available': float(item.get('quantity_on_hand', 0)) - float(item.get('quantity_allocated', 0))}
-            cur.execute("""SELECT p.id, p.sku, p.jars_per_batch, r.id as recipe_id, r.name as recipe_name FROM products p JOIN recipes r ON p.recipe_id = r.id WHERE r.is_sold_product = TRUE AND p.jars_per_batch IS NOT NULL AND p.jars_per_batch > 0 ORDER BY r.name;"""); sellable_products = cur.fetchall()
+            cur.execute("""SELECT p.id, p.sku, p.product_name, p.jars_per_batch, r.id as recipe_id, r.name as recipe_name FROM products p JOIN recipes r ON p.recipe_id = r.id WHERE r.is_sold_product = TRUE AND p.jars_per_batch IS NOT NULL AND p.jars_per_batch > 0 ORDER BY p.product_name;"""); sellable_products = cur.fetchall()
         if request.method == 'POST':
             all_base_ingredients_run = []
             for product in sellable_products:
@@ -693,26 +693,61 @@ def inventory_log():
 
 @app.route('/wip', methods=['GET', 'POST'])
 def wip_batches_page():
-    conn = get_db_connection(); wip_batches = []; sellable_recipes = []
+    conn = get_db_connection(); wip_batches = []; sellable_products = []
     try:
         if request.method == 'POST':
-            recipe_id = request.form['recipe_id']; target_jars = request.form.get('target_jars') or 0
+            product_id = request.form['product_id']; target_jars = request.form.get('target_jars') or 0
+            
+            # This try/except block was misaligned
             try: 
                 target_jars_int = int(target_jars);
-                if target_jars_int > 0:
-                    with conn.cursor() as cur: cur.execute("INSERT INTO wip_batches (recipe_id, target_jars, status) VALUES (%s, %s, %s);", (recipe_id, target_jars_int, 'In Progress')); conn.commit(); flash("WIP Batch started.", "success")
-                else: flash('Target Jars must be positive.', 'error')
-            except ValueError: flash('Invalid number for Target Jars.', 'error')
-            if conn: conn.close(); return redirect(url_for('wip_batches_page'))
+                if target_jars_int > 0 and product_id:
+                    with conn.cursor(cursor_factory=DictCursor) as cur: 
+                        cur.execute("SELECT recipe_id FROM products WHERE id = %s;", (product_id,))
+                        prod_data = cur.fetchone()
+                        if prod_data:
+                            recipe_id = prod_data['recipe_id']
+                            cur.execute("INSERT INTO wip_batches (recipe_id, product_id, target_jars, status) VALUES (%s, %s, %s, %s);", (recipe_id, product_id, target_jars_int, 'In Progress')); 
+                            conn.commit(); 
+                            flash("WIP Batch started.", "success")
+                        else:
+                            flash('Product not found.', 'error')
+                else: flash('Product and positive Target Jars required.', 'error')
+            except ValueError: 
+                flash('Invalid number for Target Jars.', 'error')
+            
+            # This redirect line was at the wrong indentation and needed to be inside the POST check
+            if conn: conn.close(); 
+            return redirect(url_for('wip_batches_page'))
+
+        # This 'with' block is part of the 'try' and runs for GET requests
         with conn.cursor(cursor_factory=DictCursor) as cur:
-            cur.execute("""SELECT w.id, r.name as recipe_name, w.target_jars, w.status, w.created_at FROM wip_batches w JOIN recipes r ON w.recipe_id = r.id WHERE w.status = 'In Progress' ORDER BY w.created_at DESC;"""); wip_batches = cur.fetchall()
-            cur.execute("""SELECT id, name FROM recipes WHERE is_sold_product = TRUE ORDER BY name;"""); sellable_recipes = cur.fetchall()
+            cur.execute("""
+                SELECT w.id, r.name as recipe_name, p.product_name, w.target_jars, w.status, w.created_at 
+                FROM wip_batches w 
+                JOIN recipes r ON w.recipe_id = r.id
+                LEFT JOIN products p ON w.product_id = p.id
+                WHERE w.status = 'In Progress' ORDER BY w.created_at DESC;
+            """); wip_batches = cur.fetchall()
+            cur.execute("""
+                SELECT p.id, p.product_name, p.sku 
+                FROM products p 
+                JOIN recipes r ON p.recipe_id = r.id 
+                WHERE r.is_sold_product = TRUE AND p.jars_per_batch IS NOT NULL AND p.jars_per_batch > 0 
+                ORDER BY p.product_name;
+            """); sellable_products = cur.fetchall() # Changed from sellable_recipes
+    
+    # This 'except' block was incorrectly indented inside the 'with' block
     except psycopg2.Error as e:
         if conn and request.method == 'POST': conn.rollback()
         flash(f"Error accessing WIP batches: {e}", "error"); print(f"DB Error WIP page: {e}")
+    # This 'finally' block was also incorrectly indented
     finally:
         if conn: conn.close()
-    return render_template('wip_batches.html', wip_batches=wip_batches, sellable_recipes=sellable_recipes)
+        
+    # This 'return' was inside the 'with' block and needs to be at the end
+    # Also, updated variable to 'sellable_products'
+    return render_template('wip_batches.html', wip_batches=wip_batches, sellable_products=sellable_products)
 
 @app.route('/wip/<int:batch_id>')
 def wip_batch_detail(batch_id):
@@ -720,13 +755,30 @@ def wip_batch_detail(batch_id):
     try:
         resolved_cache.clear()
         with conn.cursor(cursor_factory=DictCursor) as cur:
-            cur.execute("""SELECT w.id, w.target_jars, w.status, w.created_at, r.id as recipe_id, r.name as recipe_name FROM wip_batches w JOIN recipes r ON w.recipe_id = r.id WHERE w.id = %s;""", (batch_id,)); batch = cur.fetchone()
+            cur.execute("""
+                SELECT w.id, w.target_jars, w.status, w.created_at, w.product_id, 
+                    r.id as recipe_id, r.name as recipe_name, 
+                    p.product_name, p.jars_per_batch 
+                FROM wip_batches w 
+                JOIN recipes r ON w.recipe_id = r.id 
+                LEFT JOIN products p ON w.product_id = p.id 
+                WHERE w.id = %s;
+            """, (batch_id,)); batch = cur.fetchone()
             if not batch: flash(f"WIP Batch {batch_id} not found.", "error"); return redirect(url_for('wip_batches_page'))
             required_ingredients = defaultdict(lambda:{'name':'','unit':'','total_needed':0,'inventory_item_id':None})
             base_ingredients_one_batch = get_base_ingredients(batch['recipe_id'], conn)
-            cur.execute("SELECT jars_per_batch FROM products WHERE recipe_id = %s LIMIT 1;", (batch['recipe_id'],)); product_info = cur.fetchone()
-            if product_info and product_info['jars_per_batch'] and float(product_info['jars_per_batch']) > 0: batches_needed_float = float(batch['target_jars']) / float(product_info['jars_per_batch'])
-            else: batches_needed_float = 1.0 # Or error
+
+            batches_needed_float = 1.0 # Default
+            if batch['product_id'] and batch['jars_per_batch'] and float(batch['jars_per_batch']) > 0:
+                batches_needed_float = float(batch['target_jars']) / float(batch['jars_per_batch'])
+            else:
+                # Fallback for old batches without a product_id. This is imperfect.
+                cur.execute("SELECT jars_per_batch FROM products WHERE recipe_id = %s AND jars_per_batch IS NOT NULL AND jars_per_batch > 0 LIMIT 1;", (batch['recipe_id'],));
+                product_info = cur.fetchone()
+                if product_info and product_info['jars_per_batch'] and float(product_info['jars_per_batch']) > 0:
+                    batches_needed_float = float(batch['target_jars']) / float(product_info['jars_per_batch'])
+                else:
+                    flash("Could not determine jars_per_batch for this batch. Ingredient calculations may be based on 1 batch.", "warning")
             for ing in base_ingredients_one_batch:
                 inv_item_id = ing.get('inventory_item_id')
                 if inv_item_id: name=ing.get('name','?').strip();unit=ing.get('unit','?').strip();key=(inv_item_id);required_ingredients[key]['name']=name;required_ingredients[key]['unit']=unit;required_ingredients[key]['inventory_item_id']=inv_item_id;required_ingredients[key]['total_needed']+=float(ing.get('quantity',0))*batches_needed_float

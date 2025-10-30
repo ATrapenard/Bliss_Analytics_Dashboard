@@ -433,10 +433,17 @@ def requirements_page():
         report_data = []
         for inv_id, needed_data in totals_needed.items():
             inv_info = inventory_levels.get(inv_id, {'on_hand': 0, 'allocated': 0, 'available': 0}); total_needed = needed_data['total_needed']; available = inv_info['available']; net_needed = max(0, total_needed - available)
-            report_data.append({'name': needed_data['name'], 'unit': needed_data['unit'], 'total_needed': round(total_needed, 2), 'on_hand': round(inv_info['on_hand'], 2), 'allocated': round(inv_info['allocated'], 2), 'available': round(available, 2), 'net_needed': round(net_needed, 2)})
-        needed_ids = set(totals_needed.keys())
-        for inv_id, inv_info in inventory_levels.items():
-            if inv_id not in needed_ids: report_data.append({'name': inv_info['name'], 'unit': inv_info['unit'], 'total_needed': 0, 'on_hand': round(inv_info['on_hand'], 2), 'allocated': round(inv_info['allocated'], 2), 'available': round(inv_info['available'], 2), 'net_needed': 0})
+            
+            # --- MODIFICATION ---
+            # Only append to the report if you actually need to buy it (Net Needed > 0)
+            if net_needed > 0:
+                report_data.append({'name': needed_data['name'], 'unit': needed_data['unit'], 'total_needed': round(total_needed, 2), 'on_hand': round(inv_info['on_hand'], 2), 'allocated': round(inv_info['allocated'], 2), 'available': round(available, 2), 'net_needed': round(net_needed, 2)})
+        
+        # --- MODIFICATION ---
+        # The entire block that added 0-requirement items has been removed.
+        # needed_ids = set(totals_needed.keys())
+        # for inv_id, inv_info in inventory_levels.items():
+        #    if inv_id not in needed_ids: report_data.append(...)
         sorted_report_data = sorted(report_data, key=lambda x: x['name'])
     except psycopg2.Error as e:
         flash(f"Error generating requirements report: {e}", "error"); print(f"DB Error requirements page: {e}")

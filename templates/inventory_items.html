@@ -71,7 +71,16 @@
         transition: max-height 0.3s ease-out;
         padding-top: 15px;
     }
-
+    .search-container {
+        width: 100%;
+        margin-bottom: 20px;
+    }
+    .search-container input[type="text"] {
+        width: 100%;
+        margin-bottom: 0;
+        font-size: 1.1em;
+        padding: 12px 15px;
+    }
     @media screen and (max-width: 900px) {
         .form-container { order: -1; }
     }
@@ -91,6 +100,9 @@
 
 <div class="container">
     <div class="list-container content-card">
+        <div class="search-container">
+            <input type="text" id="inventorySearch" placeholder="Search for items by name...">
+        </div>
         <h2>Existing Items</h2>
         <table>
             <thead>
@@ -169,6 +181,24 @@
             }
         });
     });
+    const searchInput = document.getElementById('inventorySearch');
+    const tableBody = document.querySelector('.list-container tbody');
+    const allRows = tableBody.querySelectorAll('tr');
+
+        searchInput.addEventListener('input', function(e) {
+            const searchTerm = e.target.value.toLowerCase();
+
+            allRows.forEach(row => {
+                // Get the text from the 2nd cell (Item Name)
+                const itemName = row.cells[1].textContent.toLowerCase();
+                
+                if (itemName.includes(searchTerm)) {
+                    row.style.display = ''; // Show the row
+                } else {
+                    row.style.display = 'none'; // Hide the row
+                }
+            });
+        });
 </script>
 
 {% endblock %}

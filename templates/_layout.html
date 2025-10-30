@@ -2,7 +2,7 @@
 <html lang="en">
 <head>
     <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <meta name="viewport" content="width=device-width, initial-scale:1.0">
     <title>{% block title %}{% endblock %}</title>
 
     <link rel="icon" href="{{ url_for('static', filename='bliss_logo.jpg') }}" type="image/jpeg">
@@ -23,20 +23,36 @@
             --white: #ffffff; --nav-bg: #333; --delete-red: #dc3545; --edit-blue: #007BFF;
             --input-border: #ccc; --input-focus-border: var(--edit-blue);
             --font-heading: 'Montserrat', sans-serif; --font-body: 'Lato', sans-serif;
+            
+            /* Define standard spacing units */
+            --space-xs: 0.5rem;  /* 8px */
+            --space-sm: 1rem;    /* 16px */
+            --space-md: 1.5rem;  /* 24px */
+            --space-lg: 2rem;    /* 32px */
         }
         body {
             font-family: var(--font-body); margin: 0;
             background-image: linear-gradient(to top right, var(--primary-color), var(--secondary-color));
             min-height: 100vh; background-attachment: fixed; color: var(--text-dark);
+            line-height: 1.6; /* Improved readability */
         }
-        h1, h2, h3 { font-family: var(--font-heading); color: var(--text-dark); }
+        
+        /* --- Typography --- */
+        h1, h2, h3 { font-family: var(--font-heading); color: var(--text-dark); line-height: 1.3; }
+        h1 { font-size: 2.25rem; margin-top: 0; margin-bottom: var(--space-sm); }
+        h2 { font-size: 1.75rem; margin-bottom: var(--space-sm); }
+        h3 { font-size: 1.25rem; margin-bottom: var(--space-xs); }
+        p { margin-top: 0; margin-bottom: var(--space-sm); }
+        small { font-size: 0.8em; color: var(--text-medium); display: block; margin-top: calc(var(--space-md) * -0.5); margin-bottom: var(--space-sm); }
+
+        /* --- Navbar --- */
         .navbar {
             background-color: var(--nav-bg); overflow: visible; display: flex;
             justify-content: space-between; align-items: center; padding: 0 10px; position: relative;
         }
         .nav-links { display: flex; flex-wrap: wrap; align-items: center; }
         .navbar a, .navbar .dropdown .dropbtn {
-            color: var(--white); text-decoration: none; padding: 14px 10px;
+            color: var(--white); text-decoration: none; padding: 14px 16px; /* Standardized padding */
             display: block; font-family: var(--font-body); transition: background-color 0.2s ease;
             white-space: nowrap; font-size: 0.9em; border: none; background: none; cursor: pointer;
         }
@@ -59,16 +75,28 @@
         .dropbtn::after { content: ' ▼'; font-size: 0.7em; vertical-align: middle; margin-left: 4px; }
         .hamburger { display: none; cursor: pointer; padding: 14px 15px; }
         .hamburger .bar { display: block; width: 25px; height: 3px; margin: 5px auto; background-color: var(--white); }
-        .content-container { padding: 20px 40px; }
+        
+        /* --- Main Content & Cards --- */
+        .content-container { 
+            max-width: 1400px; /* Constrain width on large screens */
+            margin: 0 auto; /* Center content */
+            padding: var(--space-lg); /* Consistent outer padding */
+        }
         .content-card, .form-container, .product-list, .location-list, .list-container, .recipe-card {
              background-color: var(--white); border-radius: 12px; border: 1px solid var(--border-color);
              box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.1), 0 2px 4px -2px rgba(0, 0, 0, 0.1);
-             padding: 20px; margin-bottom: 20px;
+             padding: var(--space-lg); /* Standardized card padding */
+             margin-bottom: var(--space-lg); /* Standardized card spacing */
         }
+
+        /* --- Buttons --- */
         button, .button-link, input[type="submit"] {
             font-family: var(--font-body); background-color: var(--primary-color); color: var(--white);
-            border: none; padding: 10px 15px; border-radius: 5px; cursor: pointer; text-decoration: none;
-            display: inline-block; transition: opacity 0.2s ease; font-size: 1em;
+            border: none; padding: 10px 18px; border-radius: 5px; cursor: pointer; text-decoration: none;
+            display: inline-block; transition: opacity 0.2s ease; 
+            font-size: 0.95em; /* Standardized font size */
+            font-weight: 600; /* Standardized font weight */
+            margin-top: var(--space-xs); /* Add space above buttons */
          }
         button:hover, .button-link:hover, input[type="submit"]:hover { opacity: 0.85; }
         .edit-btn { background-color: var(--edit-blue) !important; }
@@ -81,11 +109,23 @@
         .add-btn:hover { background-color: #0056b3; opacity: 1;}
         .submit-btn:hover { background-color: #218838; opacity: 1;}
         .remove-btn:hover { background-color: #c82333; opacity: 1;}
-        /* Include input types used in new supplier/PO forms */
-        input[type="text"], input[type="number"], input[type="email"], input[type="tel"], input[type="url"], input[type="date"], select, textarea {
+
+        /* --- Form Elements --- */
+        input[type="text"], input[type="number"], input[type="email"], input[type="tel"], input[type="url"], input[type="date"], select {
              padding: 10px 12px; font-size: 1em; font-family: var(--font-body); border-radius: 6px;
-             border: 1px solid var(--input-border); width: 100%; margin-bottom: 15px; background-color: var(--white);
+             border: 1px solid var(--input-border); width: 100%; 
+             margin-bottom: var(--space-md); /* Standardized form spacing */
+             background-color: var(--white);
              transition: border-color 0.2s ease, box-shadow 0.2s ease; appearance: none;
+             height: 42px; /* Standard height for inputs/selects */
+        }
+        textarea {
+             padding: 10px 12px; font-size: 1em; font-family: var(--font-body); border-radius: 6px;
+             border: 1px solid var(--input-border); width: 100%; 
+             margin-bottom: var(--space-md); /* Standardized form spacing */
+             background-color: var(--white);
+             transition: border-color 0.2s ease, box-shadow 0.2s ease; appearance: none;
+             min-height: 80px; /* Keep textarea flexible */
         }
         input[type="text"]:focus, input[type="number"]:focus, input[type="email"]:focus, input[type="tel"]:focus, input[type="url"]:focus, input[type="date"]:focus, select:focus, textarea:focus {
             outline: none; border-color: var(--input-focus-border); box-shadow: 0 0 0 2px rgba(0, 123, 255, 0.25);
@@ -94,24 +134,35 @@
             background-image: url('data:image/svg+xml;utf8,<svg fill="%236b7280" height="24" viewBox="0 0 24 24" width="24" xmlns="http://www.w3.org/2000/svg"><path d="M7 10l5 5 5-5z"/><path d="M0 0h24v24H0z" fill="none"/></svg>');
             background-repeat: no-repeat; background-position: right 10px center; background-size: 20px; padding-right: 40px;
         }
-        /* Fix for date input showing arrow */
-        input[type="date"] { padding-right: 12px; }
-        input[type="date"]::-webkit-calendar-picker-indicator {
-             cursor: pointer; opacity: 0.6;
+        input[type="date"] { padding-right: 12px; height: 42px; }
+        input[type="date"]::-webkit-calendar-picker-indicator { cursor: pointer; opacity: 0.6; }
+        input[type="date"]::-webkit-calendar-picker-indicator:hover { opacity: 1; }
+
+        label { display: block; margin-bottom: var(--space-xs); font-weight: 600; color: var(--text-medium); font-size: 0.9em; }
+        
+        /* --- Tables --- */
+        table { width: 100%; border-collapse: collapse; margin-top: var(--space-sm); }
+        th, td { 
+            padding: var(--space-sm); /* Standardized table padding */
+            text-align: left; border-bottom: 1px solid var(--border-color); vertical-align: middle; 
         }
-        input[type="date"]::-webkit-calendar-picker-indicator:hover {
-             opacity: 1;
+        th { 
+            background-color: var(--background-light); font-size: 0.75rem; text-transform: uppercase; 
+            color: var(--text-medium); font-family: var(--font-heading); border-bottom-width: 2px; 
         }
 
-        label { display: block; margin-bottom: 8px; font-weight: 600; color: var(--text-medium); font-size: 0.9em; }
-        small { font-size: 0.8em; color: var(--text-medium); display: block; margin-top: -10px; margin-bottom: 10px; }
-        table { width: 100%; border-collapse: collapse; margin-top: 20px; }
-        th, td { padding: 12px 15px; text-align: left; border-bottom: 1px solid var(--border-color); vertical-align: middle; }
-        th { background-color: var(--background-light); font-size: 0.75rem; text-transform: uppercase; color: var(--text-medium); font-family: var(--font-heading); border-bottom-width: 2px; }
-        .flash-error { background-color: #f8d7da; color: #721c24; padding: 10px; border: 1px solid #f5c6cb; border-radius: 5px; margin-bottom: 15px; }
-        .flash-success { background-color: #d4edda; color: #155724; padding: 10px; border: 1px solid #c3e6cb; border-radius: 5px; margin-bottom: 15px; }
-        .flash-warning { background-color: #fff3cd; color: #856404; padding: 10px; border: 1px solid #ffeeba; border-radius: 5px; margin-bottom: 15px; }
+        /* --- Flash Messages --- */
+        .flash-error, .flash-success, .flash-warning {
+             padding: var(--space-sm); /* Standardized padding */
+             border: 1px solid;
+             border-radius: 5px; 
+             margin-bottom: var(--space-md); /* Standardized spacing */
+        }
+        .flash-error { background-color: #f8d7da; color: #721c24; border-color: #f5c6cb; }
+        .flash-success { background-color: #d4edda; color: #155724; border-color: #c3e6cb; }
+        .flash-warning { background-color: #fff3cd; color: #856404; border-color: #ffeeba; }
 
+        /* --- Mobile Responsive --- */
         @media screen and (max-width: 1100px) {
              .navbar a, .navbar .dropdown .dropbtn { padding: 10px 6px; font-size: 0.8em; }
         }
@@ -128,7 +179,10 @@
             .dropdown:hover .dropdown-content { display: none; }
             .dropdown .dropbtn.active + .dropdown-content { display: block; }
             .hamburger { display: block; }
-            .content-container { padding: 15px; }
+            .content-container { padding: var(--space-sm); } /* Less padding on mobile */
+            .content-card, .form-container, .product-list, .location-list, .list-container, .recipe-card {
+                padding: var(--space-md); /* Less padding in cards on mobile */
+            }
             .container { grid-template-columns: 1fr !important; }
         }
     </style>
@@ -152,8 +206,8 @@
                 <div class="dropdown-content">
                     <a href="{{ url_for('inventory_items_page') }}">Inventory Items</a>
                     <a href="{{ url_for('wip_batches_page') }}">WIP Batches</a>
-                    <a href="{{ url_for('inventory_log') }}">Adjustment Log</a> <!-- ADDED -->
-                    <hr style="border-top: 1px solid #666; margin: 5px 0;"> <!-- ADDED -->
+                    <a href="{{ url_for('inventory_log') }}">Adjustment Log</a>
+                    <hr style="border-top: 1px solid #666; margin: 5px 0;">
                     <a href="{{ url_for('suppliers_page') }}">Suppliers</a>
                     <a href="{{ url_for('purchase_orders_page') }}">Purchase Orders</a>
                 </div>
@@ -216,3 +270,4 @@
     </script>
 </body>
 </html>
+

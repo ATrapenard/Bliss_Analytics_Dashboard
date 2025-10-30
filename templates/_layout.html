@@ -50,10 +50,10 @@
             background-color: var(--nav-bg); overflow: visible; display: flex;
             justify-content: space-between; align-items: center; padding: 0 10px; position: relative;
         }
-        .nav-links { display: flex; flex-wrap: wrap; align-items: center; }
+        .nav-links { display: flex; flex-wrap: wrap; align-items: baseline; }
         .navbar a, .navbar .dropdown .dropbtn {
             color: var(--white); text-decoration: none; padding: 14px 16px; /* Standardized padding */
-            display: block; font-family: var(--font-body); transition: background-color 0.2s ease;
+            font-family: var(--font-body); transition: background-color 0.2s ease;
             white-space: nowrap; font-size: 0.9em; border: none; background: none; cursor: pointer;
         }
         .navbar a:hover, .navbar .dropdown:hover .dropbtn { background-color: rgba(255, 255, 255, 0.1); }
@@ -144,11 +144,14 @@
         table { width: 100%; border-collapse: collapse; margin-top: var(--space-sm); }
         th, td { 
             padding: var(--space-sm); /* Standardized table padding */
-            text-align: left; border-bottom: 1px solid var(--border-color); vertical-align: middle; 
+            text-align: left; vertical-align: middle;
         }
         th { 
             background-color: var(--background-light); font-size: 0.75rem; text-transform: uppercase; 
             color: var(--text-medium); font-family: var(--font-heading); border-bottom-width: 2px; 
+        }
+        tr {
+            border-bottom: 1px solid var(--border-color);
         }
 
         /* --- Flash Messages --- */

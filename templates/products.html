@@ -109,4 +109,28 @@
         </form>
     </div>
 </div>
+<script>
+document.addEventListener('DOMContentLoaded', () => {
+    const searchInput = document.getElementById('productSearch');
+    const tableBody = document.querySelector('.product-list tbody');
+    const allRows = tableBody.querySelectorAll('tr');
+
+    searchInput.addEventListener('input', function(e) {
+        const searchTerm = e.target.value.toLowerCase();
+
+        allRows.forEach(row => {
+            const sku = row.cells[0].textContent.toLowerCase();
+            const productTitle = row.cells[1].textContent.toLowerCase();
+            const recipeName = row.cells[2].textContent.toLowerCase();
+            
+            // Show row if any cell matches the search term
+            if (sku.includes(searchTerm) || productTitle.includes(searchTerm) || recipeName.includes(searchTerm)) {
+                row.style.display = ''; // Show the row
+            } else {
+                row.style.display = 'none'; // Hide the row
+            }
+        });
+    });
+});
+</script>
 {% endblock %}

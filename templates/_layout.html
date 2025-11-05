@@ -160,6 +160,10 @@
              border: 1px solid;
              border-radius: 5px; 
              margin-bottom: var(--space-md); /* Standardized spacing */
+             /* --- ADDED FOR FADE-OUT --- */
+             opacity: 1;
+             transition: opacity 0.5s ease-out;
+             /* --- END ADDED --- */
         }
         .flash-error { background-color: #f8d7da; color: #721c24; border-color: #f5c6cb; }
         .flash-success { background-color: #d4edda; color: #155724; border-color: #c3e6cb; }
@@ -266,7 +270,24 @@
                 }
             });
         });
-        $(document).ready(function() { initializeSelect2('.select2-enable'); });
+        $(document).ready(function() { initializeSelect2('.select2-enable'); 
+        // --- NEW CODE FOR FLASH MESSAGE FADE-OUT ---
+            // Find all flash messages
+            const allFlashMessages = document.querySelectorAll('.flash-error, .flash-success, .flash-warning');
+            
+            allFlashMessages.forEach((message, index) => {
+                // Set a timer to start the fade-out (opacity 0)
+                setTimeout(() => {
+                    message.style.opacity = '0';
+                }, 4000 + (index * 100)); // 4-second delay, staggered slightly if there are multiple
+
+                // Set a final timer to remove the element from the layout
+                setTimeout(() => {
+                    message.remove();
+                }, 4500 + (index * 100)); // 4.5 seconds, after fade-out
+            });
+            // --- END OF NEW CODE ---
+        });
         function initializeSelect2(selector) { $(selector).select2({ theme: "default" }); }
     </script>
 </body>

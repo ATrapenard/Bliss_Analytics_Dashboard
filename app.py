@@ -402,6 +402,67 @@ def stock_minimums_page():
         if conn: conn.close()
     return render_template('stock_minimums.html', locations=locations, products=products, minimums=minimums)
 
+@app.route('/location-stock', methods=['GET', 'POST'])
+def location_stock_page():
+    conn = get_db_connection()
+    locations = []
+    products = []
+    current_stock = []
+    
+    try:
+        if request.method == 'POST':
+            location_id = request.form['location_id']
+            product_id = request.form['product_id']
+            quantity = request.form.get('quantity', 0)
+            
+            with conn.cursor() as cur:
+                cur.execute("""
+                    INSERT INTO location_stock (location_id, product_id, quantity) 
+                    VALUES (%s, %s, %s) 
+                    ON CONFLICT (product_id, location_id) 
+                    DO UPDATE SET quantity = EXCLUDED.quantity;
+                """, (location_id, product_id, quantity))
+                conn.commit()
+                flash("Finished stock quantity updated.", "success")
+            return redirect(url_for('location_stock_page'))
+
+        # GET request
+        with conn.cursor(cursor_factory=DictCursor) as cur:
+            cur.execute("SELECT * FROM locations ORDER BY name;")
+            locations = cur.fetchall()
+            
+            cur.execute("""
+                SELECT p.id, p.product_name, p.sku 
+                FROM products p
+                JOIN recipes r ON p.recipe_id = r.id
+                WHERE r.is_sold_product = TRUE 
+                ORDER BY p.product_name;
+            """)
+            products = cur.fetchall()
+            
+            cur.execute("""
+                SELECT ls.id, l.name as location_name, p.product_name, p.sku, ls.quantity
+                FROM location_stock ls
+                JOIN locations l ON ls.location_id = l.id
+                JOIN products p ON ls.product_id = p.id
+                ORDER BY l.name, p.product_name;
+            """)
+            current_stock = cur.fetchall()
+
+    except psycopg2.Error as e:
+        if conn and request.method == 'POST':
+            conn.rollback()
+        flash(f"Error accessing location stock: {e}", "error")
+        print(f"DB Error location stock page: {e}")
+    finally:
+        if conn:
+            conn.close()
+            
+    return render_template('location_stock.html', 
+                           locations=locations, 
+                           products=products, 
+                           current_stock=current_stock)
+
 @app.route('/stock-minimums/delete/<int:id>', methods=['POST'])
 def delete_stock_minimum(id):
     conn = get_db_connection()
@@ -416,39 +477,103 @@ def delete_stock_minimum(id):
 
 @app.route('/requirements')
 def requirements_page():
-    conn = get_db_connection(); sorted_report_data = []
+    conn = get_db_connection()
+    sorted_report_data = []
+    
     try:
-        resolved_cache.clear(); all_base_ingredients = []; inventory_levels = {}
-        with conn.cursor(cursor_factory=DictCursor) as cur:
-            cur.execute("SELECT id, name, unit, quantity_on_hand, quantity_allocated FROM inventory_items;");
-            for item in cur.fetchall(): inventory_levels[item['id']] = {'name': item['name'], 'unit': item['unit'], 'on_hand': float(item.get('quantity_on_hand', 0)), 'allocated': float(item.get('quantity_allocated', 0)), 'available': float(item.get('quantity_on_hand', 0)) - float(item.get('quantity_allocated', 0))}
-            cur.execute("""SELECT p.recipe_id, p.jars_per_batch, SUM(sm.min_jars) as total_jars FROM stock_minimums sm JOIN products p ON sm.product_id = p.id JOIN recipes r ON p.recipe_id = r.id WHERE r.is_sold_product = TRUE AND p.jars_per_batch IS NOT NULL AND p.jars_per_batch > 0 GROUP BY p.recipe_id, p.jars_per_batch;"""); products_to_make = cur.fetchall()
-            for prod in products_to_make:
-                batches_needed = math.ceil(float(prod['total_jars']) / float(prod['jars_per_batch'])); base_ingredients_one_batch = get_base_ingredients(prod['recipe_id'], conn)
-                for ing in base_ingredients_one_batch: scaled_ing = dict(ing); scaled_ing['quantity'] = float(scaled_ing['quantity']) * batches_needed; all_base_ingredients.append(scaled_ing)
-        totals_needed = defaultdict(lambda: {'name': '', 'unit': '', 'total_needed': 0, 'inventory_item_id': None})
-        for ing in all_base_ingredients:
-            inv_item_id = ing.get('inventory_item_id')
-            if inv_item_id: name = ing.get('name', 'Unknown').strip(); unit = ing.get('unit', 'Unknown').strip(); key = (inv_item_id); totals_needed[key]['name'] = name; totals_needed[key]['unit'] = unit; totals_needed[key]['inventory_item_id'] = inv_item_id; totals_needed[key]['total_needed'] += float(ing.get('quantity', 0))
-        report_data = []
-        for inv_id, needed_data in totals_needed.items():
-            inv_info = inventory_levels.get(inv_id, {'on_hand': 0, 'allocated': 0, 'available': 0}); total_needed = needed_data['total_needed']; available = inv_info['available']; net_needed = max(0, total_needed - available)
-            
-            # --- MODIFICATION ---
-            # Only append to the report if you actually need to buy it (Net Needed > 0)
-            if net_needed > 0:
-                report_data.append({'name': needed_data['name'], 'unit': needed_data['unit'], 'total_needed': round(total_needed, 2), 'on_hand': round(inv_info['on_hand'], 2), 'allocated': round(inv_info['allocated'], 2), 'available': round(available, 2), 'net_needed': round(net_needed, 2)})
+        resolved_cache.clear()
+        inventory_levels = {} # For raw ingredients
+        product_needs = defaultdict(lambda: {'min_total': 0, 'stock_total': 0})
         
-        # --- MODIFICATION ---
-        # The entire block that added 0-requirement items has been removed.
-        # needed_ids = set(totals_needed.keys())
-        # for inv_id, inv_info in inventory_levels.items():
-        #    if inv_id not in needed_ids: report_data.append(...)
+        with conn.cursor(cursor_factory=DictCursor) as cur:
+            # 1. Get current RAW ingredient inventory
+            cur.execute("SELECT id, name, unit, quantity_on_hand, quantity_allocated FROM inventory_items;")
+            for item in cur.fetchall():
+                inventory_levels[item['id']] = {
+                    'name': item['name'], 
+                    'unit': item['unit'], 
+                    'on_hand': float(item.get('quantity_on_hand', 0)), 
+                    'allocated': float(item.get('quantity_allocated', 0)), 
+                    'available': float(item.get('quantity_on_hand', 0)) - float(item.get('quantity_allocated', 0))
+                }
+
+            # 2. Get TOTAL minimum jars needed for each product, from all locations
+            cur.execute("SELECT product_id, SUM(min_jars) as total_min FROM stock_minimums GROUP BY product_id;")
+            for row in cur.fetchall():
+                product_needs[row['product_id']]['min_total'] = float(row['total_min'])
+
+            # 3. Get TOTAL finished stock for each product, from all locations
+            cur.execute("SELECT product_id, SUM(quantity) as total_stock FROM location_stock GROUP BY product_id;")
+            for row in cur.fetchall():
+                product_needs[row['product_id']]['stock_total'] = float(row['total_stock'])
+
+            # 4. Determine how many jars of each product we actually need to *produce*
+            all_base_ingredients = []
+            for product_id, needs in product_needs.items():
+                jars_to_produce = max(0, needs['min_total'] - needs['stock_total'])
+                
+                if jars_to_produce > 0:
+                    # Find the recipe and yield for this product
+                    cur.execute("""
+                        SELECT recipe_id, jars_per_batch 
+                        FROM products 
+                        WHERE id = %s AND jars_per_batch IS NOT NULL AND jars_per_batch > 0;
+                    """, (product_id,))
+                    prod_info = cur.fetchone()
+                    
+                    if prod_info:
+                        recipe_id = prod_info['recipe_id']
+                        jars_per_batch = float(prod_info['jars_per_batch'])
+                        batches_needed = math.ceil(jars_to_produce / jars_per_batch)
+                        
+                        # Get base ingredients and scale them by batches needed
+                        base_ingredients_one_batch = get_base_ingredients(recipe_id, conn)
+                        for ing in base_ingredients_one_batch:
+                            scaled_ing = dict(ing)
+                            scaled_ing['quantity'] = float(scaled_ing['quantity']) * batches_needed
+                            all_base_ingredients.append(scaled_ing)
+
+            # 5. Aggregate all raw ingredients needed for production
+            totals_needed = defaultdict(lambda: {'name': '', 'unit': '', 'total_needed': 0, 'inventory_item_id': None})
+            for ing in all_base_ingredients:
+                inv_item_id = ing.get('inventory_item_id')
+                if inv_item_id:
+                    name = ing.get('name', 'Unknown').strip()
+                    unit = ing.get('unit', 'Unknown').strip()
+                    key = (inv_item_id)
+                    totals_needed[key]['name'] = name
+                    totals_needed[key]['unit'] = unit
+                    totals_needed[key]['inventory_item_id'] = inv_item_id
+                    totals_needed[key]['total_needed'] += float(ing.get('quantity', 0))
+
+            # 6. Build the final report (the shopping list)
+            report_data = []
+            for inv_id, needed_data in totals_needed.items():
+                inv_info = inventory_levels.get(inv_id, {'on_hand': 0, 'allocated': 0, 'available': 0})
+                total_needed = needed_data['total_needed']
+                available = inv_info['available']
+                net_needed = max(0, total_needed - available)
+
+                # Use the filter we added before: only show if net needed > 0
+                if net_needed > 0:
+                    report_data.append({
+                        'name': needed_data['name'], 
+                        'unit': needed_data['unit'], 
+                        'total_needed': round(total_needed, 2), 
+                        'on_hand': round(inv_info['on_hand'], 2), 
+                        'allocated': round(inv_info['allocated'], 2), 
+                        'available': round(available, 2), 
+                        'net_needed': round(net_needed, 2)
+                    })
+        
         sorted_report_data = sorted(report_data, key=lambda x: x['name'])
+        
     except psycopg2.Error as e:
-        flash(f"Error generating requirements report: {e}", "error"); print(f"DB Error requirements page: {e}")
+        flash(f"Error generating requirements report: {e}", "error")
+        print(f"DB Error requirements page: {e}")
     finally:
         if conn: conn.close()
+        
     return render_template('requirements.html', report_data=sorted_report_data)
 
 @app.route('/planner', methods=['GET', 'POST'])

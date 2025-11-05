@@ -75,6 +75,13 @@
     </style>
 
     <h1>Recipe Dashboard</h1>
+    {% with messages = get_flashed_messages(with_categories=true) %}
+        {% if messages %}
+            {% for category, message in messages %}
+            <div class="flash-{{ category }}">{{ message }}</div>
+            {% endfor %}
+        {% endif %}
+    {% endwith %}
     <a href="{{ url_for('new_recipe_form') }}" class="button-link submit-btn">＋ Add New Recipe</a>
     <div class="search-container">
         <input type="text" id="recipeSearch" placeholder="Search for recipes by name...">

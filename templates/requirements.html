@@ -30,12 +30,25 @@
 
         td:nth-child(n+3) { text-align: right; } /* Right-align numeric columns */
         .highlight-needed { font-weight: bold; color: var(--delete-red); } /* Highlight net needed > 0 */
+        .search-container {
+        width: 100%;
+        margin-bottom: 20px;
+        }
+        .search-container input[type="text"] {
+        width: 100%;
+        margin-bottom: 0;
+        font-size: 1.1em;
+        padding: 12px 15px;
+        }
     </style>
 
     <h1>Stock Requirements Report</h1>
     <p>Master list of raw ingredients needed to meet minimum stock levels, considering current inventory.</p>
 
     <div class="content-card">
+        <div class="search-container">
+            <input type="text" id="searchRequirements" placeholder="Search for ingredients...">
+        </div>
         <h2>Master Shopping List (Net Requirements)</h2>
         {% if report_data %}
             <table>
@@ -70,4 +83,23 @@
              <p>No stock minimums set or no ingredients required based on current minimums.</p>
         {% endif %}
     </div>
+<script>
+document.addEventListener('DOMContentLoaded', () => {
+    const searchInput = document.getElementById('searchRequirements');
+    const tableBody = document.querySelector('.content-card tbody');
+    const allRows = tableBody.querySelectorAll('tr');
+
+    searchInput.addEventListener('input', function(e) {
+        const searchTerm = e.target.value.toLowerCase();
+        allRows.forEach(row => {
+            const itemName = row.cells[0].textContent.toLowerCase(); // Ingredient name
+            if (itemName.includes(searchTerm)) {
+                row.style.display = '';
+            } else {
+                row.style.display = 'none';
+            }
+        });
+    });
+});
+</script>
 {% endblock %}

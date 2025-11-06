@@ -13,6 +13,16 @@
     th:nth-child(1) { width: 30%; } /* Location */
     th:nth-child(2) { width: 45%; } /* Product */
     th:nth-child(3) { width: 25%; } /* Quantity */
+    .search-container {
+        width: 100%;
+        margin-bottom: 20px;
+    }
+    .search-container input[type="text"] {
+        width: 100%;
+        margin-bottom: 0;
+        font-size: 1.1em;
+        padding: 12px 15px;
+    }
 
     @media screen and (max-width: 1100px) {
         .container {
@@ -34,6 +44,9 @@
 
 <div class="container">
     <div class="list-container content-card">
+        <div class="search-container">
+            <input type="text" id="searchStock" placeholder="Search by Location or Product...">
+        </div>
         <h2>Current Finished Stock</h2>
         <table>
             <thead>
@@ -88,4 +101,24 @@
         </form>
     </div>
 </div>
+<script>
+document.addEventListener('DOMContentLoaded', () => {
+    const searchInput = document.getElementById('searchStock');
+    const tableBody = document.querySelector('.list-container tbody');
+    const allRows = tableBody.querySelectorAll('tr');
+
+    searchInput.addEventListener('input', function(e) {
+        const searchTerm = e.target.value.toLowerCase();
+        allRows.forEach(row => {
+            const locationName = row.cells[0].textContent.toLowerCase();
+            const productName = row.cells[1].textContent.toLowerCase();
+            if (locationName.includes(searchTerm) || productName.includes(searchTerm)) {
+                row.style.display = '';
+            } else {
+                row.style.display = 'none';
+            }
+        });
+    });
+});
+</script>
 {% endblock %}

@@ -218,10 +218,10 @@
             <div class="dropdown">
                 <button class="dropbtn">Operations</button>
                 <div class="dropdown-content">
-                    <a href="{{ url_for('inventory_items_page') }}">Raw Ingredients</a>
-                    <a href="{{ url_for('location_stock_page') }}">Finished Stock</a>
+                    <a href="{{ url_for('inventory_items_page') }}">Raw Ingredient Stock</a>
+                    <a href="{{ url_for('location_stock_page') }}">Fulfillment Stock</a>
                     <a href="{{ url_for('wip_batches_page') }}">WIP Batches</a>
-                    <a href="{{ url_for('inventory_log') }}">Adjustment Log</a>
+                    <a href="{{ url_for('inventory_log') }}">Ingredient Adjustment Log</a>
                 </div>
             </div>
 
@@ -230,15 +230,15 @@
                 <div class="dropdown-content">
                     <a href="{{ url_for('production_planner') }}">Production Planner</a>
                     <a href="{{ url_for('purchase_orders_page') }}">Purchase Orders</a>
-                    <a href="{{ url_for('requirements_page') }}">Requirements</a>
-                    <a href="{{ url_for('stock_minimums_page') }}">Stock Minimums</a>
+                    <a href="{{ url_for('requirements_page') }}">Ingredient Requirements</a>
+                    <a href="{{ url_for('stock_minimums_page') }}">Fulfillment Stock Minimums</a>
                 </div>
             </div>
 
              <div class="dropdown">
                 <button class="dropbtn">Reports</button>
                 <div class="dropdown-content">
-                    <a href="{{ url_for('ingredient_totals') }}">Ingredient Totals</a>
+                    <a href="{{ url_for('ingredient_totals') }}">Recipe Ingredient Totals</a>
                 </div>
             </div>
 

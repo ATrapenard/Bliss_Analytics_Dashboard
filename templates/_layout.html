@@ -204,35 +204,44 @@
             <span class="bar"></span>
         </div>
         <div class="nav-links">
-            <a href="{{ url_for('recipe_dashboard') }}">Recipes</a>
-            <a href="{{ url_for('products_page') }}">Products</a>
+
             <div class="dropdown">
-                <button class="dropbtn">Inventory</button>
+                <button class="dropbtn">Core Data</button>
                 <div class="dropdown-content">
-                    <a href="{{ url_for('inventory_items_page') }}">Inventory Items</a>
-                    <a href="{{ url_for('wip_batches_page') }}">WIP Batches</a>
-                    <a href="{{ url_for('location_stock_page') }}">Finished Stock</a>
-                    <a href="{{ url_for('inventory_log') }}">Adjustment Log</a>
-                    <hr style="border-top: 1px solid #666; margin: 5px 0;">
+                    <a href="{{ url_for('recipe_dashboard') }}">Recipes</a>
+                    <a href="{{ url_for('products_page') }}">Products</a>
                     <a href="{{ url_for('suppliers_page') }}">Suppliers</a>
-                    <a href="{{ url_for('purchase_orders_page') }}">Purchase Orders</a>
-                </div>
-            </div>
-            <div class="dropdown">
-                <button class="dropbtn">Planning & Reports</button>
-                <div class="dropdown-content">
-                    <a href="{{ url_for('production_planner') }}">Planner</a>
-                    <a href="{{ url_for('requirements_page') }}">Requirements</a>
-                    <a href="{{ url_for('ingredient_totals') }}">Ingredient Totals</a>
-                    <a href="{{ url_for('stock_minimums_page') }}">Stock Minimums</a>
-                </div>
-            </div>
-             <div class="dropdown">
-                <button class="dropbtn">Settings</button>
-                <div class="dropdown-content">
                     <a href="{{ url_for('locations_page') }}">Locations</a>
                 </div>
             </div>
+
+            <div class="dropdown">
+                <button class="dropbtn">Operations</button>
+                <div class="dropdown-content">
+                    <a href="{{ url_for('inventory_items_page') }}">Raw Ingredients</a>
+                    <a href="{{ url_for('location_stock_page') }}">Finished Stock</a>
+                    <a href="{{ url_for('wip_batches_page') }}">WIP Batches</a>
+                    <a href="{{ url_for('inventory_log') }}">Adjustment Log</a>
+                </div>
+            </div>
+
+            <div class="dropdown">
+                <button class="dropbtn">Planning & Procurement</button>
+                <div class="dropdown-content">
+                    <a href="{{ url_for('production_planner') }}">Production Planner</a>
+                    <a href="{{ url_for('purchase_orders_page') }}">Purchase Orders</a>
+                    <a href="{{ url_for('requirements_page') }}">Requirements</a>
+                    <a href="{{ url_for('stock_minimums_page') }}">Stock Minimums</a>
+                </div>
+            </div>
+
+             <div class="dropdown">
+                <button class="dropbtn">Reports</button>
+                <div class="dropdown-content">
+                    <a href="{{ url_for('ingredient_totals') }}">Ingredient Totals</a>
+                </div>
+            </div>
+
         </div>
     </nav>
     <div class="content-container">

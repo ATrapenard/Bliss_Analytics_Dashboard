@@ -688,6 +688,23 @@ def adjust_inventory_item(id):
     return render_template('adjust_inventory_item.html', item=item)
 
 @app.route('/inventory/process-adjustment/<int:id>', methods=['POST'])
+# --- NEW HELPER FUNCTION ---
+def _log_inventory_adjustment(cur, inventory_item_id, adjustment_quantity, reason, new_quantity_on_hand, po_id=None, wip_batch_id=None):
+    """
+    Helper function to insert a record into the inventory_adjustments log.
+    Assumes the inventory_items table has *already* been updated.
+    """
+    try:
+        cur.execute(
+            """INSERT INTO inventory_adjustments 
+            (inventory_item_id, adjustment_quantity, new_quantity, reason, purchase_order_id, wip_batch_id) 
+            VALUES (%s, %s, %s, %s, %s, %s);""",
+            (inventory_item_id, adjustment_quantity, new_quantity_on_hand, reason, po_id, wip_batch_id)
+        )
+    except Exception as e:
+        # If logging fails, we don't want to crash the whole operation
+        print(f"CRITICAL: Failed to log inventory adjustment: {e}")
+# --- END HELPER FUNCTION ---
 def process_adjustment(id):
     conn = get_db_connection()
     try:
@@ -718,27 +735,21 @@ def process_adjustment(id):
                 raise Exception("Item not found during adjustment")
             
             cur.execute(
-                "UPDATE inventory_items SET quantity_on_hand = quantity_on_hand + %s WHERE id = %s RETURNING quantity_on_hand;",
-                (adjustment_quantity, id)
+            "UPDATE inventory_items SET quantity_on_hand = quantity_on_hand + %s WHERE id = %s RETURNING quantity_on_hand;",
+            (adjustment_quantity, id)
             )
             updated_qty_row = cur.fetchone()
             new_quantity_on_hand = updated_qty_row[0] if updated_qty_row else 0
-                
-            # --- MODIFIED INSERT ---
-            # Now saves the new_quantity_on_hand to the log
-            cur.execute(
-                """INSERT INTO inventory_adjustments 
-                   (inventory_item_id, adjustment_quantity, new_quantity, reason) 
-                   VALUES (%s, %s, %s, %s);""",
-                (id, adjustment_quantity, new_quantity_on_hand, reason)
-            )
-        conn.commit()
-        flash(f"Inventory adjusted by {adjustment_quantity}. New QOH: {round(new_quantity_on_hand, 2)}", "success")
+
+            # Use the new helper function
+            _log_inventory_adjustment(cur, id, adjustment_quantity, reason, new_quantity_on_hand)
+            conn.commit()
+            flash(f"Inventory adjusted by {adjustment_quantity}. New QOH: {round(new_quantity_on_hand, 2)}", "success")
 
     except Exception as e:
         if conn: conn.rollback()
         if "negative stock" in str(e):
-             flash(str(e), "error")
+            flash(str(e), "error")
         else:
             flash(f"Error processing adjustment: {e}", "error")
         print(f"Error process adjustment {id}: {e}")
@@ -777,7 +788,7 @@ def inventory_log():
         query_sql = """
             SELECT 
                 ia.id,
-                ia.adjustment_date,
+                ia.created_at AS adjustment_date,
                 ii.name AS item_name,
                 ia.adjustment_quantity AS change_quantity,
                 ia.new_quantity,
@@ -796,7 +807,7 @@ def inventory_log():
             params.append(filter_item_id)
         
         # Add ordering
-        query_sql += " ORDER BY ia.adjustment_date DESC"
+        query_sql += " ORDER BY ia.created_at DESC"
         
         cursor.execute(query_sql, tuple(params))
         adjustments = cursor.fetchall()
@@ -954,7 +965,21 @@ def complete_wip_batch(batch_id):
             if not batch_status or batch_status['status'] != 'In Progress': flash("Batch not found or already completed.", "error"); conn.rollback()
             else:
                 cur.execute("SELECT inventory_item_id, SUM(quantity_allocated) as total_allocated FROM wip_allocations WHERE wip_batch_id = %s GROUP BY inventory_item_id;", (batch_id,)); allocations = cur.fetchall()
-                for alloc in allocations: cur.execute("""UPDATE inventory_items SET quantity_on_hand = quantity_on_hand - %s, quantity_allocated = quantity_allocated - %s WHERE id = %s;""", (alloc['total_allocated'], alloc['total_allocated'], alloc['inventory_item_id']))
+                for alloc in allocations:
+                    adj_qty = -alloc['total_allocated']
+                    reason = f"WIP Batch #{batch_id} Completed"
+                    cur.execute(
+                        """UPDATE inventory_items 
+                        SET quantity_on_hand = quantity_on_hand - %s, 
+                        quantity_allocated = quantity_allocated - %s 
+                        WHERE id = %s 
+                        RETURNING quantity_on_hand;""",
+                    (alloc['total_allocated'], alloc['total_allocated'], alloc['inventory_item_id'])
+                    )
+                    updated_qty_row = cur.fetchone()
+                    new_qoh = updated_qty_row[0] if updated_qty_row else 0
+
+                    _log_inventory_adjustment(cur, alloc['inventory_item_id'], adj_qty, reason, new_qoh, wip_batch_id=batch_id)
                 cur.execute("UPDATE wip_batches SET status = 'Completed', completed_at = NOW() WHERE id = %s;", (batch_id,)); conn.commit(); flash(f"Batch {batch_id} completed.", "success")
     except psycopg2.Error as e: conn.rollback(); flash(f"DB error completing batch: {e}", "error"); print(f"DB Error complete batch {batch_id}: {e}")
     finally: conn.close(); return redirect(url_for('wip_batches_page'))
@@ -1259,13 +1284,19 @@ def po_update_header(po_id):
                 cur.execute("SELECT inventory_item_id, quantity_ordered FROM purchase_order_items WHERE purchase_order_id = %s;", (po_id,))
                 items_to_receive = cur.fetchall()
                 if not items_to_receive:
-                     flash("Cannot mark empty order as Received.", "warning")
-                     conn.rollback(); return redirect(url_for('po_detail', po_id=po_id))
+                    flash("Cannot mark empty order as Received.", "warning")
+                    conn.rollback(); return redirect(url_for('po_detail', po_id=po_id))
                 for item in items_to_receive:
+                    adj_qty = item['quantity_ordered']
+                    reason = f"PO #{po_id} Received"
                     cur.execute(
-                        "UPDATE inventory_items SET quantity_on_hand = quantity_on_hand + %s WHERE id = %s;",
-                        (item['quantity_ordered'], item['inventory_item_id'])
+                        "UPDATE inventory_items SET quantity_on_hand = quantity_on_hand + %s WHERE id = %s RETURNING quantity_on_hand;",
+                        (adj_qty, item['inventory_item_id'])
                     )
+                    updated_qty_row = cur.fetchone()
+                    new_qoh = updated_qty_row[0] if updated_qty_row else 0
+
+                    _log_inventory_adjustment(cur, item['inventory_item_id'], adj_qty, reason, new_qoh, po_id=po_id)
                 cur.execute("UPDATE purchase_orders SET received_at = NOW() WHERE id = %s;", (po_id,))
                 flash("Order marked as Received. Inventory updated.", "success")
             
@@ -1273,16 +1304,21 @@ def po_update_header(po_id):
                 cur.execute("SELECT inventory_item_id, quantity_ordered FROM purchase_order_items WHERE purchase_order_id = %s;", (po_id,))
                 items_to_unreceive = cur.fetchall()
                 for item in items_to_unreceive:
+                    adj_qty = -item['quantity_ordered']
+                    reason = f"PO #{po_id} Status Reverted (Un-Received)"
                     cur.execute(
-                        "UPDATE inventory_items SET quantity_on_hand = quantity_on_hand - %s WHERE id = %s;",
+                        "UPDATE inventory_items SET quantity_on_hand = quantity_on_hand - %s WHERE id = %s RETURNING quantity_on_hand;",
                         (item['quantity_ordered'], item['inventory_item_id'])
                     )
+                    updated_qty_row = cur.fetchone()
+                    new_qoh = updated_qty_row[0] if updated_qty_row else 0
+
+                    _log_inventory_adjustment(cur, item['inventory_item_id'], adj_qty, reason, new_qoh, po_id=po_id)
                 cur.execute("UPDATE purchase_orders SET received_at = NULL WHERE id = %s;", (po_id,))
                 flash(f"Order status changed from Received. Inventory reversed.", "warning")
             
             else:
-                 flash("PO details updated.", "success")
-                 
+                flash("PO details updated.", "success")
         conn.commit()
             
     except Exception as e:
@@ -1301,23 +1337,28 @@ def po_delete(po_id):
             cur.execute("SELECT status, received_at FROM purchase_orders WHERE id = %s;", (po_id,))
             po = cur.fetchone()
             if not po:
-                 flash("PO not found.", "error"); conn.rollback()
+                flash("PO not found.", "error"); conn.rollback()
             else:
-                 if po['status'] == 'Received' or po['received_at'] is not None:
-                     cur.execute("SELECT inventory_item_id, quantity_ordered FROM purchase_order_items WHERE purchase_order_id = %s;", (po_id,))
-                     items_to_unreceive = cur.fetchall()
-                     for item in items_to_unreceive:
-                         cur.execute(
-                             "UPDATE inventory_items SET quantity_on_hand = quantity_on_hand - %s WHERE id = %s;",
-                             (item['quantity_ordered'], item['inventory_item_id'])
-                         )
-                     flash_msg = "PO deleted. Inventory updates have been reversed."
-                 else:
-                     flash_msg = "PO deleted."
-                 
-                 cur.execute("DELETE FROM purchase_orders WHERE id = %s;", (po_id,))
-                 conn.commit()
-                 flash(flash_msg, "success")
+                if po['status'] == 'Received' or po['received_at'] is not None:
+                    cur.execute("SELECT inventory_item_id, quantity_ordered FROM purchase_order_items WHERE purchase_order_id = %s;", (po_id,))
+                    items_to_unreceive = cur.fetchall()
+                    for item in items_to_unreceive:
+                        adj_qty = -item['quantity_ordered']
+                        reason = f"PO #{po_id} Deleted (Reversal)"
+                        cur.execute(
+                            "UPDATE inventory_items SET quantity_on_hand = quantity_on_hand - %s WHERE id = %s RETURNING quantity_on_hand;",
+                            (item['quantity_ordered'], item['inventory_item_id'])
+                        )
+                        updated_qty_row = cur.fetchone()
+                        new_qoh = updated_qty_row[0] if updated_qty_row else 0
+
+                        _log_inventory_adjustment(cur, item['inventory_item_id'], adj_qty, reason, new_qoh, po_id=po_id)
+                    flash_msg = "PO deleted. Inventory updates have been reversed."
+                else:
+                    flash_msg = "PO deleted."
+                cur.execute("DELETE FROM purchase_orders WHERE id = %s;", (po_id,))
+                conn.commit()
+                flash(flash_msg, "success")
     except psycopg2.Error as e:
         if conn: conn.rollback()
         flash(f"Error deleting PO: {e.diag.message_primary}", "error")

@@ -28,6 +28,12 @@
     
     .delete-form { margin: 0; }
     .delete-btn { font-size: 0.9em; padding: 6px 12px; width: auto; }
+    .form-container{
+        align-self: start;
+    }
+    @media screen and (max-width: 1100px) {
+    .form-container { order: -1; }
+    }
 </style>
 
 <h1>Manage Fulfillment Locations</h1>
@@ -59,14 +65,16 @@
     </div>
 
     <div class="form-container content-card">
-        <h2>Add New Location</h2>
-        <form method="POST" action="{{ url_for('locations_page') }}">
-            <div>
-                <label for="name">Location Name</label>
-                <input type="text" name="name" required>
-            </div>
-            <button type="submit" class="submit-btn">Add Location</button>
-        </form>
+        <h2 class="collapsible-toggle">Add New Location</h2>
+        <div class="form-content">
+            <form method="POST" action="{{ url_for('locations_page') }}">
+                <div>
+                    <label for="name">Location Name</label>
+                    <input type="text" name="name" required>
+                </div>
+                <button type="submit" class="submit-btn">Add Location</button>
+            </form>
+        </div>
     </div>
 </div>
 {% endblock %}

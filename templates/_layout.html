@@ -83,8 +83,8 @@
             padding: var(--space-lg); /* Consistent outer padding */
         }
         .content-card, .form-container, .product-list, .location-list, .list-container, .recipe-card {
-             background-color: var(--white); border-radius: 12px; border: 1px solid var(--border-color);
-             box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.1), 0 2px 4px -2px rgba(0, 0, 0, 0.1);
+            background-color: var(--white); border-radius: 12px; border: 1px solid var(--border-color);
+            box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.1), 0 2px 4px -2px rgba(0, 0, 0, 0.1);
              padding: var(--space-lg); /* Standardized card padding */
              margin-bottom: var(--space-lg); /* Standardized card spacing */
         }
@@ -97,7 +97,7 @@
             font-size: 0.95em; /* Standardized font size */
             font-weight: 600; /* Standardized font weight */
             margin-top: var(--space-xs); /* Add space above buttons */
-         }
+        }
         button:hover, .button-link:hover, input[type="submit"]:hover { opacity: 0.85; }
         .edit-btn { background-color: var(--edit-blue) !important; }
         .delete-btn { background-color: var(--delete-red) !important; }
@@ -112,19 +112,19 @@
 
         /* --- Form Elements --- */
         input[type="text"], input[type="number"], input[type="email"], input[type="tel"], input[type="url"], input[type="date"], select {
-             padding: 10px 12px; font-size: 1em; font-family: var(--font-body); border-radius: 6px;
-             border: 1px solid var(--input-border); width: 100%; 
-             margin-bottom: var(--space-md); /* Standardized form spacing */
-             background-color: var(--white);
-             transition: border-color 0.2s ease, box-shadow 0.2s ease; appearance: none;
+            padding: 10px 12px; font-size: 1em; font-family: var(--font-body); border-radius: 6px;
+            border: 1px solid var(--input-border); width: 100%; 
+            margin-bottom: var(--space-md); /* Standardized form spacing */
+            background-color: var(--white);
+            transition: border-color 0.2s ease, box-shadow 0.2s ease; appearance: none;
              height: 42px; /* Standard height for inputs/selects */
         }
         textarea {
-             padding: 10px 12px; font-size: 1em; font-family: var(--font-body); border-radius: 6px;
-             border: 1px solid var(--input-border); width: 100%; 
+            padding: 10px 12px; font-size: 1em; font-family: var(--font-body); border-radius: 6px;
+            border: 1px solid var(--input-border); width: 100%; 
              margin-bottom: var(--space-md); /* Standardized form spacing */
-             background-color: var(--white);
-             transition: border-color 0.2s ease, box-shadow 0.2s ease; appearance: none;
+            background-color: var(--white);
+            transition: border-color 0.2s ease, box-shadow 0.2s ease; appearance: none;
              min-height: 80px; /* Keep textarea flexible */
         }
         input[type="text"]:focus, input[type="number"]:focus, input[type="email"]:focus, input[type="tel"]:focus, input[type="url"]:focus, input[type="date"]:focus, select:focus, textarea:focus {
@@ -157,17 +157,35 @@
         /* --- Flash Messages --- */
         .flash-error, .flash-success, .flash-warning {
              padding: var(--space-sm); /* Standardized padding */
-             border: 1px solid;
-             border-radius: 5px; 
+            border: 1px solid;
+            border-radius: 5px; 
              margin-bottom: var(--space-md); /* Standardized spacing */
              /* --- ADDED FOR FADE-OUT --- */
-             opacity: 1;
-             transition: opacity 0.5s ease-out;
+            opacity: 1;
+            transition: opacity 0.5s ease-out;
              /* --- END ADDED --- */
         }
         .flash-error { background-color: #f8d7da; color: #721c24; border-color: #f5c6cb; }
         .flash-success { background-color: #d4edda; color: #155724; border-color: #c3e6cb; }
         .flash-warning { background-color: #fff3cd; color: #856404; border-color: #ffeeba; }
+        /* --- Collapsible Form Styles --- */
+        .collapsible-toggle {
+            cursor: pointer; display: flex; justify-content: space-between;
+            align-items: center; margin-bottom: 0; padding-bottom: 15px;
+            border-bottom: 1px solid var(--border-color);
+        }
+        .collapsible-toggle::after {
+            content: '\002B'; font-weight: bold; color: var(--text-medium);
+            font-size: 1.2em; transition: transform 0.2s ease-out;
+        }
+        .collapsible-toggle.active::after {
+            content: "\2212"; transform: rotate(180deg);
+        }
+        .form-content {
+            max-height: 0; overflow: hidden;
+            transition: max-height 0.3s ease-out;
+            padding-top: 15px;
+        }
 
         /* --- Mobile Responsive --- */
         @media screen and (max-width: 1100px) {
@@ -235,7 +253,7 @@
                 </div>
             </div>
 
-             <div class="dropdown">
+            <div class="dropdown">
                 <button class="dropbtn">Reports</button>
                 <div class="dropdown-content">
                     <a href="{{ url_for('ingredient_totals') }}">Recipe Ingredient Totals</a>
@@ -268,14 +286,14 @@
                         if (otherButton !== button) {
                             otherButton.classList.remove('active');
                             let otherContent = otherButton.nextElementSibling;
-                             if (otherContent && otherContent.classList.contains('dropdown-content')) { otherContent.style.display = "none"; }
+                            if (otherContent && otherContent.classList.contains('dropdown-content')) { otherContent.style.display = "none"; }
                         }
                     });
                     button.classList.toggle('active');
                     let content = button.nextElementSibling;
                     if (content && content.classList.contains('dropdown-content')) {
-                       if (content.style.display === "block") { content.style.display = "none"; }
-                       else { content.style.display = "block"; }
+                    if (content.style.display === "block") { content.style.display = "none"; }
+                    else { content.style.display = "block"; }
                     }
                 }
             });
@@ -297,6 +315,22 @@
                 }, 4500 + (index * 100)); // 4.5 seconds, after fade-out
             });
             // --- END OF NEW CODE ---
+            // --- NEW Collapsible Form Logic ---
+            document.querySelectorAll('.collapsible-toggle').forEach(toggleButton => {
+                const content = toggleButton.nextElementSibling;
+                if (content && content.classList.contains('form-content')) {
+                    toggleButton.addEventListener('click', () => {
+                        toggleButton.classList.toggle('active');
+                        content.classList.toggle('active');
+                        if (content.style.maxHeight) {
+                            content.style.maxHeight = null; // Collapse
+                        } else {
+                            content.style.maxHeight = content.scrollHeight + "px"; // Expand
+                        }
+                    });
+                }
+            });
+            // --- END NEW Collapsible Form Logic ---
         });
         function initializeSelect2(selector) { $(selector).select2({ theme: "default" }); }
     </script>

@@ -40,8 +40,8 @@
         </div>
 
         <div class="checkbox-container">
-             <input type="checkbox" id="is_sold_product" name="is_sold_product" value="true" {% if recipe.is_sold_product %}checked{% endif %}>
-             <label for="is_sold_product">This recipe is a final product sold in jars</label>
+            <input type="checkbox" id="is_sold_product" name="is_sold_product" value="true" {% if recipe.is_sold_product %}checked{% endif %}>
+            <label for="is_sold_product">This recipe is a final product sold in jars</label>
         </div>
 
         <div class="form-grid">
@@ -71,7 +71,7 @@
         <div id="ingredients-container">
             {% for ingredient in ingredients %}
             <div class="ingredient-row">
-                 <div>
+                <div>
                     <label>Raw Material</label>
                     <select name="inventory_item_id" class="ingredient-select select2-enable">
                         <option value="">-- Select Raw Material --</option>
@@ -83,7 +83,7 @@
                     </select>
                 </div>
                 <div>
-                     <label>Quantity</label>
+                    <label>Quantity</label>
                     <input type="number" name="quantity" placeholder="Quantity" step="any" required value="{{ ingredient.quantity }}">
                 </div>
 
@@ -128,7 +128,7 @@
                     <label>Quantity</label>
                     <input type="number" name="quantity" placeholder="Quantity" step="any" required>
                 </div>
-                 <div>
+                <div>
                     <label>Sub-Recipe</label>
                     <select name="sub_recipe_id" class="subrecipe-select select2-enable">
                         <option value="">-- Or Select Sub-Recipe --</option>
@@ -154,19 +154,19 @@
             const invSelect = row.querySelector('.ingredient-select');
             const subSelect = row.querySelector('.subrecipe-select');
 
-             $(invSelect).on('change', function(e) {
-                 if ($(this).val()) {
+            $(invSelect).on('change', function(e) {
+                if ($(this).val()) {
                      // If raw material is selected, clear sub-recipe
-                     $(subSelect).val('').trigger('change');
-                 }
-             });
+                    $(subSelect).val('').trigger('change');
+                }
+            });
 
-             $(subSelect).on('change', function(e) {
-                 if ($(this).val()) {
+            $(subSelect).on('change', function(e) {
+                if ($(this).val()) {
                      // If sub-recipe is selected, clear raw material
-                     $(invSelect).val('').trigger('change');
-                 }
-             });
+                    $(invSelect).val('').trigger('change');
+                }
+            });
         }
 
         document.addEventListener('DOMContentLoaded', () => {

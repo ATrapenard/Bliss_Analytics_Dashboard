@@ -46,31 +46,14 @@
          margin-top: 0; /* MODIFIED */
          margin-bottom: 0; /* MODIFIED */
     }
-     .adjust-btn:hover {
+    .adjust-btn:hover {
         background-color: var(--primary-color);
         opacity: 0.85;
-     }
+    }
 
     input[type="number"] { text-align: right; }
 
     /* Collapsible Form Styles */
-    .collapsible-header {
-        cursor: pointer; display: flex; justify-content: space-between;
-        align-items: center; margin-bottom: 0; padding-bottom: 15px;
-        border-bottom: 1px solid var(--border-color);
-    }
-     .collapsible-header::after {
-        content: '\002B'; font-weight: bold; color: var(--text-medium);
-        font-size: 1.2em; transition: transform 0.2s ease-out;
-     }
-     .collapsible-header.active::after {
-        content: "\2212"; transform: rotate(180deg);
-     }
-    .form-content {
-        max-height: 0; overflow: hidden;
-        transition: max-height 0.3s ease-out;
-        padding-top: 15px;
-    }
     .search-container {
         width: 100%;
         margin-bottom: 20px;
@@ -80,6 +63,9 @@
         margin-bottom: 0;
         font-size: 1.1em;
         padding: 12px 15px;
+    }
+    .form-container{
+        align-self: start;
     }
     @media screen and (max-width: 1100px) {
         .form-container { order: -1; }
@@ -104,7 +90,7 @@
 <h1>Manage Inventory Items</h1>
 <p>This is the master list of all raw ingredients used in your recipes.</p>
 
- {% with messages = get_flashed_messages(with_categories=true) %}
+{% with messages = get_flashed_messages(with_categories=true) %}
     {% if messages %}
         {% for category, message in messages %}
         <div class="flash-{{ category }}">{{ message }}</div>
@@ -159,8 +145,8 @@
     </div>
 
     <div class="form-container content-card">
-        <h2 id="add-item-toggle" class="collapsible-header">Add New Item</h2>
-        <div id="add-item-content" class="form-content">
+        <h2 class="collapsible-toggle">Add New Item</h2>
+        <div class="form-content">
             <form method="POST" action="{{ url_for('inventory_items_page') }}">
                 <div>
                     <label for="name">Item Name</label>
@@ -181,25 +167,13 @@
 </div>
 
 <script>
-    document.addEventListener('DOMContentLoaded', () => {
-        const toggleButton = document.getElementById('add-item-toggle');
-        const content = document.getElementById('add-item-content');
-
-        toggleButton.addEventListener('click', () => {
-            toggleButton.classList.toggle('active');
-            content.classList.toggle('active');
-
-            if (content.style.maxHeight) {
-                content.style.maxHeight = null; // Collapse
-            } else {
-                content.style.maxHeight = content.scrollHeight + "px"; // Expand
-            }
-        });
-    });
+document.addEventListener('DOMContentLoaded', () => {
+    // This is the search bar logic we want to keep
     const searchInput = document.getElementById('inventorySearch');
     const tableBody = document.querySelector('.list-container tbody');
     const allRows = tableBody.querySelectorAll('tr');
 
+    if (searchInput) { // Check if search input exists
         searchInput.addEventListener('input', function(e) {
             const searchTerm = e.target.value.toLowerCase();
 
@@ -214,6 +188,8 @@
                 }
             });
         });
+    }
+});
 </script>
 
 {% endblock %}

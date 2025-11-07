@@ -33,9 +33,9 @@
         transition: background-color 0.2s ease;
     }
      .actions-cell a { background-color: var(--edit-blue); /* Blue for details link */ }
-     .actions-cell a:hover { background-color: #0056b3; }
+    .actions-cell a:hover { background-color: #0056b3; }
      .delete-form { margin: 0; display: flex; } /* Align form/button correctly */
-     .search-container {
+    .search-container {
         width: 100%;
         margin-bottom: 20px;
     }
@@ -44,6 +44,9 @@
         margin-bottom: 0;
         font-size: 1.1em;
         padding: 12px 15px;
+    }
+    .form-container{
+        align-self: start;
     }
     @media screen and (max-width: 1200px) {
         .actions-cell {
@@ -60,6 +63,9 @@
             text-align: center;
         }
     }
+    @media screen and (max-width: 1100px) {
+    .form-container { order: -1; }
+    }
 </style>
 
 <h1>Work In Progress (WIP) Batches</h1>
@@ -71,7 +77,7 @@
             <input type="text" id="searchWIP" placeholder="Search by Batch ID or Product...">
         </div>
         <h2>Ongoing Batches</h2>
-         {% with messages = get_flashed_messages(with_categories=true) %}
+        {% with messages = get_flashed_messages(with_categories=true) %}
             {% if messages %}
                 {% for category, message in messages %}
                 <div class="flash-{{ category }}">{{ message }}</div>
@@ -113,23 +119,25 @@
     </div>
 
     <div class="form-container content-card">
-        <h2>Start New Batch</h2>
-        <form method="POST" action="{{ url_for('wip_batches_page') }}">
-        <div>
-            <label for="product_id">Select Product</label>
-                <select id="product_id" name="product_id" required>
-                    <option value="" disabled selected>-- Choose a product --</option>
-                    {% for product in sellable_products %}
-                        <option value="{{ product.id }}">{{ product.product_name }} ({{ product.sku }})</option>
-                    {% endfor %}
-                </select>
-            </div>
+        <h2 class="collapsible-toggle">Start New Batch</h2>
+        <div class="form-content">
+            <form method="POST" action="{{ url_for('wip_batches_page') }}">
             <div>
-                <label for="target_jars">Target Jars to Produce</label>
-                <input type="number" id="target_jars" name="target_jars" min="1" required placeholder="e.g., 50">
-            </div>
-            <button type="submit" class="submit-btn">Start Batch</button>
-        </form>
+                <label for="product_id">Select Product</label>
+                    <select id="product_id" name="product_id" required>
+                        <option value="" disabled selected>-- Choose a product --</option>
+                        {% for product in sellable_products %}
+                            <option value="{{ product.id }}">{{ product.product_name }} ({{ product.sku }})</option>
+                        {% endfor %}
+                    </select>
+                </div>
+                <div>
+                    <label for="target_jars">Target Jars to Produce</label>
+                    <input type="number" id="target_jars" name="target_jars" min="1" required placeholder="e.g., 50">
+                </div>
+                <button type="submit" class="submit-btn">Start Batch</button>
+            </form>
+        </div>
     </div>
 </div>
 <script>

@@ -25,6 +25,9 @@
         font-size: 1.1em;
         padding: 12px 15px;
     }
+    .form-container{
+        align-self: start;
+    }
     @media screen and (max-width: 1200px) {
         .actions-cell {
             flex-direction: column;
@@ -38,6 +41,9 @@
         .actions-cell .action-form button {
             width: 100%;
         }
+    }
+    @media screen and (max-width: 1100px) {
+    .form-container { order: -1; }
     }
 </style>
 
@@ -82,31 +88,33 @@
     </div>
 
     <div class="form-container content-card">
-        <h2>Add New Product</h2>
-    <form method="POST" action="{{ url_for('add_product') }}">
-        <div>
-            <label for="sku">SKU</label>
-            <input type="text" id="sku" name="sku" required>
+        <h2 class="collapsible-toggle">Add New Product</h2>
+        <div class="form-content">
+            <form method="POST" action="{{ url_for('add_product') }}">
+                <div>
+                    <label for="sku">SKU</label>
+                    <input type="text" id="sku" name="sku" required>
+                </div>
+                <div>
+                    <label for="product_name">Product Title</label>
+                    <input type="text" id="product_name" name="product_name" required placeholder="e.g., 16oz Gum Oil">
+                </div>
+                <div>
+                    <label for="recipe_id">Select Recipe</label>
+                        <select id="recipe_id" name="recipe_id" required>
+                            <option value="" disabled selected>-- Choose a recipe --</option>
+                            {% for recipe in recipes %}
+                                <option value="{{ recipe.id }}">{{ recipe.name }}</option>
+                            {% endfor %}
+                        </select>
+                    </div>
+                    <div>
+                    <label for="jars_per_batch">Average Jars Produced Per Batch</label>
+                    <input type="number" step="any" id="jars_per_batch" name="jars_per_batch" min="0.01" placeholder="e.g., 50.5">
+                </div>
+                    <button type="submit" class="submit-btn">Add Product</button>
+            </form>
         </div>
-        <div>
-            <label for="product_name">Product Title</label>
-            <input type="text" id="product_name" name="product_name" required placeholder="e.g., 16oz Gum Oil">
-        </div>
-        <div>
-            <label for="recipe_id">Select Recipe</label>
-                <select id="recipe_id" name="recipe_id" required>
-                    <option value="" disabled selected>-- Choose a recipe --</option>
-                    {% for recipe in recipes %}
-                        <option value="{{ recipe.id }}">{{ recipe.name }}</option>
-                    {% endfor %}
-                </select>
-            </div>
-            <div>
-            <label for="jars_per_batch">Average Jars Produced Per Batch</label>
-            <input type="number" step="any" id="jars_per_batch" name="jars_per_batch" min="0.01" placeholder="e.g., 50.5">
-        </div>
-            <button type="submit" class="submit-btn">Add Product</button>
-        </form>
     </div>
 </div>
 <script>

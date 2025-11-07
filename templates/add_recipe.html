@@ -25,7 +25,7 @@
 
     <h1>Add a New Recipe</h1>
 
-     <!-- Display Flash Messages -->
+    <!-- Display Flash Messages -->
     {% with messages = get_flashed_messages(with_categories=true) %}
         {% if messages %}
             {% for category, message in messages %}
@@ -41,8 +41,8 @@
         </div>
         
         <div class="checkbox-container">
-             <input type="checkbox" id="is_sold_product" name="is_sold_product" value="true" checked>
-             <label for="is_sold_product">This recipe is a final product sold in jars</label>
+            <input type="checkbox" id="is_sold_product" name="is_sold_product" value="true" checked>
+            <label for="is_sold_product">This recipe is a final product sold in jars</label>
         </div>
 
         <div class="form-grid">
@@ -89,7 +89,7 @@
                     <label>Quantity</label>
                     <input type="number" name="quantity" placeholder="Quantity" step="any" required>
                 </div>
-                 <div>
+                <div>
                     <label>Sub-Recipe</label>
                     <select name="sub_recipe_id" class="subrecipe-select select2-enable">
                         <option value="">-- Or Select Sub-Recipe --</option>
@@ -114,17 +114,17 @@
             const invSelect = row.querySelector('.ingredient-select');
             const subSelect = row.querySelector('.subrecipe-select');
 
-             $(invSelect).on('change', function(e) {
+            $(invSelect).on('change', function(e) {
                  if ($(this).val()) { // If raw material is selected
                      $(subSelect).val('').trigger('change'); // Clear sub-recipe value
-                 }
-             });
+                }
+            });
 
-             $(subSelect).on('change', function(e) {
+            $(subSelect).on('change', function(e) {
                  if ($(this).val()) { // If sub-recipe is selected
                      $(invSelect).val('').trigger('change'); // Clear raw material value
-                 }
-             });
+                }
+            });
 
              // ALL "prop('disabled', true)" lines are now GONE.
         }

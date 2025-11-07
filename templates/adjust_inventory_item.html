@@ -38,7 +38,7 @@
             <input type="number" step="any" id="adjustment_quantity" name="adjustment_quantity" required placeholder="e.g., 500 or -100">
             <small>Enter a positive number to add stock (e.g., new shipment) or a negative number to remove stock (e.g., spoilage).</small>
         </div>
-         <div>
+        <div>
             <label for="reason">Reason (Optional)</label>
             <textarea id="reason" name="reason" placeholder="e.g., 'Weekly cycle count correction' or 'Spoilage'"></textarea>
         </div>
@@ -48,7 +48,7 @@
         <p>Item not found.</p>
     {% endif %}
 
-     <div style="margin-top: 20px;">
+    <div style="margin-top: 20px;">
         <a href="{{ url_for('inventory_items_page') }}">&larr; Back to Inventory List</a>
     </div>
 </div>

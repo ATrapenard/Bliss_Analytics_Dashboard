@@ -28,6 +28,9 @@
         font-size: 1.1em;
         padding: 12px 15px;
     }
+    .form-container{
+        align-self: start;
+    }
     @media screen and (max-width: 1200px) {
         .actions-cell {
             flex-direction: column;
@@ -41,6 +44,9 @@
         .actions-cell .action-form button {
             width: 100%;
         }
+    }
+    @media screen and (max-width: 1100px) {
+    .form-container { order: -1; }
     }
 </style>
 
@@ -99,39 +105,41 @@
             </tbody>
         </table>
         {% else %}
-         <p>No suppliers added yet.</p>
+        <p>No suppliers added yet.</p>
         {% endif %}
     </div>
 
     <div class="form-container content-card">
-        <h2>Add New Supplier</h2>
-        <form method="POST" action="{{ url_for('add_supplier') }}">
-            <div>
-                <label for="name">Supplier Name</label>
-                <input type="text" id="name" name="name" required>
-            </div>
-            <div>
-                <label for="contact_person">Contact Person (Optional)</label>
-                <input type="text" id="contact_person" name="contact_person">
-            </div>
-             <div>
-                <label for="email">Email (Optional)</label>
-                <input type="email" id="email" name="email">
-            </div>
-             <div>
-                <label for="phone">Phone (Optional)</label>
-                <input type="tel" id="phone" name="phone">
-            </div>
-            <div>
-                <label for="website">Website (Optional)</label>
-                <input type="url" id="website" name="website" placeholder="https://...">
-            </div>
-             <div>
-                <label for="notes">Notes (Optional)</label>
-                <textarea id="notes" name="notes"></textarea>
-            </div>
-            <button type="submit" class="submit-btn">Add Supplier</button>
-        </form>
+        <h2 class="collapsible-toggle">Add New Supplier</h2>
+        <div class="form-content">
+            <form method="POST" action="{{ url_for('add_supplier') }}">
+                <div>
+                    <label for="name">Supplier Name</label>
+                    <input type="text" id="name" name="name" required>
+                </div>
+                <div>
+                    <label for="contact_person">Contact Person (Optional)</label>
+                    <input type="text" id="contact_person" name="contact_person">
+                </div>
+                <div>
+                    <label for="email">Email (Optional)</label>
+                    <input type="email" id="email" name="email">
+                </div>
+                <div>
+                    <label for="phone">Phone (Optional)</label>
+                    <input type="tel" id="phone" name="phone">
+                </div>
+                <div>
+                    <label for="website">Website (Optional)</label>
+                    <input type="url" id="website" name="website" placeholder="https://...">
+                </div>
+                <div>
+                    <label for="notes">Notes (Optional)</label>
+                    <textarea id="notes" name="notes"></textarea>
+                </div>
+                <button type="submit" class="submit-btn">Add Supplier</button>
+            </form>
+        </div>
     </div>
 </div>
 <script>

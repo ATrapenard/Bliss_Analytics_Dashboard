@@ -463,6 +463,104 @@ def location_stock_page():
                         products=products, 
                         current_stock=current_stock)
 
+@app.route('/stock-transfer', methods=['GET', 'POST'])
+def stock_transfer():
+    conn = get_db_connection()
+    locations = []
+    products = []
+    current_stock = []
+    
+    try:
+        if request.method == 'POST':
+            product_id = request.form['product_id']
+            from_location_id = request.form['from_location_id']
+            to_location_id = request.form['to_location_id']
+            quantity_str = request.form.get('quantity', 0)
+            
+            if from_location_id == to_location_id:
+                flash("Source and Destination locations cannot be the same.", "error")
+                raise ValueError("Same location")
+            
+            try:
+                quantity = int(quantity_str)
+                if quantity <= 0:
+                    flash("Quantity must be a positive number.", "error")
+                    raise ValueError("Non-positive quantity")
+            except ValueError:
+                flash("Invalid quantity.", "error")
+                raise ValueError("Invalid quantity")
+
+            with conn.cursor(cursor_factory=DictCursor) as cur:
+                # Check for sufficient stock
+                cur.execute(
+                    "SELECT quantity FROM location_stock WHERE product_id = %s AND location_id = %s FOR UPDATE;",
+                    (product_id, from_location_id)
+                )
+                source_stock = cur.fetchone()
+                
+                if not source_stock or source_stock['quantity'] < quantity:
+                    flash(f"Not enough stock at source location. Available: {source_stock['quantity'] if source_stock else 0}", "error")
+                    raise Exception("Insufficient stock")
+
+                # Debit from source
+                cur.execute(
+                    "UPDATE location_stock SET quantity = quantity - %s WHERE product_id = %s AND location_id = %s;",
+                    (quantity, product_id, from_location_id)
+                )
+                
+                # Credit to destination
+                cur.execute(
+                    """INSERT INTO location_stock (product_id, location_id, quantity)
+                    VALUES (%s, %s, %s)
+                    ON CONFLICT (product_id, location_id)
+                    DO UPDATE SET quantity = location_stock.quantity + EXCLUDED.quantity;""",
+                    (product_id, to_location_id, quantity)
+                )
+                
+                conn.commit()
+                flash(f"Successfully transferred {quantity} units.", "success")
+                
+            return redirect(url_for('stock_transfer'))
+
+        # GET request logic
+        with conn.cursor(cursor_factory=DictCursor) as cur:
+            cur.execute("SELECT * FROM locations ORDER BY name;")
+            locations = cur.fetchall()
+            
+            cur.execute("""
+                SELECT p.id, p.product_name, p.sku 
+                FROM products p
+                JOIN recipes r ON p.recipe_id = r.id
+                WHERE r.is_sold_product = TRUE 
+                ORDER BY p.product_name;
+            """)
+            products = cur.fetchall()
+            
+            cur.execute("""
+                SELECT ls.id, l.name as location_name, p.product_name, p.sku, ls.quantity
+                FROM location_stock ls
+                JOIN locations l ON ls.location_id = l.id
+                JOIN products p ON ls.product_id = p.id
+                WHERE ls.quantity > 0
+                ORDER BY l.name, p.product_name;
+            """)
+            current_stock = cur.fetchall()
+
+    except Exception as e:
+        if conn:
+            conn.rollback()
+        if "Insufficient stock" not in str(e):
+            flash(f"Error processing transfer: {e}", "error")
+        print(f"DB Error stock transfer page: {e}")
+    finally:
+        if conn:
+            conn.close()
+            
+    return render_template('stock_transfer.html', 
+                        locations=locations, 
+                        products=products, 
+                        current_stock=current_stock)
+
 @app.route('/stock-minimums/delete/<int:id>', methods=['POST'])
 def delete_stock_minimum(id):
     conn = get_db_connection()
@@ -633,25 +731,39 @@ def inventory_items_page():
 
 @app.route('/inventory/edit/<int:id>', methods=['GET'])
 def edit_inventory_item(id):
-    conn = get_db_connection(); item = None
+    conn = get_db_connection(); item = None; recipes = []
     try:
         with conn.cursor(cursor_factory=DictCursor) as cur:
             cur.execute("SELECT * FROM inventory_items WHERE id = %s;", (id,)); item = cur.fetchone()
-        if item is None: flash(f"Item ID {id} not found.", "error"); return redirect(url_for('inventory_items_page'))
+            if item is None: flash(f"Item ID {id} not found.", "error"); return redirect(url_for('inventory_items_page'))
+
+            # Fetch all recipes for the dropdown
+            cur.execute("SELECT id, name FROM recipes ORDER BY name;")
+            recipes = cur.fetchall()
+
     except psycopg2.Error as e: flash(f"Error fetching item: {e}", "error"); print(f"DB Error edit inventory item GET {id}: {e}"); return redirect(url_for('inventory_items_page'))
     finally:
         if conn: conn.close()
-    return render_template('edit_inventory_item.html', item=item)
+    return render_template('edit_inventory_item.html', item=item, recipes=recipes)
 
 @app.route('/inventory/update/<int:id>', methods=['POST'])
 def update_inventory_item(id):
     conn = get_db_connection()
     try:
-        name = request.form['name']; unit = request.form['unit']; qty_on_hand_str = request.form.get('quantity_on_hand')
+        name = request.form['name']; unit = request.form['unit']
+        qty_on_hand_str = request.form.get('quantity_on_hand')
+        linked_recipe_id = request.form.get('linked_recipe_id') or None
+
         try: qty_on_hand = float(qty_on_hand_str) if qty_on_hand_str else 0.0
         except ValueError: qty_on_hand = 0.0
+
         with conn.cursor() as cur:
-            cur.execute("UPDATE inventory_items SET name = %s, unit = %s, quantity_on_hand = %s WHERE id = %s;", (name, unit, qty_on_hand, id))
+            cur.execute(
+                """UPDATE inventory_items 
+                SET name = %s, unit = %s, quantity_on_hand = %s, linked_recipe_id = %s 
+                WHERE id = %s;""", 
+                (name, unit, qty_on_hand, linked_recipe_id, id)
+            )
         conn.commit()
         flash("Item updated successfully.", "success")
     except psycopg2.Error as e: conn.rollback(); flash(f"Error updating item: {e}", "error"); print(f"DB Error update inventory item {id}: {e}")
@@ -829,106 +941,186 @@ def inventory_log():
 
 @app.route('/wip', methods=['GET', 'POST'])
 def wip_batches_page():
-    conn = get_db_connection(); wip_batches = []; sellable_products = []
+    conn = get_db_connection()
+    wip_batches = []
+    sellable_products = []
+    producible_items = []
+    locations = []
+
     try:
         if request.method == 'POST':
-            product_id = request.form['product_id']; target_jars = request.form.get('target_jars') or 0
-            
-            # This try/except block was misaligned
-            try: 
-                target_jars_int = int(target_jars)
-                if target_jars_int > 0 and product_id:
-                    with conn.cursor(cursor_factory=DictCursor) as cur: 
-                        cur.execute("SELECT recipe_id FROM products WHERE id = %s;", (product_id,))
-                        prod_data = cur.fetchone()
-                        if prod_data:
-                            recipe_id = prod_data['recipe_id']
-                            cur.execute("INSERT INTO wip_batches (recipe_id, product_id, target_jars, status) VALUES (%s, %s, %s, %s);", (recipe_id, product_id, target_jars_int, 'In Progress')); 
-                            conn.commit(); 
-                            flash("WIP Batch started.", "success")
-                        else:
-                            flash('Product not found.', 'error')
-                else: flash('Product and positive Target Jars required.', 'error')
-            except ValueError: 
-                flash('Invalid number for Target Jars.', 'error')
-            
-            # This redirect line was at the wrong indentation and needed to be inside the POST check
-            if conn: conn.close(); 
+            batch_type = request.form.get('batch_type')
+
+            with conn.cursor(cursor_factory=DictCursor) as cur:
+                if batch_type == 'PRODUCT':
+                    product_id = request.form.get('product_id')
+                    location_id = request.form.get('location_id')
+                    if not product_id or not location_id:
+                        flash("Product and Location are required.", "error")
+                        raise ValueError("Missing product or location")
+
+                    cur.execute("SELECT recipe_id FROM products WHERE id = %s;", (product_id,))
+                    prod_data = cur.fetchone()
+                    if not prod_data:
+                        flash("Product not found.", "error")
+                        raise ValueError("Product not found")
+
+                    recipe_id = prod_data['recipe_id']
+                    cur.execute(
+                        """INSERT INTO wip_batches (recipe_id, product_id, location_id, batch_type, status)
+                           VALUES (%s, %s, %s, %s, %s);""",
+                        (recipe_id, product_id, location_id, 'PRODUCT', 'In Progress')
+                    )
+                    flash("New Product Batch started.", "success")
+
+                elif batch_type == 'INTERMEDIATE':
+                    inventory_item_id = request.form.get('inventory_item_id')
+                    if not inventory_item_id:
+                        flash("Item is required.", "error")
+                        raise ValueError("Missing item")
+
+                    cur.execute("SELECT linked_recipe_id FROM inventory_items WHERE id = %s;", (inventory_item_id,))
+                    item_data = cur.fetchone()
+                    if not item_data or not item_data['linked_recipe_id']:
+                        flash("Item is not linked to a producible recipe.", "error")
+                        raise ValueError("Item not producible")
+
+                    recipe_id = item_data['linked_recipe_id']
+                    cur.execute(
+                        """INSERT INTO wip_batches (recipe_id, inventory_item_id, batch_type, status)
+                           VALUES (%s, %s, %s, %s);""",
+                        (recipe_id, inventory_item_id, 'INTERMEDIATE', 'In Progress')
+                    )
+                    flash("New Intermediate Batch started.", "success")
+
+                else:
+                    flash("Invalid batch type.", "error")
+                    raise ValueError("Invalid batch type")
+
+            conn.commit()
             return redirect(url_for('wip_batches_page'))
 
-        # This 'with' block is part of the 'try' and runs for GET requests
+        # GET Request Logic
         with conn.cursor(cursor_factory=DictCursor) as cur:
             cur.execute("""
-                SELECT w.id, r.name as recipe_name, p.product_name, w.target_jars, w.status, w.created_at 
+                SELECT 
+                    w.id, w.created_at, w.batch_type,
+                    r.name as recipe_name,
+                    p.product_name,
+                    i.name as item_name
                 FROM wip_batches w 
                 JOIN recipes r ON w.recipe_id = r.id
                 LEFT JOIN products p ON w.product_id = p.id
+                LEFT JOIN inventory_items i ON w.inventory_item_id = i.id
                 WHERE w.status = 'In Progress' ORDER BY w.created_at DESC;
-            """); wip_batches = cur.fetchall()
+            """)
+            wip_batches = cur.fetchall()
+
             cur.execute("""
                 SELECT p.id, p.product_name, p.sku 
                 FROM products p 
                 JOIN recipes r ON p.recipe_id = r.id 
                 WHERE r.is_sold_product = TRUE AND p.jars_per_batch IS NOT NULL AND p.jars_per_batch > 0 
                 ORDER BY p.product_name;
-            """); sellable_products = cur.fetchall() # Changed from sellable_recipes
-    
-    # This 'except' block was incorrectly indented inside the 'with' block
-    except psycopg2.Error as e:
-        if conn and request.method == 'POST': conn.rollback()
-        flash(f"Error accessing WIP batches: {e}", "error"); print(f"DB Error WIP page: {e}")
-    # This 'finally' block was also incorrectly indented
+            """)
+            sellable_products = cur.fetchall()
+
+            cur.execute("""
+                SELECT i.id, i.name, i.unit
+                FROM inventory_items i
+                WHERE i.linked_recipe_id IS NOT NULL
+                ORDER BY i.name;
+            """)
+            producible_items = cur.fetchall()
+
+            cur.execute("SELECT id, name FROM locations ORDER BY name;")
+            locations = cur.fetchall()
+
+    except Exception as e:
+        if conn: conn.rollback()
+        if "not found" in str(e) or "required" in str(e) or "producible" in str(e):
+            pass # Flash message already set
+        else:
+            flash(f"Error accessing WIP batches: {e}", "error"); print(f"DB Error WIP page: {e}")
     finally:
         if conn: conn.close()
-        
-    # This 'return' was inside the 'with' block and needs to be at the end
-    # Also, updated variable to 'sellable_products'
-    return render_template('wip_batches.html', wip_batches=wip_batches, sellable_products=sellable_products)
+
+    return render_template('wip_batches.html', 
+                           wip_batches=wip_batches, 
+                           sellable_products=sellable_products,
+                           producible_items=producible_items,
+                           locations=locations)
 
 @app.route('/wip/<int:batch_id>')
 def wip_batch_detail(batch_id):
     conn = get_db_connection(); batch = None; ingredient_summary = []; available_inventory_items = []
+    yield_label = "Actual Yield"
     try:
         resolved_cache.clear()
         with conn.cursor(cursor_factory=DictCursor) as cur:
             cur.execute("""
-                SELECT w.id, w.target_jars, w.status, w.created_at, w.product_id, 
-                    r.id as recipe_id, r.name as recipe_name, 
-                    p.product_name, p.jars_per_batch 
+                SELECT 
+                    w.*, 
+                    r.name as recipe_name,
+                    p.product_name,
+                    l.name as location_name,
+                    i.name as item_name, i.unit as item_unit
                 FROM wip_batches w 
                 JOIN recipes r ON w.recipe_id = r.id 
                 LEFT JOIN products p ON w.product_id = p.id 
+                LEFT JOIN locations l ON w.location_id = l.id
+                LEFT JOIN inventory_items i ON w.inventory_item_id = i.id
                 WHERE w.id = %s;
-            """, (batch_id,)); batch = cur.fetchone()
+            """, (batch_id,)); 
+            batch = cur.fetchone()
+            
             if not batch: flash(f"WIP Batch {batch_id} not found.", "error"); return redirect(url_for('wip_batches_page'))
+
+            # Set the correct label for the yield input
+            if batch['batch_type'] == 'PRODUCT':
+                yield_label = "Actual Jars Produced"
+            elif batch['batch_type'] == 'INTERMEDIATE':
+                yield_label = f"Actual Yield ({batch['item_unit']})"
+
+            # Get base ingredients
             required_ingredients = defaultdict(lambda:{'name':'','unit':'','total_needed':0,'inventory_item_id':None})
             base_ingredients_one_batch = get_base_ingredients(batch['recipe_id'], conn)
-
-            batches_needed_float = 1.0 # Default
-            if batch['product_id'] and batch['jars_per_batch'] and float(batch['jars_per_batch']) > 0:
-                batches_needed_float = float(batch['target_jars']) / float(batch['jars_per_batch'])
-            else:
-                # Fallback for old batches without a product_id. This is imperfect.
-                cur.execute("SELECT jars_per_batch FROM products WHERE recipe_id = %s AND jars_per_batch IS NOT NULL AND jars_per_batch > 0 LIMIT 1;", (batch['recipe_id'],));
-                product_info = cur.fetchone()
-                if product_info and product_info['jars_per_batch'] and float(product_info['jars_per_batch']) > 0:
-                    batches_needed_float = float(batch['target_jars']) / float(product_info['jars_per_batch'])
-                else:
-                    flash("Could not determine jars_per_batch for this batch. Ingredient calculations may be based on 1 batch.", "warning")
+            
+            # --- THIS IS THE CORRECTED LOGIC ---
+            # A WIP Batch is always for 1 run of the recipe.
+            batches_needed_float = 1.0 
+            
             for ing in base_ingredients_one_batch:
                 inv_item_id = ing.get('inventory_item_id')
-                if inv_item_id: name=ing.get('name','?').strip();unit=ing.get('unit','?').strip();key=(inv_item_id);required_ingredients[key]['name']=name;required_ingredients[key]['unit']=unit;required_ingredients[key]['inventory_item_id']=inv_item_id;required_ingredients[key]['total_needed']+=float(ing.get('quantity',0))*batches_needed_float
-            cur.execute("""SELECT inventory_item_id, SUM(quantity_allocated) as total_allocated FROM wip_allocations WHERE wip_batch_id = %s GROUP BY inventory_item_id;""", (batch_id,)); allocations_raw = cur.fetchall()
+                if inv_item_id: 
+                    name=ing.get('name','?').strip();unit=ing.get('unit','?').strip();key=(inv_item_id);
+                    required_ingredients[key]['name']=name;required_ingredients[key]['unit']=unit;
+                    required_ingredients[key]['inventory_item_id']=inv_item_id;
+                    required_ingredients[key]['total_needed']+=float(ing.get('quantity',0)) * batches_needed_float
+            # --- END OF CORRECTION ---
+            
+            # Get current allocations
+            cur.execute("""SELECT inventory_item_id, SUM(quantity_allocated) as total_allocated FROM wip_allocations WHERE wip_batch_id = %s GROUP BY inventory_item_id;""", (batch_id,)); 
+            allocations_raw = cur.fetchall()
             current_allocations = {alloc['inventory_item_id']: alloc['total_allocated'] for alloc in allocations_raw}
+            
             for inv_id, req in required_ingredients.items():
                 allocated = float(current_allocations.get(inv_id, 0)); remaining = float(req['total_needed']) - allocated
                 ingredient_summary.append({ 'inventory_item_id': inv_id, 'name': req['name'], 'unit': req['unit'], 'needed': round(float(req['total_needed']), 2), 'allocated': round(allocated, 2), 'remaining': round(remaining, 2) })
             ingredient_summary.sort(key=lambda x: x['name'])
-            cur.execute("SELECT id, name, unit, (quantity_on_hand - quantity_allocated) as available FROM inventory_items WHERE (quantity_on_hand - quantity_allocated) > 0 ORDER BY name;"); available_inventory_items = cur.fetchall()
+            
+            cur.execute("SELECT id, name, unit, (quantity_on_hand - quantity_allocated) as available FROM inventory_items WHERE (quantity_on_hand - quantity_allocated) > 0 ORDER BY name;"); 
+            available_inventory_items = cur.fetchall()
+            
     except psycopg2.Error as e: flash(f"Error fetching batch details: {e}", "error"); print(f"DB Error WIP detail {batch_id}: {e}"); return redirect(url_for('wip_batches_page'))
     finally:
         if conn: conn.close()
-    return render_template('wip_batch_detail.html', batch=batch, ingredient_summary=ingredient_summary, inventory_items=available_inventory_items)
+        
+    return render_template('wip_batch_detail.html', 
+                           batch=batch, 
+                           ingredient_summary=ingredient_summary, 
+                           inventory_items=available_inventory_items,
+                           yield_label=yield_label)
 
 @app.route('/wip/<int:batch_id>/allocate', methods=['POST'])
 def allocate_ingredient(batch_id):
@@ -959,30 +1151,100 @@ def allocate_ingredient(batch_id):
 @app.route('/wip/<int:batch_id>/complete', methods=['POST'])
 def complete_wip_batch(batch_id):
     conn = get_db_connection()
+    actual_yield_str = request.form.get('actual_yield')
+
+    try:
+        actual_yield = float(actual_yield_str)
+        if actual_yield < 0:
+            raise ValueError("Yield cannot be negative")
+    except (ValueError, TypeError):
+        flash("Invalid yield. Please enter a valid number.", "error")
+        return redirect(url_for('wip_batch_detail', batch_id=batch_id))
+
     try:
         with conn.cursor(cursor_factory=DictCursor) as cur:
-            cur.execute("SELECT status FROM wip_batches WHERE id = %s;", (batch_id,)); batch_status = cur.fetchone()
-            if not batch_status or batch_status['status'] != 'In Progress': flash("Batch not found or already completed.", "error"); conn.rollback()
-            else:
-                cur.execute("SELECT inventory_item_id, SUM(quantity_allocated) as total_allocated FROM wip_allocations WHERE wip_batch_id = %s GROUP BY inventory_item_id;", (batch_id,)); allocations = cur.fetchall()
-                for alloc in allocations:
-                    adj_qty = -alloc['total_allocated']
-                    reason = f"WIP Batch #{batch_id} Completed"
-                    cur.execute(
-                        """UPDATE inventory_items 
-                        SET quantity_on_hand = quantity_on_hand - %s, 
-                        quantity_allocated = quantity_allocated - %s 
-                        WHERE id = %s 
-                        RETURNING quantity_on_hand;""",
-                    (alloc['total_allocated'], alloc['total_allocated'], alloc['inventory_item_id'])
-                    )
-                    updated_qty_row = cur.fetchone()
-                    new_qoh = updated_qty_row[0] if updated_qty_row else 0
+            # 1. Get batch info
+            cur.execute(
+                "SELECT w.*, i.unit as item_unit FROM wip_batches w "
+                "LEFT JOIN inventory_items i ON w.inventory_item_id = i.id "
+                "WHERE w.id = %s FOR UPDATE;", 
+                (batch_id,)
+            )
+            batch = cur.fetchone()
 
-                    _log_inventory_adjustment(cur, alloc['inventory_item_id'], adj_qty, reason, new_qoh, wip_batch_id=batch_id)
-                cur.execute("UPDATE wip_batches SET status = 'Completed', completed_at = NOW() WHERE id = %s;", (batch_id,)); conn.commit(); flash(f"Batch {batch_id} completed.", "success")
-    except psycopg2.Error as e: conn.rollback(); flash(f"DB error completing batch: {e}", "error"); print(f"DB Error complete batch {batch_id}: {e}")
-    finally: conn.close(); return redirect(url_for('wip_batches_page'))
+            if not batch or batch['status'] != 'In Progress':
+                flash("Batch not found or already completed.", "error")
+                raise Exception("Batch not found or not in progress")
+
+            # 2. Consume allocated raw ingredients
+            cur.execute("SELECT inventory_item_id, SUM(quantity_allocated) as total_allocated FROM wip_allocations WHERE wip_batch_id = %s GROUP BY inventory_item_id;", (batch_id,)); 
+            allocations = cur.fetchall()
+
+            if not allocations:
+                flash("Cannot complete batch: No ingredients were allocated.", "error")
+                raise Exception("No ingredients allocated")
+
+            for alloc in allocations: 
+                adj_qty = -alloc['total_allocated']
+                reason = f"WIP Batch #{batch_id} Completed"
+                cur.execute(
+                    """UPDATE inventory_items 
+                       SET quantity_on_hand = quantity_on_hand - %s, 
+                           quantity_allocated = quantity_allocated - %s 
+                       WHERE id = %s 
+                       RETURNING quantity_on_hand;""",
+                    (alloc['total_allocated'], alloc['total_allocated'], alloc['inventory_item_id'])
+                )
+                updated_qty_row = cur.fetchone()
+                new_qoh = updated_qty_row[0] if updated_qty_row else 0
+                _log_inventory_adjustment(cur, alloc['inventory_item_id'], adj_qty, reason, new_qoh, wip_batch_id=batch_id)
+
+            # 3. Credit the finished item
+            if batch['batch_type'] == 'PRODUCT':
+                # Add to location_stock
+                cur.execute(
+                    """INSERT INTO location_stock (product_id, location_id, quantity)
+                       VALUES (%s, %s, %s)
+                       ON CONFLICT (product_id, location_id)
+                       DO UPDATE SET quantity = location_stock.quantity + EXCLUDED.quantity;""",
+                    (batch['product_id'], batch['location_id'], actual_yield)
+                )
+                yield_unit = 'jars'
+                flash_msg = f"Batch {batch_id} completed. {actual_yield} jars added to location stock."
+
+            elif batch['batch_type'] == 'INTERMEDIATE':
+                # Add to inventory_items
+                reason = f"WIP Batch #{batch_id} Completed (Yield)"
+                cur.execute(
+                    "UPDATE inventory_items SET quantity_on_hand = quantity_on_hand + %s WHERE id = %s RETURNING quantity_on_hand;",
+                    (actual_yield, batch['inventory_item_id'])
+                )
+                updated_qty_row = cur.fetchone()
+                new_qoh = updated_qty_row[0] if updated_qty_row else 0
+                _log_inventory_adjustment(cur, batch['inventory_item_id'], actual_yield, reason, new_qoh, wip_batch_id=batch_id)
+                yield_unit = batch['item_unit']
+                flash_msg = f"Batch {batch_id} completed. {actual_yield} {yield_unit} added to raw ingredient stock."
+
+            # 4. Mark batch as complete and save audit data
+            cur.execute(
+                "UPDATE wip_batches SET status = 'Completed', completed_at = NOW(), actual_yield = %s, actual_yield_unit = %s WHERE id = %s;", 
+                (actual_yield, yield_unit, batch_id)
+            )
+
+        conn.commit()
+        flash(flash_msg, "success")
+
+    except Exception as e: 
+        if conn: conn.rollback()
+        if "No ingredients" not in str(e):
+            flash(f"DB error completing batch: {e}", "error"); 
+        print(f"DB Error complete batch {batch_id}: {e}")
+        return redirect(url_for('wip_batch_detail', batch_id=batch_id))
+
+    finally: 
+        if conn: conn.close()
+
+    return redirect(url_for('wip_batches_page'))
 
 @app.route('/wip/delete/<int:batch_id>', methods=['POST'])
 def delete_wip_batch(batch_id):

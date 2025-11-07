@@ -12,7 +12,7 @@
     .info-card p { margin: 5px 0 15px; }
     .info-card strong { color: var(--text-medium); margin-right: 8px;}
 
-    table { table-layout: fixed; } /* Keep table layout fixed */
+    table { table-layout: fixed; }
     .ingredients-card th:nth-child(1) { width: 40%; } /* Name */
     .ingredients-card th:nth-child(2) { width: 10%; } /* Unit */
     .ingredients-card th:nth-child(3) { width: 15%; } /* Needed */
@@ -20,13 +20,11 @@
     .ingredients-card th:nth-child(5) { width: 20%; } /* Remaining */
 
     .allocation-form div { margin-bottom: 15px; }
-    .allocation-form select, .allocation-form input { margin-bottom: 0; } /* Remove double margin */
+    .allocation-form select, .allocation-form input { margin-bottom: 0; }
 
-    .complete-form { margin-top: 20px; text-align: right; }
-
-     /* Flash message styles */
-    .flash-error { background-color: #f8d7da; color: #721c24; padding: 10px; border: 1px solid #f5c6cb; border-radius: 5px; margin-bottom: 15px; }
-    .flash-success { background-color: #d4edda; color: #155724; padding: 10px; border: 1px solid #c3e6cb; border-radius: 5px; margin-bottom: 15px; }
+    .complete-form { margin-top: 20px; }
+    .complete-form label { font-size: 1.1em; font-weight: 600; }
+    .complete-form input { text-align: right; }
 
 </style>
 
@@ -48,14 +46,25 @@
 <div class="detail-grid">
     <div class="info-card content-card">
         <h2>Batch Information</h2>
-        <p><strong>Product:</strong> {{ batch.product_name or 'N/A' }}</p>
+        
+        {% if batch.batch_type == 'PRODUCT' %}
+            <p><strong>Producing:</strong> {{ batch.product_name }} (Product)</p>
+            <p><strong>Destination:</strong> {{ batch.location_name }}</p>
+        {% elif batch.batch_type == 'INTERMEDIATE' %}
+            <p><strong>Producing:</strong> {{ batch.item_name }} (Intermediate)</p>
+            <p><strong>Destination:</strong> Raw Ingredient Stock</p>
+        {% endif %}
         <p><strong>Recipe:</strong> <small>{{ batch.recipe_name }}</small></p>
-        <p><strong>Target Jars:</strong> {{ batch.target_jars }}</p>
         <p><strong>Status:</strong> {{ batch.status }}</p>
         <p><strong>Started:</strong> {{ batch.created_at.strftime('%Y-%m-%d %H:%M') if batch.created_at else 'N/A' }}</p>
+        
         {% if batch.status == 'In Progress' %}
             <form class="complete-form" method="POST" action="{{ url_for('complete_wip_batch', batch_id=batch.id) }}" onsubmit="return confirm('Are you sure you want to mark this batch as complete? This will finalize inventory changes.');">
-                <button type="submit" class="submit-btn">Mark Batch as Complete</button>
+                <div>
+                    <label for="actual_yield">{{ yield_label }}</label>
+                    <input type="number" step="any" id="actual_yield" name="actual_yield" min="0" required placeholder="0.0">
+                </div>
+                <button type="submit" class="submit-btn" style="width: 100%;">Mark Batch as Complete</button>
             </form>
         {% endif %}
     </div>
@@ -66,10 +75,9 @@
         <form class="allocation-form" method="POST" action="{{ url_for('allocate_ingredient', batch_id=batch.id) }}">
             <div>
                 <label for="inventory_item_id">Ingredient</label>
-                <select id="inventory_item_id" name="inventory_item_id" required>
+                <select id="inventory_item_id" name="inventory_item_id" class="select2-enable" required>
                     <option value="" disabled selected>-- Select ingredient --</option>
                     {% for item in inventory_items %}
-                        {# Only show items needed for this recipe #}
                         {% set needed_item = ingredient_summary | selectattr('inventory_item_id', 'equalto', item.id) | first %}
                         {% if needed_item %}
                             <option value="{{ item.id }}">{{ item.name }} ({{ item.unit }})</option>

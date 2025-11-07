@@ -11,60 +11,63 @@
     }
     table { table-layout: fixed; }
     th:nth-child(1) { width: 10%; } /* ID */
-    th:nth-child(2) { width: 35%; } /* Recipe */
-    th:nth-child(3) { width: 15%; } /* Target Jars */
-    th:nth-child(4) { width: 20%; } /* Started At */
-    th:nth-child(5) { width: 20%; } /* Actions */ /* Adjusted width */
+    th:nth-child(2) { width: 45%; } /* Producing */
+    th:nth-child(3) { width: 25%; } /* Started At */
+    th:nth-child(4) { width: 20%; } /* Actions */
 
     .actions-cell {
         display: flex;
         gap: 10px;
         align-items: center;
     }
-    .actions-cell a, .actions-cell button { /* Style links and buttons similarly */
-        font-size: 0.9em;
-        padding: 6px 12px;
-        text-decoration: none;
-        display: inline-block;
-        color: white;
-        border: none;
-        border-radius: 5px;
-        cursor: pointer;
-        transition: background-color 0.2s ease;
+    .actions-cell a, .actions-cell button {
+        font-size: 0.9em; padding: 6px 12px; text-decoration: none;
+        display: inline-block; color: white; border: none;
+        border-radius: 5px; cursor: pointer; transition: background-color 0.2s ease;
     }
-     .actions-cell a { background-color: var(--edit-blue); /* Blue for details link */ }
-    .actions-cell a:hover { background-color: #0056b3; }
-     .delete-form { margin: 0; display: flex; } /* Align form/button correctly */
-    .search-container {
-        width: 100%;
+     .actions-cell a { background-color: var(--edit-blue); }
+     .actions-cell a:hover { background-color: #0056b3; }
+     .delete-form { margin: 0; display: flex; }
+
+    .form-container { align-self: start; }
+    
+    /* --- New Tab Styles --- */
+    .tab-container {
+        display: flex;
+        border-bottom: 1px solid var(--border-color);
         margin-bottom: 20px;
     }
-    .search-container input[type="text"] {
-        width: 100%;
-        margin-bottom: 0;
-        font-size: 1.1em;
-        padding: 12px 15px;
+    .tab-link {
+        padding: 10px 15px;
+        cursor: pointer;
+        background-color: transparent;
+        border: none;
+        font-size: 1em;
+        color: var(--text-medium);
+        border-bottom: 3px solid transparent;
     }
-    .form-container{
-        align-self: start;
+    .tab-link.active {
+        color: var(--text-dark);
+        font-weight: 600;
+        border-bottom-color: var(--primary-color);
+    }
+    .tab-content {
+        display: none;
+    }
+    .tab-content.active {
+        display: block;
+    }
+    /* --- End Tab Styles --- */
+
+    @media screen and (max-width: 1100px) {
+        .form-container { order: -1; }
     }
     @media screen and (max-width: 1200px) {
         .actions-cell {
-            flex-direction: column;
-            align-items: stretch;
-            gap: 4px;
+            flex-direction: column; align-items: stretch; gap: 4px;
         }
-        .actions-cell a, .actions-cell .delete-form {
-            width: 100%;
-            margin: 0;
-        }
-        .actions-cell a, .actions-cell .delete-form button {
-            width: 100%;
-            text-align: center;
-        }
-    }
-    @media screen and (max-width: 1100px) {
-    .form-container { order: -1; }
+        .actions-cell a, .actions-cell .delete-form { width: 100%; margin: 0; }
+        .actions-cell a, .actions-cell .delete-form button { width: 100%; text-align: center; }
     }
 </style>
 
@@ -73,11 +76,11 @@
 
 <div class="container">
     <div class="list-container content-card">
-        <div class="search-container">
+         <div class="search-container">
             <input type="text" id="searchWIP" placeholder="Search by Batch ID or Product...">
         </div>
         <h2>Ongoing Batches</h2>
-        {% with messages = get_flashed_messages(with_categories=true) %}
+         {% with messages = get_flashed_messages(with_categories=true) %}
             {% if messages %}
                 {% for category, message in messages %}
                 <div class="flash-{{ category }}">{{ message }}</div>
@@ -90,8 +93,7 @@
                 <thead>
                     <tr>
                         <th>Batch ID</th>
-                        <th>Product</th>
-                        <th>Target Jars</th>
+                        <th>Producing</th>
                         <th>Started At</th>
                         <th>Actions</th>
                     </tr>
@@ -100,8 +102,17 @@
                     {% for batch in wip_batches %}
                     <tr>
                         <td>{{ batch.id }}</td>
-                        <td>{{ batch.product_name or 'N/A' }}<br><small>Recipe: {{ batch.recipe_name }}</small></td>
-                        <td>{{ batch.target_jars }}</td>
+                        <td>
+                            {% if batch.batch_type == 'PRODUCT' %}
+                                <strong>{{ batch.product_name }}</strong> (Product)
+                                <br><small>Recipe: {{ batch.recipe_name }}</small>
+                            {% elif batch.batch_type == 'INTERMEDIATE' %}
+                                <strong>{{ batch.item_name }}</strong> (Intermediate)
+                                <br><small>Recipe: {{ batch.recipe_name }}</small>
+                            {% else %}
+                                Unknown Batch
+                            {% endif %}
+                        </td>
                         <td>{{ batch.created_at.strftime('%Y-%m-%d %H:%M') if batch.created_at else 'N/A' }}</td>
                         <td class="actions-cell">
                             <a href="{{ url_for('wip_batch_detail', batch_id=batch.id) }}">Details</a>
@@ -119,35 +130,79 @@
     </div>
 
     <div class="form-container content-card">
-        <h2 class="collapsible-toggle">Start New Batch</h2>
-        <div class="form-content">
-            <form method="POST" action="{{ url_for('wip_batches_page') }}">
-            <div>
-                <label for="product_id">Select Product</label>
-                    <select id="product_id" name="product_id" required>
-                        <option value="" disabled selected>-- Choose a product --</option>
-                        {% for product in sellable_products %}
-                            <option value="{{ product.id }}">{{ product.product_name }} ({{ product.sku }})</option>
-                        {% endfor %}
-                    </select>
-                </div>
-                <div>
-                    <label for="target_jars">Target Jars to Produce</label>
-                    <input type="number" id="target_jars" name="target_jars" min="1" required placeholder="e.g., 50">
-                </div>
-                <button type="submit" class="submit-btn">Start Batch</button>
-            </form>
+        <h2 class="collapsible-toggle active">Start New Batch</h2> <div class="form-content" style="max-height: 1000px;"> <div class="tab-container">
+                <button class="tab-link active" onclick="openTab(event, 'produceProduct')">Produce Product (Jars)</button>
+                <button class="tab-link" onclick="openTab(event, 'produceIntermediate')">Produce Intermediate (g/mL)</button>
+            </div>
+
+            <div id="produceProduct" class="tab-content active">
+                <form method="POST" action="{{ url_for('wip_batches_page') }}">
+                    <input type="hidden" name="batch_type" value="PRODUCT">
+                    <div>
+                        <label for="product_id">Select Product</label>
+                        <select id="product_id" name="product_id" required>
+                            <option value="" disabled selected>-- Choose a product --</option>
+                            {% for product in sellable_products %}
+                                <option value="{{ product.id }}">{{ product.product_name }} ({{ product.sku }})</option>
+                            {% endfor %}
+                        </select>
+                    </div>
+                    <div>
+                        <label for="location_id">Destination Location</label>
+                        <select id="location_id" name="location_id" required>
+                            <option value="" disabled selected>-- Choose destination --</option>
+                            {% for location in locations %}
+                                <option value="{{ location.id }}">{{ location.name }}</option>
+                            {% endfor %}
+                        </select>
+                    </div>
+                    <button type="submit" class="submit-btn">Start Product Batch</button>
+                </form>
+            </div>
+
+            <div id="produceIntermediate" class="tab-content">
+                <form method="POST" action="{{ url_for('wip_batches_page') }}">
+                    <input type="hidden" name="batch_type" value="INTERMEDIATE">
+                    <div>
+                        <label for="inventory_item_id">Select Intermediate to Produce</label>
+                        <select id="inventory_item_id" name="inventory_item_id" required>
+                            <option value="" disabled selected>-- Choose an item --</option>
+                            {% for item in producible_items %}
+                                <option value="{{ item.id }}">{{ item.name }} ({{ item.unit }})</option>
+                            {% endfor %}
+                        </select>
+                    </div>
+                    <button type="submit" class="submit-btn">Start Intermediate Batch</button>
+                </form>
+            </div>
+
         </div>
     </div>
 </div>
+
 <script>
+function openTab(evt, tabName) {
+    var i, tabcontent, tablinks;
+    tabcontent = document.getElementsByClassName("tab-content");
+    for (i = 0; i < tabcontent.length; i++) {
+        tabcontent[i].style.display = "none";
+    }
+    tablinks = document.getElementsByClassName("tab-link");
+    for (i = 0; i < tablinks.length; i++) {
+        tablinks[i].className = tablinks[i].className.replace(" active", "");
+    }
+    document.getElementById(tabName).style.display = "block";
+    evt.currentTarget.className += " active";
+}
+
 document.addEventListener('DOMContentLoaded', () => {
+    // Search bar logic
     const searchInput = document.getElementById('searchWIP');
     const tableBody = document.querySelector('.list-container tbody');
     const allRows = tableBody.querySelectorAll('tr');
 
     searchInput.addEventListener('input', function(e) {
-        const searchTerm = e.target.value.toLowerCase();
+        const searchTerm = e.g.target.value.toLowerCase();
         allRows.forEach(row => {
             const batchId = row.cells[0].textContent.toLowerCase();
             const productName = row.cells[1].textContent.toLowerCase();

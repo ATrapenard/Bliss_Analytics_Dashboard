@@ -1273,7 +1273,6 @@ def adjust_inventory_item(id):
     return render_template("adjust_inventory_item.html", item=item)
 
 
-@app.route("/inventory/process-adjustment/<int:id>", methods=["POST"])
 # --- NEW HELPER FUNCTION ---
 def _log_inventory_adjustment(
     cur,
@@ -1308,6 +1307,9 @@ def _log_inventory_adjustment(
 
 
 # --- END HELPER FUNCTION ---
+
+
+@app.route("/inventory/process-adjustment/<int:id>", methods=["POST"])
 def process_adjustment(id):
     conn = get_db_connection()
     try:

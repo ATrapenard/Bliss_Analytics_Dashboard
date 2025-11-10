@@ -2,16 +2,22 @@
 
 {% block title %}Manage Suppliers{% endblock %}
 
-{% block content %}
+{% block page_styles %}
 <style>
     .container { display: grid; grid-template-columns: 2fr 1fr; gap: 40px; align-items: start;}
     table { table-layout: fixed; }
-    th:nth-child(1) { width: 30%; } /* Name */
+    th:nth-child(1) { width: 20%; } /* Name */
     th:nth-child(2) { width: 25%; } /* Contact */
     th:nth-child(3) { width: 30%; } /* Email/Phone */
+    th:nth-child(4) { width: 25%; } /* Actions */
+    
+    /* === THIS LINE WAS DELETED ===
     th:nth-child(4) { width: 15%; } /* Actions */
 
-    .actions-cell { display: flex; gap: 10px; align-items: center; }
+    /* The .actions-cell styles are now global in style.css */
+    /* We can safely delete this redundant rule */
+    /* .actions-cell { display: flex; gap: 10px; align-items: center; } */
+    
     .action-form { margin: 0; display: flex; align-items: center; }
     .edit-btn, .delete-btn { font-size: 0.9em; padding: 6px 12px; }
     textarea { min-height: 80px; }
@@ -49,7 +55,10 @@
     .form-container { order: -1; }
     }
 </style>
+{% endblock %}
 
+
+{% block content %}
 <h1>Manage Suppliers</h1>
 <p>Add, edit, or remove ingredient suppliers.</p>
 
@@ -142,6 +151,9 @@
         </div>
     </div>
 </div>
+{% endblock %}
+
+{% block page_scripts %}
 <script>
 document.addEventListener('DOMContentLoaded', () => {
     const searchInput = document.getElementById('searchSuppliers');

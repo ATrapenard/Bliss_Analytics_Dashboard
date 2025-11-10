@@ -4,22 +4,77 @@
 
 {% block content %}
 <style>
-    .planner-container { display: grid; grid-template-columns: 1fr; gap: 30px; }
-    .product-input-row { display: grid; grid-template-columns: 3fr 1fr; gap: 15px; align-items: center; margin-bottom: 15px; }
-    .product-input-row label { margin-bottom: 0; font-weight: normal; color: var(--text-dark); font-size: 1em; }
-    .product-input-row input[type="number"] { margin-bottom: 0; text-align: right; }
-    .calculate-button-container { text-align: right; margin-top: 20px; }
+    .planner-container {
+        display: grid;
+        grid-template-columns: 1fr;
+        gap: 30px;
+    }
+
+    .product-input-row {
+        display: grid;
+        grid-template-columns: 3fr 1fr;
+        gap: 15px;
+        align-items: center;
+        margin-bottom: 15px;
+    }
+
+    .product-input-row label {
+        margin-bottom: 0;
+        font-weight: normal;
+        color: var(--text-dark);
+        font-size: 1em;
+    }
+
+    .product-input-row input[type="number"] {
+        margin-bottom: 0;
+        text-align: right;
+    }
+
+    .calculate-button-container {
+        text-align: right;
+        margin-top: 20px;
+    }
 
     /* Styles for results table */
-    .results-card table { table-layout: fixed; }
-    .results-card th:nth-child(1) { width: 40%; } /* Ingredient */
-    .results-card th:nth-child(2) { width: 10%; } /* Unit */
-    .results-card th:nth-child(3) { width: 15%; } /* Needed */
-    .results-card th:nth-child(4) { width: 15%; } /* Available */
-    .results-card th:nth-child(5) { width: 20%; } /* Net Needed */
+    .results-card table {
+        table-layout: fixed;
+    }
 
-    .results-card td:nth-child(n+3) { text-align: right; } /* Right-align numeric */
-    .highlight-needed { font-weight: bold; color: var(--delete-red); }
+    .results-card th:nth-child(1) {
+        width: 40%;
+    }
+
+    /* Ingredient */
+    .results-card th:nth-child(2) {
+        width: 10%;
+    }
+
+    /* Unit */
+    .results-card th:nth-child(3) {
+        width: 15%;
+    }
+
+    /* Needed */
+    .results-card th:nth-child(4) {
+        width: 15%;
+    }
+
+    /* Available */
+    .results-card th:nth-child(5) {
+        width: 20%;
+    }
+
+    /* Net Needed */
+
+    .results-card td:nth-child(n+3) {
+        text-align: right;
+    }
+
+    /* Right-align numeric */
+    .highlight-needed {
+        font-weight: bold;
+        color: var(--delete-red);
+    }
 </style>
 
 <h1>Production Planner</h1>
@@ -32,7 +87,9 @@
             {% for product in products %}
             <div class="product-input-row">
                 <label for="jars_product_{{ product.id }}">{{ product.product_name }} ({{ product.sku }})</label>
-                <input type="number" id="jars_product_{{ product.id }}" name="jars_product_{{ product.id }}" min="0" placeholder="0" value="{{ request.form.get('jars_product_' + product.id|string, '') }}"> {# Retain input value #}
+                <input type="number" id="jars_product_{{ product.id }}" name="jars_product_{{ product.id }}" min="0"
+                    placeholder="0" value="{{ request.form.get('jars_product_' + product.id|string, '') }}"> {# Retain
+                input value #}
             </div>
             {% endfor %}
             <div class="calculate-button-container">
@@ -70,7 +127,7 @@
             </tbody>
         </table>
         {% else %}
-            <p>No ingredients required based on the quantities entered.</p>
+        <p>No ingredients required based on the quantities entered.</p>
         {% endif %}
     </div>
     {% endif %}

@@ -11,45 +11,55 @@
         grid-template-columns: repeat(auto-fit, minmax(350px, 1fr));
         gap: var(--space-lg);
     }
-    
+
     /* The New Recipe Card */
     .recipe-item-card {
         background: var(--white);
         border-radius: 12px;
-        box-shadow: 0 4px 15px rgba(0,0,0,0.07);
+        box-shadow: 0 4px 15px rgba(0, 0, 0, 0.07);
         display: flex;
         flex-direction: column;
-        overflow: hidden; /* Clips the child elements */
+        overflow: hidden;
+        /* Clips the child elements */
         transition: all 0.2s ease-out;
     }
+
     .recipe-item-card:hover {
         transform: translateY(-5px);
-        box-shadow: 0 8px 25px rgba(0,0,0,0.1);
+        box-shadow: 0 8px 25px rgba(0, 0, 0, 0.1);
     }
-    
+
     /* === MODIFIED === */
     /* Card Header is now the toggle */
     .recipe-card-toggle {
         padding: var(--space-md) var(--space-lg);
         cursor: pointer;
         transition: background-color 0.2s ease;
-        display: flex; /* Added */
-        justify-content: space-between; /* Added */
-        align-items: center; /* Added */
+        display: flex;
+        /* Added */
+        justify-content: space-between;
+        /* Added */
+        align-items: center;
+        /* Added */
     }
+
     .recipe-card-toggle:hover {
-        background-color: rgba(0,0,0,0.03);
+        background-color: rgba(0, 0, 0, 0.03);
     }
+
     /* === NEW: Toggle Icon === */
     .recipe-card-toggle::after {
         content: '▼';
         font-size: 0.8em;
         color: var(--text-medium);
         transition: transform 0.3s ease-out;
-        transform: rotate(180deg); /* Start in the "up" (closed) position */
+        transform: rotate(180deg);
+        /* Start in the "up" (closed) position */
     }
+
     .recipe-card-toggle.active::after {
-        transform: rotate(0deg); /* "Down" (open) position */
+        transform: rotate(0deg);
+        /* "Down" (open) position */
     }
 
     .recipe-card-header-content h3 {
@@ -63,12 +73,13 @@
         -webkit-background-clip: text;
         color: transparent;
     }
+
     .recipe-card-header-content small {
         color: var(--text-medium);
         font-weight: 600;
         font-size: 0.85em;
     }
-    
+
     /* === NEW === */
     /* This is now the collapsible part */
     .recipe-card-collapsible-content {
@@ -76,18 +87,21 @@
         overflow: hidden;
         transition: max-height 0.3s ease-out;
     }
-    
+
     /* Card Content (Ingredients) */
     .recipe-card-content {
         padding: 0 var(--space-lg) var(--space-md);
         flex-grow: 1;
-        border-top: 1px solid var(--border-color); /* Separator */
+        border-top: 1px solid var(--border-color);
+        /* Separator */
     }
+
     .recipe-card-content ul {
         list-style: none;
         padding: 0;
         margin: 0;
     }
+
     .recipe-card-content li {
         display: flex;
         justify-content: space-between;
@@ -95,50 +109,60 @@
         border-bottom: 1px solid var(--border-color);
         font-size: 0.9em;
     }
+
     .recipe-card-content li:first-child {
-        padding-top: var(--space-md); /* Add padding to top of list */
+        padding-top: var(--space-md);
+        /* Add padding to top of list */
     }
+
     .recipe-card-content li:last-child {
         border-bottom: none;
     }
+
     .recipe-card-content li .ing-name {
         font-weight: 600;
         color: var(--text-medium);
     }
+
     .recipe-card-content li .ing-qty {
         font-weight: 600;
         color: var(--text-dark);
     }
-    
+
     /* Card Footer (Actions) */
     .recipe-card-footer {
         display: flex;
         gap: 10px;
         padding: var(--space-md) var(--space-lg);
-        background: var(--background-light); /* Slight contrast */
+        background: var(--background-light);
+        /* Slight contrast */
         border-top: 1px solid var(--border-color);
     }
+
     .recipe-card-footer .action-form {
         margin: 0;
         display: flex;
-        flex-grow: 1; /* Makes buttons fill the space */
+        flex-grow: 1;
+        /* Makes buttons fill the space */
     }
+
     .recipe-card-footer .action-form button {
         margin: 0;
         width: 100%;
     }
-    
+
     /* Search Bar */
     .search-container {
         width: 100%;
         margin-bottom: var(--space-lg);
     }
+
     .search-container input[type="text"] {
         font-size: 1.1em;
         padding: 12px 15px;
         border-radius: 8px;
     }
-    
+
     /* "Add New" Button */
     .add-recipe-btn {
         margin-bottom: var(--space-lg);
@@ -147,108 +171,110 @@
 {% endblock %}
 
 {% block content %}
-    <h1>Recipe Dashboard</h1>
-    
-    {% with messages = get_flashed_messages(with_categories=true) %}
-        {% if messages %}
-            {% for category, message in messages %}
-            <div class="flash-{{ category }}">{{ message }}</div>
-            {% endfor %}
-        {% endif %}
-    {% endwith %}
-    
-    <a href="{{ url_for('data.new_recipe_form') }}" class="button-link submit-btn add-recipe-btn">＋ Add New Recipe</a>
-    
-    <div class="search-container">
-        <input type="text" id="recipeSearch" placeholder="Search for recipes by name...">
-    </div>
+<h1>Recipe Dashboard</h1>
 
-    <h2>Existing Recipes</h2>
+{% with messages = get_flashed_messages(with_categories=true) %}
+{% if messages %}
+{% for category, message in messages %}
+<div class="flash-{{ category }}">{{ message }}</div>
+{% endfor %}
+{% endif %}
+{% endwith %}
 
-    <div class="recipe-grid">
-        {% for recipe in recipes %}
-        <div class="recipe-item-card" data-recipe-name="{{ recipe['name'] | lower }}">
-            
-            <div class="recipe-card-toggle">
-                <div class="recipe-card-header-content">
-                    <h3>{{ recipe['name'] }}</h3>
-                    <small>Grams: {{ recipe.totals.grams }}g, mLs: {{ recipe.totals.mLs }}mL</small>
-                </div>
-                </div>
-            
-            <div class="recipe-card-collapsible-content">
-                <div class="recipe-card-content">
-                    <ul>
-                        {% for ingredient in recipe['ingredients'] %}
-                        <li>
-                            <span class="ing-name">{{ ingredient['name'] }}</span>
-                            <span class="ing-qty">{{ ingredient['quantity'] }} {{ ingredient['unit'] }}</span>
-                        </li>
-                        {% else %}
-                        <li><span class="ing-name">No ingredients added.</span></li>
-                        {% endfor %}
-                    </ul>
-                </div>
-            </div>
-            
-            <div class="recipe-card-footer">
-                <form class="action-form" method="GET" action="{{ url_for('data.edit_recipe_form', recipe_id=recipe['id']) }}">
-                    <button type="submit" class="edit-btn">Edit</button>
-                </form>
-                <form class="action-form" method="POST" action="{{ url_for('data.delete_recipe', recipe_id=recipe['id']) }}" onsubmit="return confirm('Are you sure you want to delete this recipe?');">
-                    <button type="submit" class="delete-btn">Delete</button>
-                </form>
+<a href="{{ url_for('data.new_recipe_form') }}" class="button-link submit-btn add-recipe-btn">＋ Add New Recipe</a>
+
+<div class="search-container">
+    <input type="text" id="recipeSearch" placeholder="Search for recipes by name...">
+</div>
+
+<h2>Existing Recipes</h2>
+
+<div class="recipe-grid">
+    {% for recipe in recipes %}
+    <div class="recipe-item-card" data-recipe-name="{{ recipe['name'] | lower }}">
+
+        <div class="recipe-card-toggle">
+            <div class="recipe-card-header-content">
+                <h3>{{ recipe['name'] }}</h3>
+                <small>Grams: {{ recipe.totals.grams }}g, mLs: {{ recipe.totals.mLs }}mL</small>
             </div>
         </div>
-        {% else %}
-            <div class="content-card">
-                <h2>No Recipes Found</h2>
-                <p>No recipes found. Click the "Add New Recipe" button to get started!</p>
+
+        <div class="recipe-card-collapsible-content">
+            <div class="recipe-card-content">
+                <ul>
+                    {% for ingredient in recipe['ingredients'] %}
+                    <li>
+                        <span class="ing-name">{{ ingredient['name'] }}</span>
+                        <span class="ing-qty">{{ ingredient['quantity'] }} {{ ingredient['unit'] }}</span>
+                    </li>
+                    {% else %}
+                    <li><span class="ing-name">No ingredients added.</span></li>
+                    {% endfor %}
+                </ul>
             </div>
-        {% endfor %}
+        </div>
+
+        <div class="recipe-card-footer">
+            <form class="action-form" method="GET"
+                action="{{ url_for('data.edit_recipe_form', recipe_id=recipe['id']) }}">
+                <button type="submit" class="edit-btn">Edit</button>
+            </form>
+            <form class="action-form" method="POST" action="{{ url_for('data.delete_recipe', recipe_id=recipe['id']) }}"
+                onsubmit="return confirm('Are you sure you want to delete this recipe?');">
+                <button type="submit" class="delete-btn">Delete</button>
+            </form>
+        </div>
     </div>
+    {% else %}
+    <div class="content-card">
+        <h2>No Recipes Found</h2>
+        <p>No recipes found. Click the "Add New Recipe" button to get started!</p>
+    </div>
+    {% endfor %}
+</div>
 
 {% endblock %}
 
 {% block page_scripts %}
-    <script>
-        document.addEventListener('DOMContentLoaded', () => {
-            // --- Search Bar Logic ---
-            const searchInput = document.getElementById('recipeSearch');
-            const allCards = document.querySelectorAll('.recipe-item-card'); 
+<script>
+    document.addEventListener('DOMContentLoaded', () => {
+        // --- Search Bar Logic ---
+        const searchInput = document.getElementById('recipeSearch');
+        const allCards = document.querySelectorAll('.recipe-item-card');
 
-            searchInput.addEventListener('input', function(e) {
-                const searchTerm = e.target.value.toLowerCase();
-                allCards.forEach(card => {
-                    const recipeName = card.dataset.recipeName;
-                    if (recipeName.includes(searchTerm)) {
-                        card.style.display = 'flex';
-                    } else {
-                        card.style.display = 'none';
-                    }
-                });
+        searchInput.addEventListener('input', function (e) {
+            const searchTerm = e.target.value.toLowerCase();
+            allCards.forEach(card => {
+                const recipeName = card.dataset.recipeName;
+                if (recipeName.includes(searchTerm)) {
+                    card.style.display = 'flex';
+                } else {
+                    card.style.display = 'none';
+                }
             });
-
-            // --- NEW Collapsible Card Logic ---
-            const allToggles = document.querySelectorAll('.recipe-card-toggle');
-            allToggles.forEach(toggle => {
-                toggle.addEventListener('click', () => {
-                    // Toggle the 'active' class on the button itself
-                    toggle.classList.toggle('active');
-                    
-                    // Find the content body
-                    const content = toggle.nextElementSibling;
-                    
-                    if (content.style.maxHeight) {
-                        // It's open, so close it
-                        content.style.maxHeight = null;
-                    } else {
-                        // It's closed, so open it
-                        content.style.maxHeight = content.scrollHeight + 'px';
-                    }
-                });
-            });
-
         });
-    </script>
+
+        // --- NEW Collapsible Card Logic ---
+        const allToggles = document.querySelectorAll('.recipe-card-toggle');
+        allToggles.forEach(toggle => {
+            toggle.addEventListener('click', () => {
+                // Toggle the 'active' class on the button itself
+                toggle.classList.toggle('active');
+
+                // Find the content body
+                const content = toggle.nextElementSibling;
+
+                if (content.style.maxHeight) {
+                    // It's open, so close it
+                    content.style.maxHeight = null;
+                } else {
+                    // It's closed, so open it
+                    content.style.maxHeight = content.scrollHeight + 'px';
+                }
+            });
+        });
+
+    });
+</script>
 {% endblock %}

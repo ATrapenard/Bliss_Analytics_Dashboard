@@ -6,23 +6,31 @@
 <style>
     .filter-card {
         margin-bottom: 20px;
-        background-color: var(--background-light); /* Lighter background for filter */
+        background-color: var(--background-light);
+        /* Lighter background for filter */
     }
+
     .filter-form {
         display: grid;
         grid-template-columns: 3fr 1fr 1fr;
         gap: 15px;
         align-items: flex-end;
     }
+
     .filter-form label {
         margin-bottom: 5px;
     }
+
     .filter-form .select2-container {
-        width: 100% !important; /* Ensure Select2 spans full width */
+        width: 100% !important;
+        /* Ensure Select2 spans full width */
     }
+
     .filter-form button {
-        height: 42px; /* Match Select2 height */
+        height: 42px;
+        /* Match Select2 height */
     }
+
     .clear-btn {
         background-color: var(--text-medium);
         color: var(--white);
@@ -36,39 +44,71 @@
         justify-content: center;
         transition: opacity 0.2s ease;
     }
+
     .clear-btn:hover {
         opacity: 0.85;
     }
 
     /* Table styles */
-    table { table-layout: fixed; }
-    th:nth-child(1) { width: 20%; } /* Date */
-    th:nth-child(2) { width: 30%; } /* Item */
-    th:nth-child(3) { width: 15%; } /* Change */
-    th:nth-child(4) { width: 15%; } /* New QOH */
-    th:nth-child(5) { width: 20%; } /* Reason */
-    
+    table {
+        table-layout: fixed;
+    }
+
+    th:nth-child(1) {
+        width: 20%;
+    }
+
+    /* Date */
+    th:nth-child(2) {
+        width: 30%;
+    }
+
+    /* Item */
+    th:nth-child(3) {
+        width: 15%;
+    }
+
+    /* Change */
+    th:nth-child(4) {
+        width: 15%;
+    }
+
+    /* New QOH */
+    th:nth-child(5) {
+        width: 20%;
+    }
+
+    /* Reason */
+
     .badge-success {
-        background-color: #d1fae5; /* Tailwind green-100 */
-        color: #065f46; /* Tailwind green-800 */
+        background-color: #d1fae5;
+        /* Tailwind green-100 */
+        color: #065f46;
+        /* Tailwind green-800 */
         font-size: 0.9em;
         padding: 4px 10px;
         border-radius: 12px;
     }
+
     .badge-danger {
-        background-color: #fee2e2; /* Tailwind red-100 */
-        color: #991b1b; /* Tailwind red-800 */
+        background-color: #fee2e2;
+        /* Tailwind red-100 */
+        color: #991b1b;
+        /* Tailwind red-800 */
         font-size: 0.9em;
         padding: 4px 10px;
         border-radius: 12px;
     }
+
     @media screen and (max-width: 768px) {
         .filter-form {
             grid-template-columns: 1fr;
             gap: 10px;
         }
+
         .filter-form button {
-            height: 42px; /* Maintain height */
+            height: 42px;
+            /* Maintain height */
         }
     }
 </style>
@@ -78,11 +118,11 @@
 </div>
 
 {% with messages = get_flashed_messages(with_categories=true) %}
-    {% if messages %}
-        {% for category, message in messages %}
-        <div class="flash-{{ category }}">{{ message }}</div>
-        {% endfor %}
-    {% endif %}
+{% if messages %}
+{% for category, message in messages %}
+<div class="flash-{{ category }}">{{ message }}</div>
+{% endfor %}
+{% endif %}
 {% endwith %}
 
 <div class="filter-card content-card">
@@ -92,13 +132,13 @@
             <select id="inventory_item_id" name="inventory_item_id" class="select2-enable">
                 <option value="">-- Show All Ingredients --</option>
                 {% for item in inventory_items %}
-                    <option value="{{ item.id }}" {% if item.id == selected_item_id %}selected{% endif %}>
-                        {{ item.name }} ({{ item.unit }})
-                    </option>
+                <option value="{{ item.id }}" {% if item.id==selected_item_id %}selected{% endif %}>
+                    {{ item.name }} ({{ item.unit }})
+                </option>
                 {% endfor %}
             </select>
         </div>
-        
+
         <button type="submit" class="button-link">Filter</button>
         <a href="{{ url_for('ops.inventory_log') }}" class="clear-btn">Clear</a>
     </form>
@@ -121,22 +161,23 @@
                     {% for adj in adjustments %}
                     <tr>
                         <!-- Format the timestamp for readability -->
-                        <td>{{ adj.adjustment_date.strftime('%Y-%m-%d %I:%M %p') if adj.adjustment_date else 'N/A' }}</td>
+                        <td>{{ adj.adjustment_date.strftime('%Y-%m-%d %I:%M %p') if adj.adjustment_date else 'N/A' }}
+                        </td>
                         <td>{{ adj.item_name }}</td>
-                        
+
                         <!-- Add conditional badges for positive/negative changes -->
                         <td class="text-center">
                             {% if adj.change_quantity > 0 %}
-                                <span class="badge-success">
-                                    +{{ adj.change_quantity | round(2) }}
-                                </span>
+                            <span class="badge-success">
+                                +{{ adj.change_quantity | round(2) }}
+                            </span>
                             {% else %}
-                                <span class="badge-danger">
-                                    {{ adj.change_quantity | round(2) }}
-                                </span>
+                            <span class="badge-danger">
+                                {{ adj.change_quantity | round(2) }}
+                            </span>
                             {% endif %}
                         </td>
-                        
+
                         <td class="text-center">{{ adj.new_quantity | round(2) }}</td>
                         <td>{{ adj.reason | default('N/A', true) }}</td>
                     </tr>

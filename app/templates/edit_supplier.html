@@ -6,10 +6,19 @@
 <style>
     .form-container {
         max-width: 700px;
-        margin: 0 auto; /* Center the form card */
+        margin: 0 auto;
+        /* Center the form card */
     }
-    textarea { min-height: 80px; }
-    input[type="text"], input[type="email"], input[type="tel"], input[type="url"], textarea {
+
+    textarea {
+        min-height: 80px;
+    }
+
+    input[type="text"],
+    input[type="email"],
+    input[type="tel"],
+    input[type="url"],
+    textarea {
         width: 100%;
     }
 </style>
@@ -17,11 +26,11 @@
 <div class="form-container content-card">
     <h1>Edit Supplier</h1>
     {% with messages = get_flashed_messages(with_categories=true) %}
-        {% if messages %}
-            {% for category, message in messages %}
-            <div class="flash-{{ category }}">{{ message }}</div>
-            {% endfor %}
-        {% endif %}
+    {% if messages %}
+    {% for category, message in messages %}
+    <div class="flash-{{ category }}">{{ message }}</div>
+    {% endfor %}
+    {% endif %}
     {% endwith %}
 
     {% if supplier %}
@@ -44,7 +53,8 @@
         </div>
         <div>
             <label for="website">Website</label>
-            <input type="url" id="website" name="website" value="{{ supplier.website or '' }}" placeholder="https://...">
+            <input type="url" id="website" name="website" value="{{ supplier.website or '' }}"
+                placeholder="https://...">
         </div>
         <div>
             <label for="notes">Notes</label>
@@ -53,7 +63,7 @@
         <button type="submit" class="submit-btn">Save Changes</button>
     </form>
     {% else %}
-        <p>Supplier not found.</p>
+    <p>Supplier not found.</p>
     {% endif %}
     <div style="margin-top: 20px;">
         <a href="{{ url_for('data.suppliers_page') }}">&larr; Back to Suppliers List</a>

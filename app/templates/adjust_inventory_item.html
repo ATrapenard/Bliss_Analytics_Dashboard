@@ -6,9 +6,14 @@
 <style>
     .form-container {
         max-width: 700px;
-        margin: 0 auto; /* Center the form card */
+        margin: 0 auto;
+        /* Center the form card */
     }
-    textarea { min-height: 80px; }
+
+    textarea {
+        min-height: 80px;
+    }
+
     .current-stock {
         background-color: var(--background-light);
         padding: 15px;
@@ -16,6 +21,7 @@
         border: 1px solid var(--border-color);
         margin-bottom: 20px;
     }
+
     .current-stock strong {
         font-family: var(--font-heading);
         color: var(--text-dark);
@@ -25,7 +31,7 @@
 
 <div class="form-container content-card">
     <h1>Adjust Inventory</h1>
-    
+
     {% if item %}
     <div class="current-stock">
         <strong>Item:</strong> {{ item.name }} ({{ item.unit }})<br>
@@ -35,17 +41,20 @@
     <form method="POST" action="{{ url_for('ops.process_adjustment', id=item.id) }}">
         <div>
             <label for="adjustment_quantity">Adjustment Quantity</label>
-            <input type="number" step="any" id="adjustment_quantity" name="adjustment_quantity" required placeholder="e.g., 500 or -100">
-            <small>Enter a positive number to add stock (e.g., new shipment) or a negative number to remove stock (e.g., spoilage).</small>
+            <input type="number" step="any" id="adjustment_quantity" name="adjustment_quantity" required
+                placeholder="e.g., 500 or -100">
+            <small>Enter a positive number to add stock (e.g., new shipment) or a negative number to remove stock (e.g.,
+                spoilage).</small>
         </div>
         <div>
             <label for="reason">Reason (Optional)</label>
-            <textarea id="reason" name="reason" placeholder="e.g., 'Weekly cycle count correction' or 'Spoilage'"></textarea>
+            <textarea id="reason" name="reason"
+                placeholder="e.g., 'Weekly cycle count correction' or 'Spoilage'"></textarea>
         </div>
         <button type="submit" class="submit-btn">Submit Adjustment</button>
     </form>
     {% else %}
-        <p>Item not found.</p>
+    <p>Item not found.</p>
     {% endif %}
 
     <div style="margin-top: 20px;">

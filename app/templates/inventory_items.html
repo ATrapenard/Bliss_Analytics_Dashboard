@@ -8,79 +8,146 @@
         display: grid;
         grid-template-columns: 2fr 1fr;
         gap: 40px;
-        align-items: start; /* Prevent columns stretching vertically */
+        align-items: start;
+        /* Prevent columns stretching vertically */
     }
-    table { table-layout: fixed; }
+
+    table {
+        table-layout: fixed;
+    }
+
     /* Adjusted column widths */
-    th:nth-child(1) { width: 8%; }  /* ID */
-    th:nth-child(2) { width: 27%; } /* Name */
-    th:nth-child(3) { width: 10%; } /* Unit */
-    th:nth-child(4) { width: 10%; } /* On Hand */
-    th:nth-child(5) { width: 10%; } /* Allocated */
-    th:nth-child(6) { width: 10%; } /* Available */
-    th:nth-child(7) { width: 25%; } /* Actions (Wider) */
+    th:nth-child(1) {
+        width: 8%;
+    }
+
+    /* ID */
+    th:nth-child(2) {
+        width: 27%;
+    }
+
+    /* Name */
+    th:nth-child(3) {
+        width: 10%;
+    }
+
+    /* Unit */
+    th:nth-child(4) {
+        width: 10%;
+    }
+
+    /* On Hand */
+    th:nth-child(5) {
+        width: 10%;
+    }
+
+    /* Allocated */
+    th:nth-child(6) {
+        width: 10%;
+    }
+
+    /* Available */
+    th:nth-child(7) {
+        width: 25%;
+    }
+
+    /* Actions (Wider) */
 
 
     .actions-wrapper {
         display: flex;
         gap: 5px;
-        align-items: center;   /* This will vertically center the buttons */
-        flex-wrap: wrap;       /* This handles wrapping if needed */
-        justify-content: flex-end; /* This keeps them to the right */
+        align-items: center;
+        /* This will vertically center the buttons */
+        flex-wrap: wrap;
+        /* This handles wrapping if needed */
+        justify-content: flex-end;
+        /* This keeps them to the right */
     }
-    .action-form { margin: 0; display: flex; align-items: center; }
+
+    .action-form {
+        margin: 0;
+        display: flex;
+        align-items: center;
+    }
+
     .action-form button {
         margin-top: 0;
     }
-    .edit-btn, .delete-btn, .adjust-btn { 
-        font-size: 0.8em; 
-        padding: 4px 8px; 
-        text-decoration: none; /* Apply to <a> tag */
-        display: inline-block; /* Apply to <a> tag */
-        color: white; /* Apply to <a> tag */
-        border-radius: 5px; /* Apply to <a> tag */
-        vertical-align: middle; /* ADDED: Ensures consistent vertical alignment */
-    }
+
+    .edit-btn,
+    .delete-btn,
     .adjust-btn {
-         background-color: var(--primary-color); /* Use brand orange */
-         margin-top: 0; /* MODIFIED */
-         margin-bottom: 0; /* MODIFIED */
+        font-size: 0.8em;
+        padding: 4px 8px;
+        text-decoration: none;
+        /* Apply to <a> tag */
+        display: inline-block;
+        /* Apply to <a> tag */
+        color: white;
+        /* Apply to <a> tag */
+        border-radius: 5px;
+        /* Apply to <a> tag */
+        vertical-align: middle;
+        /* ADDED: Ensures consistent vertical alignment */
     }
+
+    .adjust-btn {
+        background-color: var(--primary-color);
+        /* Use brand orange */
+        margin-top: 0;
+        /* MODIFIED */
+        margin-bottom: 0;
+        /* MODIFIED */
+    }
+
     .adjust-btn:hover {
         background-color: var(--primary-color);
         opacity: 0.85;
     }
 
-    input[type="number"] { text-align: right; }
+    input[type="number"] {
+        text-align: right;
+    }
 
     /* Collapsible Form Styles */
     .search-container {
         width: 100%;
         margin-bottom: 20px;
     }
+
     .search-container input[type="text"] {
         width: 100%;
         margin-bottom: 0;
         font-size: 1.1em;
         padding: 12px 15px;
     }
-    .form-container{
+
+    .form-container {
         align-self: start;
     }
+
     @media screen and (max-width: 1100px) {
-        .form-container { order: -1; }
+        .form-container {
+            order: -1;
+        }
     }
+
     @media screen and (max-width: 1200px) {
         .actions-cell {
             flex-direction: column;
             align-items: stretch;
             gap: 4px;
         }
-        .actions-cell .action-form, .actions-cell .adjust-btn {
+
+        .actions-cell .action-form,
+        .actions-cell .adjust-btn {
             width: 100%;
             margin: 0;
         }
-        .actions-cell .action-form button, .actions-cell .adjust-btn {
+
+        .actions-cell .action-form button,
+        .actions-cell .adjust-btn {
             width: 100%;
             text-align: center;
         }
@@ -91,11 +158,11 @@
 <p>This is the master list of all raw ingredients used in your recipes.</p>
 
 {% with messages = get_flashed_messages(with_categories=true) %}
-    {% if messages %}
-        {% for category, message in messages %}
-        <div class="flash-{{ category }}">{{ message }}</div>
-        {% endfor %}
-    {% endif %}
+{% if messages %}
+{% for category, message in messages %}
+<div class="flash-{{ category }}">{{ message }}</div>
+{% endfor %}
+{% endif %}
 {% endwith %}
 
 
@@ -128,12 +195,16 @@
                     <td>{{ item.quantity_available | round(2) }}</td>
                     <td class="actions-cell">
                         <div class="actions-wrapper">
-                            <form class="action-form" method="GET" action="{{ url_for('data.edit_inventory_item', id=item.id) }}">
+                            <form class="action-form" method="GET"
+                                action="{{ url_for('data.edit_inventory_item', id=item.id) }}">
                                 <button type="submit" class="edit-btn">Edit</button>
                             </form>
-                            <a href="{{ url_for('ops.adjust_inventory_item', id=item.id) }}" class="adjust-btn">Adjust</a>
-                            
-                            <form class="action-form" method="POST" action="{{ url_for('data.delete_inventory_item', id=item.id) }}" onsubmit="return confirm('Are you sure? Deleting may fail if item is used in recipes or allocated.');">
+                            <a href="{{ url_for('ops.adjust_inventory_item', id=item.id) }}"
+                                class="adjust-btn">Adjust</a>
+
+                            <form class="action-form" method="POST"
+                                action="{{ url_for('data.delete_inventory_item', id=item.id) }}"
+                                onsubmit="return confirm('Are you sure? Deleting may fail if item is used in recipes or allocated.');">
                                 <button type="submit" class="delete-btn">Delete</button>
                             </form>
                         </div>
@@ -167,29 +238,29 @@
 </div>
 
 <script>
-document.addEventListener('DOMContentLoaded', () => {
-    // This is the search bar logic we want to keep
-    const searchInput = document.getElementById('inventorySearch');
-    const tableBody = document.querySelector('.list-container tbody');
-    const allRows = tableBody.querySelectorAll('tr');
+    document.addEventListener('DOMContentLoaded', () => {
+        // This is the search bar logic we want to keep
+        const searchInput = document.getElementById('inventorySearch');
+        const tableBody = document.querySelector('.list-container tbody');
+        const allRows = tableBody.querySelectorAll('tr');
 
-    if (searchInput) { // Check if search input exists
-        searchInput.addEventListener('input', function(e) {
-            const searchTerm = e.target.value.toLowerCase();
+        if (searchInput) { // Check if search input exists
+            searchInput.addEventListener('input', function (e) {
+                const searchTerm = e.target.value.toLowerCase();
 
-            allRows.forEach(row => {
-                // Get the text from the 2nd cell (Item Name)
-                const itemName = row.cells[1].textContent.toLowerCase();
-                
-                if (itemName.includes(searchTerm)) {
-                    row.style.display = ''; // Show the row
-                } else {
-                    row.style.display = 'none'; // Hide the row
-                }
+                allRows.forEach(row => {
+                    // Get the text from the 2nd cell (Item Name)
+                    const itemName = row.cells[1].textContent.toLowerCase();
+
+                    if (itemName.includes(searchTerm)) {
+                        row.style.display = ''; // Show the row
+                    } else {
+                        row.style.display = 'none'; // Hide the row
+                    }
+                });
             });
-        });
-    }
-});
+        }
+    });
 </script>
 
 {% endblock %}

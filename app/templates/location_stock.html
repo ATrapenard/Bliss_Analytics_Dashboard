@@ -9,21 +9,39 @@
         grid-template-columns: 2fr 1fr;
         gap: 40px;
     }
-    table { table-layout: fixed; }
-    th:nth-child(1) { width: 30%; } /* Location */
-    th:nth-child(2) { width: 45%; } /* Product */
-    th:nth-child(3) { width: 25%; } /* Quantity */
+
+    table {
+        table-layout: fixed;
+    }
+
+    th:nth-child(1) {
+        width: 30%;
+    }
+
+    /* Location */
+    th:nth-child(2) {
+        width: 45%;
+    }
+
+    /* Product */
+    th:nth-child(3) {
+        width: 25%;
+    }
+
+    /* Quantity */
     .search-container {
         width: 100%;
         margin-bottom: 20px;
     }
+
     .search-container input[type="text"] {
         width: 100%;
         margin-bottom: 0;
         font-size: 1.1em;
         padding: 12px 15px;
     }
-    .form-container{
+
+    .form-container {
         align-self: start;
     }
 
@@ -31,7 +49,10 @@
         .container {
             grid-template-columns: 1fr;
         }
-        .form-container { order: -1; }
+
+        .form-container {
+            order: -1;
+        }
     }
 </style>
 
@@ -39,11 +60,11 @@
 <p>Set the exact number of finished jars you have in stock at each fulfillment location.</p>
 
 {% with messages = get_flashed_messages(with_categories=true) %}
-    {% if messages %}
-        {% for category, message in messages %}
-        <div class="flash-{{ category }}">{{ message }}</div>
-        {% endfor %}
-    {% endif %}
+{% if messages %}
+{% for category, message in messages %}
+<div class="flash-{{ category }}">{{ message }}</div>
+{% endfor %}
+{% endif %}
 {% endwith %}
 
 <div class="container">
@@ -85,7 +106,7 @@
                     <select id="location_id" name="location_id" required>
                         <option value="" disabled selected>-- Choose a location --</option>
                         {% for loc in locations %}
-                            <option value="{{ loc.id }}">{{ loc.name }}</option>
+                        <option value="{{ loc.id }}">{{ loc.name }}</option>
                         {% endfor %}
                     </select>
                 </div>
@@ -94,7 +115,7 @@
                     <select id="product_id" name="product_id" required>
                         <option value="" disabled selected>-- Choose a product --</option>
                         {% for prod in products %}
-                            <option value="{{ prod.id }}">{{ prod.product_name }} ({{ prod.sku }})</option>
+                        <option value="{{ prod.id }}">{{ prod.product_name }} ({{ prod.sku }})</option>
                         {% endfor %}
                     </select>
                 </div>
@@ -108,23 +129,23 @@
     </div>
 </div>
 <script>
-document.addEventListener('DOMContentLoaded', () => {
-    const searchInput = document.getElementById('searchStock');
-    const tableBody = document.querySelector('.list-container tbody');
-    const allRows = tableBody.querySelectorAll('tr');
+    document.addEventListener('DOMContentLoaded', () => {
+        const searchInput = document.getElementById('searchStock');
+        const tableBody = document.querySelector('.list-container tbody');
+        const allRows = tableBody.querySelectorAll('tr');
 
-    searchInput.addEventListener('input', function(e) {
-        const searchTerm = e.target.value.toLowerCase();
-        allRows.forEach(row => {
-            const locationName = row.cells[0].textContent.toLowerCase();
-            const productName = row.cells[1].textContent.toLowerCase();
-            if (locationName.includes(searchTerm) || productName.includes(searchTerm)) {
-                row.style.display = '';
-            } else {
-                row.style.display = 'none';
-            }
+        searchInput.addEventListener('input', function (e) {
+            const searchTerm = e.target.value.toLowerCase();
+            allRows.forEach(row => {
+                const locationName = row.cells[0].textContent.toLowerCase();
+                const productName = row.cells[1].textContent.toLowerCase();
+                if (locationName.includes(searchTerm) || productName.includes(searchTerm)) {
+                    row.style.display = '';
+                } else {
+                    row.style.display = 'none';
+                }
+            });
         });
     });
-});
 </script>
 {% endblock %}

@@ -8,20 +8,24 @@
     .forecast-card {
         padding: var(--space-md) var(--space-lg);
         margin-bottom: var(--space-lg);
-        background-color: var(--background-light); /* Lighter background */
+        background-color: var(--background-light);
+        /* Lighter background */
     }
+
     .forecast-form {
         display: flex;
         align-items: center;
         gap: 15px;
         margin: 0;
     }
+
     .forecast-form label {
         font-size: 1.1em;
         font-weight: 600;
         color: var(--text-dark);
         margin-bottom: 0;
     }
+
     .forecast-form select {
         font-size: 1.1em;
         width: auto;
@@ -31,102 +35,108 @@
     }
 
     /* Original page styles */
-    .highlight-needed { font-weight: bold; color: var(--delete-red); } /* Highlight net needed > 0 */
-    .search-container {
-    width: 100%;
-    margin-bottom: 20px;
+    .highlight-needed {
+        font-weight: bold;
+        color: var(--delete-red);
     }
+
+    /* Highlight net needed > 0 */
+    .search-container {
+        width: 100%;
+        margin-bottom: 20px;
+    }
+
     .search-container input[type="text"] {
-    width: 100%;
-    margin-bottom: 0;
-    font-size: 1.1em;
-    padding: 12px 15px;
+        width: 100%;
+        margin-bottom: 0;
+        font-size: 1.1em;
+        padding: 12px 15px;
     }
 </style>
 {% endblock %}
 
 
 {% block content %}
-    <h1>Stock Requirements Report</h1>
-    <p>Master list of raw ingredients needed to meet minimum stock levels, considering current inventory.</p>
+<h1>Stock Requirements Report</h1>
+<p>Master list of raw ingredients needed to meet minimum stock levels, considering current inventory.</p>
 
-    {% with messages = get_flashed_messages(with_categories=true) %}
-        {% if messages %}
-            {% for category, message in messages %}
-            <div class="flash-{{ category }}">{{ message }}</div>
+{% with messages = get_flashed_messages(with_categories=true) %}
+{% if messages %}
+{% for category, message in messages %}
+<div class="flash-{{ category }}">{{ message }}</div>
+{% endfor %}
+{% endif %}
+{% endwith %}
+<div class="forecast-card content-card">
+    <form class="forecast-form" action="{{ url_for('core.set_forecast') }}" method="POST">
+        <label for="forecast_months">Show Requirements For:</label>
+        <select id="forecast_months" name="months" onchange="this.form.submit()">
+            <option value="1" {% if current_months==1 %}selected{% endif %}>1 Month (Default)</option>
+            <option value="2" {% if current_months==2 %}selected{% endif %}>2 Months</option>
+            <option value="3" {% if current_months==3 %}selected{% endif %}>3 Months</option>
+            <option value="6" {% if current_months==6 %}selected{% endif %}>6 Months</option>
+        </select>
+    </form>
+</div>
+
+<div class="content-card">
+    <div class="search-container">
+        <input type="text" id="searchRequirements" placeholder="Search for ingredients...">
+    </div>
+    <h2>Master Shopping List (Net Requirements)</h2>
+    {% if report_data %}
+    <table>
+        <thead>
+            <tr>
+                <th>Ingredient</th>
+                <th>Unit</th>
+                <th>Total Needed</th>
+                <th>On Hand</th>
+                <th>Allocated</th>
+                <th>Available</th>
+                <th>Net Needed</th>
+            </tr>
+        </thead>
+        <tbody>
+            {% for item in report_data %}
+            <tr>
+                <td>{{ item.name }}</td>
+                <td>{{ item.unit }}</td>
+                <td>{{ item.total_needed }}</td>
+                <td>{{ item.on_hand }}</td>
+                <td>{{ item.allocated }}</td>
+                <td>{{ item.available }}</td>
+                <td class="{{ 'highlight-needed' if item.net_needed > 0 else '' }}">
+                    {{ item.net_needed }}
+                </td>
+            </tr>
             {% endfor %}
-        {% endif %}
-    {% endwith %}
-    <div class="forecast-card content-card">
-        <form class="forecast-form" action="{{ url_for('core.set_forecast') }}" method="POST">
-            <label for="forecast_months">Show Requirements For:</label>
-            <select id="forecast_months" name="months" onchange="this.form.submit()">
-                <option value="1" {% if current_months == 1 %}selected{% endif %}>1 Month (Default)</option>
-                <option value="2" {% if current_months == 2 %}selected{% endif %}>2 Months</option>
-                <option value="3" {% if current_months == 3 %}selected{% endif %}>3 Months</option>
-                <option value="6" {% if current_months == 6 %}selected{% endif %}>6 Months</option>
-            </select>
-        </form>
-    </div>
-
-    <div class="content-card">
-        <div class="search-container">
-            <input type="text" id="searchRequirements" placeholder="Search for ingredients...">
-        </div>
-        <h2>Master Shopping List (Net Requirements)</h2>
-        {% if report_data %}
-            <table>
-                <thead>
-                    <tr>
-                        <th>Ingredient</th>
-                        <th>Unit</th>
-                        <th>Total Needed</th>
-                        <th>On Hand</th>
-                        <th>Allocated</th>
-                        <th>Available</th>
-                        <th>Net Needed</th>
-                    </tr>
-                </thead>
-                <tbody>
-                    {% for item in report_data %}
-                    <tr>
-                        <td>{{ item.name }}</td>
-                        <td>{{ item.unit }}</td>
-                        <td>{{ item.total_needed }}</td>
-                        <td>{{ item.on_hand }}</td>
-                        <td>{{ item.allocated }}</td>
-                        <td>{{ item.available }}</td>
-                        <td class="{{ 'highlight-needed' if item.net_needed > 0 else '' }}">
-                            {{ item.net_needed }}
-                        </td>
-                    </tr>
-                    {% endfor %}
-                </tbody>
-            </table>
-        {% else %}
-            <p>No stock minimums set or no ingredients required based on current minimums.</p>
-        {% endif %}
-    </div>
+        </tbody>
+    </table>
+    {% else %}
+    <p>No stock minimums set or no ingredients required based on current minimums.</p>
+    {% endif %}
+</div>
 {% endblock %}
 
 {% block page_scripts %}
 <script>
-document.addEventListener('DOMContentLoaded', () => {
-    const searchInput = document.getElementById('searchRequirements');
-    const tableBody = document.querySelector('.content-card tbody');
-    const allRows = tableBody.querySelectorAll('tr');
+    document.addEventListener('DOMContentLoaded', () => {
+        const searchInput = document.getElementById('searchRequirements');
+        const tableBody = document.querySelector('.content-card tbody');
+        const allRows = tableBody.querySelectorAll('tr');
 
-    searchInput.addEventListener('input', function(e) {
-        const searchTerm = e.target.value.toLowerCase();
-        allRows.forEach(row => {
-            const itemName = row.cells[0].textContent.toLowerCase(); // Ingredient name
-            if (itemName.includes(searchTerm)) {
-                row.style.display = '';
-            } else {
-                row.style.display = 'none';
-            }
+        searchInput.addEventListener('input', function (e) {
+            const searchTerm = e.target.value.toLowerCase();
+            allRows.forEach(row => {
+                const itemName = row.cells[0].textContent.toLowerCase(); // Ingredient name
+                if (itemName.includes(searchTerm)) {
+                    row.style.display = '';
+                } else {
+                    row.style.display = 'none';
+                }
+            });
         });
     });
-});
 </script>
 {% endblock %}

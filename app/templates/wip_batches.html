@@ -9,34 +9,75 @@
         grid-template-columns: 2fr 1fr;
         gap: 40px;
     }
-    table { table-layout: fixed; }
-    th:nth-child(1) { width: 10%; } /* ID */
-    th:nth-child(2) { width: 45%; } /* Producing */
-    th:nth-child(3) { width: 25%; } /* Started At */
-    th:nth-child(4) { width: 20%; } /* Actions */
+
+    table {
+        table-layout: fixed;
+    }
+
+    th:nth-child(1) {
+        width: 10%;
+    }
+
+    /* ID */
+    th:nth-child(2) {
+        width: 45%;
+    }
+
+    /* Producing */
+    th:nth-child(3) {
+        width: 25%;
+    }
+
+    /* Started At */
+    th:nth-child(4) {
+        width: 20%;
+    }
+
+    /* Actions */
 
     .actions-cell {
         display: flex;
         gap: 10px;
         align-items: center;
     }
-    .actions-cell a, .actions-cell button {
-        font-size: 0.9em; padding: 6px 12px; text-decoration: none;
-        display: inline-block; color: white; border: none;
-        border-radius: 5px; cursor: pointer; transition: background-color 0.2s ease;
-    }
-    .actions-cell a { background-color: var(--edit-blue); }
-    .actions-cell a:hover { background-color: #0056b3; }
-    .delete-form { margin: 0; display: flex; }
 
-    .form-container { align-self: start; }
-    
+    .actions-cell a,
+    .actions-cell button {
+        font-size: 0.9em;
+        padding: 6px 12px;
+        text-decoration: none;
+        display: inline-block;
+        color: white;
+        border: none;
+        border-radius: 5px;
+        cursor: pointer;
+        transition: background-color 0.2s ease;
+    }
+
+    .actions-cell a {
+        background-color: var(--edit-blue);
+    }
+
+    .actions-cell a:hover {
+        background-color: #0056b3;
+    }
+
+    .delete-form {
+        margin: 0;
+        display: flex;
+    }
+
+    .form-container {
+        align-self: start;
+    }
+
     /* --- New Tab Styles --- */
     .tab-container {
         display: flex;
         border-bottom: 1px solid var(--border-color);
         margin-bottom: 20px;
     }
+
     .tab-link {
         padding: 10px 15px;
         cursor: pointer;
@@ -46,28 +87,47 @@
         color: var(--text-medium);
         border-bottom: 3px solid transparent;
     }
+
     .tab-link.active {
         color: var(--text-dark);
         font-weight: 600;
         border-bottom-color: var(--primary-color);
     }
+
     .tab-content {
         display: none;
     }
+
     .tab-content.active {
         display: block;
     }
+
     /* --- End Tab Styles --- */
 
     @media screen and (max-width: 1100px) {
-        .form-container { order: -1; }
+        .form-container {
+            order: -1;
+        }
     }
+
     @media screen and (max-width: 1200px) {
         .actions-cell {
-            flex-direction: column; align-items: stretch; gap: 4px;
+            flex-direction: column;
+            align-items: stretch;
+            gap: 4px;
         }
-        .actions-cell a, .actions-cell .delete-form { width: 100%; margin: 0; }
-        .actions-cell a, .actions-cell .delete-form button { width: 100%; text-align: center; }
+
+        .actions-cell a,
+        .actions-cell .delete-form {
+            width: 100%;
+            margin: 0;
+        }
+
+        .actions-cell a,
+        .actions-cell .delete-form button {
+            width: 100%;
+            text-align: center;
+        }
     }
 </style>
 
@@ -81,58 +141,64 @@
         </div>
         <h2>Ongoing Batches</h2>
         {% with messages = get_flashed_messages(with_categories=true) %}
-            {% if messages %}
-                {% for category, message in messages %}
-                <div class="flash-{{ category }}">{{ message }}</div>
-                {% endfor %}
-            {% endif %}
+        {% if messages %}
+        {% for category, message in messages %}
+        <div class="flash-{{ category }}">{{ message }}</div>
+        {% endfor %}
+        {% endif %}
         {% endwith %}
 
         {% if wip_batches %}
-            <table>
-                <thead>
-                    <tr>
-                        <th>Batch ID</th>
-                        <th>Producing</th>
-                        <th>Started At</th>
-                        <th>Actions</th>
-                    </tr>
-                </thead>
-                <tbody>
-                    {% for batch in wip_batches %}
-                    <tr>
-                        <td>{{ batch.id }}</td>
-                        <td>
-                            {% if batch.batch_type == 'PRODUCT' %}
-                                <strong>{{ batch.product_name }}</strong> (Product)
-                                <br><small>Recipe: {{ batch.recipe_name }}</small>
-                            {% elif batch.batch_type == 'INTERMEDIATE' %}
-                                <strong>{{ batch.item_name }}</strong> (Intermediate)
-                                <br><small>Recipe: {{ batch.recipe_name }}</small>
-                            {% else %}
-                                Unknown Batch
-                            {% endif %}
-                        </td>
-                        <td>{{ batch.created_at.strftime('%Y-%m-%d %H:%M') if batch.created_at else 'N/A' }}</td>
-                        <td class="actions-cell">
-                            <a href="{{ url_for('ops.wip_batch_detail', batch_id=batch.id) }}">Details</a>
-                            <form class="delete-form" method="POST" action="{{ url_for('ops.delete_wip_batch', batch_id=batch.id) }}" onsubmit="return confirm('Are you sure you want to delete this WIP batch? This will reverse any allocations made.');">
-                                <button type="submit" class="delete-btn">Delete</button>
-                            </form>
-                        </td>
-                    </tr>
-                    {% endfor %}
-                </tbody>
-            </table>
+        <table>
+            <thead>
+                <tr>
+                    <th>Batch ID</th>
+                    <th>Producing</th>
+                    <th>Started At</th>
+                    <th>Actions</th>
+                </tr>
+            </thead>
+            <tbody>
+                {% for batch in wip_batches %}
+                <tr>
+                    <td>{{ batch.id }}</td>
+                    <td>
+                        {% if batch.batch_type == 'PRODUCT' %}
+                        <strong>{{ batch.product_name }}</strong> (Product)
+                        <br><small>Recipe: {{ batch.recipe_name }}</small>
+                        {% elif batch.batch_type == 'INTERMEDIATE' %}
+                        <strong>{{ batch.item_name }}</strong> (Intermediate)
+                        <br><small>Recipe: {{ batch.recipe_name }}</small>
+                        {% else %}
+                        Unknown Batch
+                        {% endif %}
+                    </td>
+                    <td>{{ batch.created_at.strftime('%Y-%m-%d %H:%M') if batch.created_at else 'N/A' }}</td>
+                    <td class="actions-cell">
+                        <a href="{{ url_for('ops.wip_batch_detail', batch_id=batch.id) }}">Details</a>
+                        <form class="delete-form" method="POST"
+                            action="{{ url_for('ops.delete_wip_batch', batch_id=batch.id) }}"
+                            onsubmit="return confirm('Are you sure you want to delete this WIP batch? This will reverse any allocations made.');">
+                            <button type="submit" class="delete-btn">Delete</button>
+                        </form>
+                    </td>
+                </tr>
+                {% endfor %}
+            </tbody>
+        </table>
         {% else %}
-            <p>No batches currently in progress.</p>
+        <p>No batches currently in progress.</p>
         {% endif %}
     </div>
 
     <div class="form-container content-card">
-        <h2 class="collapsible-toggle active">Start New Batch</h2> <div class="form-content" style="max-height: 1000px;"> <div class="tab-container">
-                <button class="tab-link active" onclick="openTab(event, 'produceProduct')">Produce Product (Jars)</button>
-                <button class="tab-link" onclick="openTab(event, 'produceIntermediate')">Produce Intermediate (g/mL)</button>
+        <h2 class="collapsible-toggle active">Start New Batch</h2>
+        <div class="form-content" style="max-height: 1000px;">
+            <div class="tab-container">
+                <button class="tab-link active" onclick="openTab(event, 'produceProduct')">Produce Product
+                    (Jars)</button>
+                <button class="tab-link" onclick="openTab(event, 'produceIntermediate')">Produce Intermediate
+                    (g/mL)</button>
             </div>
 
             <div id="produceProduct" class="tab-content active">
@@ -143,7 +209,7 @@
                         <select id="product_id" name="product_id" required>
                             <option value="" disabled selected>-- Choose a product --</option>
                             {% for product in sellable_products %}
-                                <option value="{{ product.id }}">{{ product.product_name }} ({{ product.sku }})</option>
+                            <option value="{{ product.id }}">{{ product.product_name }} ({{ product.sku }})</option>
                             {% endfor %}
                         </select>
                     </div>
@@ -152,7 +218,7 @@
                         <select id="location_id" name="location_id" required>
                             <option value="" disabled selected>-- Choose destination --</option>
                             {% for location in locations %}
-                                <option value="{{ location.id }}">{{ location.name }}</option>
+                            <option value="{{ location.id }}">{{ location.name }}</option>
                             {% endfor %}
                         </select>
                     </div>
@@ -168,7 +234,7 @@
                         <select id="inventory_item_id" name="inventory_item_id" required>
                             <option value="" disabled selected>-- Choose an item --</option>
                             {% for item in producible_items %}
-                                <option value="{{ item.id }}">{{ item.name }} ({{ item.unit }})</option>
+                            <option value="{{ item.id }}">{{ item.name }} ({{ item.unit }})</option>
                             {% endfor %}
                         </select>
                     </div>
@@ -181,38 +247,38 @@
 </div>
 
 <script>
-function openTab(evt, tabName) {
-    var i, tabcontent, tablinks;
-    tabcontent = document.getElementsByClassName("tab-content");
-    for (i = 0; i < tabcontent.length; i++) {
-        tabcontent[i].style.display = "none";
+    function openTab(evt, tabName) {
+        var i, tabcontent, tablinks;
+        tabcontent = document.getElementsByClassName("tab-content");
+        for (i = 0; i < tabcontent.length; i++) {
+            tabcontent[i].style.display = "none";
+        }
+        tablinks = document.getElementsByClassName("tab-link");
+        for (i = 0; i < tablinks.length; i++) {
+            tablinks[i].className = tablinks[i].className.replace(" active", "");
+        }
+        document.getElementById(tabName).style.display = "block";
+        evt.currentTarget.className += " active";
     }
-    tablinks = document.getElementsByClassName("tab-link");
-    for (i = 0; i < tablinks.length; i++) {
-        tablinks[i].className = tablinks[i].className.replace(" active", "");
-    }
-    document.getElementById(tabName).style.display = "block";
-    evt.currentTarget.className += " active";
-}
 
-document.addEventListener('DOMContentLoaded', () => {
-    // Search bar logic
-    const searchInput = document.getElementById('searchWIP');
-    const tableBody = document.querySelector('.list-container tbody');
-    const allRows = tableBody.querySelectorAll('tr');
+    document.addEventListener('DOMContentLoaded', () => {
+        // Search bar logic
+        const searchInput = document.getElementById('searchWIP');
+        const tableBody = document.querySelector('.list-container tbody');
+        const allRows = tableBody.querySelectorAll('tr');
 
-    searchInput.addEventListener('input', function(e) {
-        const searchTerm = e.target.value.toLowerCase();
-        allRows.forEach(row => {
-            const batchId = row.cells[0].textContent.toLowerCase();
-            const productName = row.cells[1].textContent.toLowerCase();
-            if (batchId.includes(searchTerm) || productName.includes(searchTerm)) {
-                row.style.display = '';
-            } else {
-                row.style.display = 'none';
-            }
+        searchInput.addEventListener('input', function (e) {
+            const searchTerm = e.target.value.toLowerCase();
+            allRows.forEach(row => {
+                const batchId = row.cells[0].textContent.toLowerCase();
+                const productName = row.cells[1].textContent.toLowerCase();
+                if (batchId.includes(searchTerm) || productName.includes(searchTerm)) {
+                    row.style.display = '';
+                } else {
+                    row.style.display = 'none';
+                }
+            });
         });
     });
-});
 </script>
 {% endblock %}

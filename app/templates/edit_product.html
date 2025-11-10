@@ -26,15 +26,16 @@
             <select id="recipe_id" name="recipe_id" required>
                 <option value="" disabled>-- Choose a recipe --</option>
                 {% for recipe in recipes %}
-                    <option value="{{ recipe.id }}" {% if recipe.id == product.recipe_id %}selected{% endif %}>
-                        {{ recipe.name }}
-                    </option>
+                <option value="{{ recipe.id }}" {% if recipe.id==product.recipe_id %}selected{% endif %}>
+                    {{ recipe.name }}
+                </option>
                 {% endfor %}
             </select>
         </div>
         <div>
             <label for="jars_per_batch">Average Jars Produced Per Batch</label>
-            <input type="number" step="any" id="jars_per_batch" name="jars_per_batch" min="0.01" value="{{ product.jars_per_batch or '' }}" placeholder="e.g., 50.5">
+            <input type="number" step="any" id="jars_per_batch" name="jars_per_batch" min="0.01"
+                value="{{ product.jars_per_batch or '' }}" placeholder="e.g., 50.5">
         </div>
         <button type="submit" class="submit-btn">Save Changes</button>
     </form>

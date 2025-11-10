@@ -10,35 +10,46 @@
         gap: 30px;
         align-items: start;
     }
+
     .summary-grid {
         display: grid;
         grid-template-columns: 1fr 1fr;
         gap: 10px 20px;
     }
+
     .summary-grid label {
         color: var(--text-medium);
         font-weight: 600;
         margin-bottom: 0;
     }
-    .summary-grid input, .summary-grid select {
+
+    .summary-grid input,
+    .summary-grid select {
         margin-bottom: 0;
     }
+
     .cost-grid {
         display: grid;
         grid-template-columns: 1fr 1fr;
         gap: 15px;
     }
+
     .cost-item {
         background-color: var(--background-light);
         padding: 10px;
         border-radius: 6px;
     }
-    .cost-item label { font-size: 0.8em; }
+
+    .cost-item label {
+        font-size: 0.8em;
+    }
+
     .cost-item .cost-value {
         font-size: 1.2em;
         font-weight: 600;
         color: var(--text-dark);
     }
+
     .total-cost {
         font-size: 1.5em;
         font-weight: 700;
@@ -48,28 +59,76 @@
         border-top: 2px solid var(--border-color);
         padding-top: 10px;
     }
+
     .add-item-form {
         display: grid;
         grid-template-columns: 3fr 1fr 1fr 1fr;
         gap: 10px;
         align-items: flex-end;
     }
-    .add-item-form label { display: none; } /* Hide labels, use placeholders */
-    .add-item-form button { padding: 10px 12px; } /* Match input height */
 
-    table { table-layout: fixed; }
-    th:nth-child(1) { width: 45%; } /* Item */
-    th:nth-child(2) { width: 15%; } /* Qty */
-    th:nth-child(3) { width: 20%; } /* Unit Cost */
-    th:nth-child(4) { width: 20%; } /* Line Total */
-    th:nth-child(5) { width: 10%; } /* Remove */
-    td { vertical-align: middle; }
-    .line-total { text-align: right; font-weight: 600; }
-    .actions-cell { text-align: center; }
+    .add-item-form label {
+        display: none;
+    }
+
+    /* Hide labels, use placeholders */
+    .add-item-form button {
+        padding: 10px 12px;
+    }
+
+    /* Match input height */
+
+    table {
+        table-layout: fixed;
+    }
+
+    th:nth-child(1) {
+        width: 45%;
+    }
+
+    /* Item */
+    th:nth-child(2) {
+        width: 15%;
+    }
+
+    /* Qty */
+    th:nth-child(3) {
+        width: 20%;
+    }
+
+    /* Unit Cost */
+    th:nth-child(4) {
+        width: 20%;
+    }
+
+    /* Line Total */
+    th:nth-child(5) {
+        width: 10%;
+    }
+
+    /* Remove */
+    td {
+        vertical-align: middle;
+    }
+
+    .line-total {
+        text-align: right;
+        font-weight: 600;
+    }
+
+    .actions-cell {
+        text-align: center;
+    }
 
     @media screen and (max-width: 1100px) {
-        .po-grid { grid-template-columns: 1fr; }
-        .add-item-form { grid-template-columns: 1fr; gap: 15px; }
+        .po-grid {
+            grid-template-columns: 1fr;
+        }
+
+        .add-item-form {
+            grid-template-columns: 1fr;
+            gap: 15px;
+        }
     }
 </style>
 
@@ -78,17 +137,17 @@
 </div>
 
 {% with messages = get_flashed_messages(with_categories=true) %}
-    {% if messages %}
-        {% for category, message in messages %}
-        <div class="flash-{{ category }}">{{ message }}</div>
-        {% endfor %}
-    {% endif %}
+{% if messages %}
+{% for category, message in messages %}
+<div class="flash-{{ category }}">{{ message }}</div>
+{% endfor %}
+{% endif %}
 {% endwith %}
 
 <div class="po-grid">
     <div class="items-card content-card">
         <h2>PO #{{ po.id }} - Items</h2>
-        
+
         {% if po.status != 'Received' %}
         <form class="add-item-form" method="POST" action="{{ url_for('ops.po_add_item', po_id=po.id) }}">
             <div>
@@ -96,13 +155,14 @@
                 <select id="inventory_item_id" name="inventory_item_id" class="select2-enable" required>
                     <option value="" disabled selected>-- Select Ingredient --</option>
                     {% for item in inventory_items %}
-                        <option value="{{ item.id }}">{{ item.name }} ({{ item.unit }})</option>
+                    <option value="{{ item.id }}">{{ item.name }} ({{ item.unit }})</option>
                     {% endfor %}
                 </select>
             </div>
             <div>
                 <label for="quantity_ordered">Quantity</label>
-                <input type="number" step="any" id="quantity_ordered" name="quantity_ordered" required placeholder="Quantity">
+                <input type="number" step="any" id="quantity_ordered" name="quantity_ordered" required
+                    placeholder="Quantity">
             </div>
             <div>
                 <label for="unit_cost">Unit Cost</label>
@@ -132,12 +192,16 @@
                         <td>{{ item.name }} ({{ item.unit }})</td>
                         <td>{{ item.quantity_ordered | round(2) }}</td>
                         <td>${{ "%.2f"|format(item.unit_cost or 0) }}</td>
-                        <td class="line-total">${{ "%.2f"|format((item.quantity_ordered or 0) * (item.unit_cost or 0)) }}</td>
+                        <td class="line-total">${{ "%.2f"|format((item.quantity_ordered or 0) * (item.unit_cost or 0))
+                            }}</td>
                         <td class="actions-cell">
                             {% if po.status != 'Received' %}
-                            <form class="action-form" method="POST" action="{{ url_for('ops.po_remove_item', item_id=item.id) }}" onsubmit="return confirm('Remove this item?');">
+                            <form class="action-form" method="POST"
+                                action="{{ url_for('ops.po_remove_item', item_id=item.id) }}"
+                                onsubmit="return confirm('Remove this item?');">
                                 <input type="hidden" name="po_id" value="{{ po.id }}">
-                                <button type="submit" class="delete-btn" style="padding: 4px 8px; font-size: 0.8em;">X</button>
+                                <button type="submit" class="delete-btn"
+                                    style="padding: 4px 8px; font-size: 0.8em;">X</button>
                             </form>
                             {% endif %}
                         </td>
@@ -156,28 +220,32 @@
         <form method="POST" action="{{ url_for('ops.po_update_header', po_id=po.id) }}">
             <div class="summary-grid">
                 <label>Supplier:</label>
-                <span>{{ po.supplier_name }}</span> <input type="hidden" name="supplier_id" value="{{ po.supplier_id }}">
+                <span>{{ po.supplier_name }}</span> <input type="hidden" name="supplier_id"
+                    value="{{ po.supplier_id }}">
 
                 <label for="status">Status:</label>
                 <select id="status" name="status">
-                    <option value="Placed" {% if po.status == 'Placed' %}selected{% endif %}>Placed</option>
-                    <option value="Shipped" {% if po.status == 'Shipped' %}selected{% endif %}>Shipped</option>
-                    <option value="Received" {% if po.status == 'Received' %}selected{% endif %}>Received</option>
-                    <option value="Cancelled" {% if po.status == 'Cancelled' %}selected{% endif %}>Cancelled</option>
+                    <option value="Placed" {% if po.status=='Placed' %}selected{% endif %}>Placed</option>
+                    <option value="Shipped" {% if po.status=='Shipped' %}selected{% endif %}>Shipped</option>
+                    <option value="Received" {% if po.status=='Received' %}selected{% endif %}>Received</option>
+                    <option value="Cancelled" {% if po.status=='Cancelled' %}selected{% endif %}>Cancelled</option>
                 </select>
 
                 <label for="order_date">Order Date:</label>
-                <input type="date" id="order_date" name="order_date" value="{{ po.order_date.strftime('%Y-%m-%d') if po.order_date else '' }}">
-                
+                <input type="date" id="order_date" name="order_date"
+                    value="{{ po.order_date.strftime('%Y-%m-%d') if po.order_date else '' }}">
+
                 <label for="expected_delivery_date">Expected Delivery:</label>
-                <input type="date" id="expected_delivery_date" name="expected_delivery_date" value="{{ po.expected_delivery_date.strftime('%Y-%m-%d') if po.expected_delivery_date else '' }}">
+                <input type="date" id="expected_delivery_date" name="expected_delivery_date"
+                    value="{{ po.expected_delivery_date.strftime('%Y-%m-%d') if po.expected_delivery_date else '' }}">
             </div>
-            
+
             <h3 style="margin-top: 30px;">Costs</h3>
             <div class="cost-grid">
                 <div class="cost-item">
                     <label for="shipping_cost">Shipping ($)</label>
-                    <input type="number" step="any" id="shipping_cost" name="shipping_cost" value="{{ po.shipping_cost or '0.0' }}">
+                    <input type="number" step="any" id="shipping_cost" name="shipping_cost"
+                        value="{{ po.shipping_cost or '0.0' }}">
                 </div>
                 <div class="cost-item">
                     <label for="tax">Tax ($)</label>
@@ -188,27 +256,33 @@
                     <input type="number" step="any" id="discount" name="discount" value="{{ po.discount or '0.0' }}">
                 </div>
             </div>
-            
+
             <h3 style="margin-top: 30px;">Notes</h3>
             <textarea id="notes" name="notes">{{ po.notes or '' }}</textarea>
 
             <button type="submit" class="submit-btn" style="width: 100%;">Update Order Details</button>
-            <small>Saving with status "Received" will add items to inventory. Changing status away from "Received" will reverse this.</small>
+            <small>Saving with status "Received" will add items to inventory. Changing status away from "Received" will
+                reverse this.</small>
         </form>
 
         <div style="border-top: 1px solid var(--border-color); margin-top: 20px; padding-top: 20px;">
             <h3>Totals</h3>
-            <div style="display: flex; justify-content: space-between;"><span>Items Subtotal:</span> <span>${{ "%.2f"|format(item_subtotal) }}</span></div>
-            <div style="display: flex; justify-content: space-between;"><span>Shipping:</span> <span>+ ${{ "%.2f"|format(po.shipping_cost or 0) }}</span></div>
-            <div style="display: flex; justify-content: space-between;"><span>Tax:</span> <span>+ ${{ "%.2f"|format(po.tax or 0) }}</span></div>
-            <div style="display: flex; justify-content: space-between;"><span>Discount:</span> <span>- ${{ "%.2f"|format(po.discount or 0) }}</span></div>
+            <div style="display: flex; justify-content: space-between;"><span>Items Subtotal:</span> <span>${{
+                    "%.2f"|format(item_subtotal) }}</span></div>
+            <div style="display: flex; justify-content: space-between;"><span>Shipping:</span> <span>+ ${{
+                    "%.2f"|format(po.shipping_cost or 0) }}</span></div>
+            <div style="display: flex; justify-content: space-between;"><span>Tax:</span> <span>+ ${{
+                    "%.2f"|format(po.tax or 0) }}</span></div>
+            <div style="display: flex; justify-content: space-between;"><span>Discount:</span> <span>- ${{
+                    "%.2f"|format(po.discount or 0) }}</span></div>
             <div class="total-cost">
                 <span>Total:</span> <span>${{ "%.2f"|format(total_cost) }}</span>
             </div>
         </div>
 
         <div style="border-top: 1px solid var(--border-color); margin-top: 20px; padding-top: 20px;">
-            <form class="action-form" method="POST" action="{{ url_for('ops.po_delete', po_id=po.id) }}" onsubmit="return confirm('Are you sure? This will delete the PO and reverse inventory changes if it was received.');">
+            <form class="action-form" method="POST" action="{{ url_for('ops.po_delete', po_id=po.id) }}"
+                onsubmit="return confirm('Are you sure? This will delete the PO and reverse inventory changes if it was received.');">
                 <button type="submit" class="delete-btn" style="width: 100%;">Delete Purchase Order</button>
             </form>
         </div>

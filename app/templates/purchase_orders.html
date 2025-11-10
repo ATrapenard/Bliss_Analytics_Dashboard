@@ -4,15 +4,49 @@
 
 {% block content %}
 <style>
-    .container { display: grid; grid-template-columns: 2fr 1fr; gap: 40px; align-items: start;}
-    table { table-layout: fixed; }
-    th:nth-child(1) { width: 10%; } /* ID */
-    th:nth-child(2) { width: 30%; } /* Supplier */
-    th:nth-child(3) { width: 20%; } /* Order Date */
-    th:nth-child(4) { width: 20%; } /* Status */
-    th:nth-child(5) { width: 20%; } /* Actions */
-    
-    .actions-cell { display: flex; gap: 10px; align-items: center; }
+    .container {
+        display: grid;
+        grid-template-columns: 2fr 1fr;
+        gap: 40px;
+        align-items: start;
+    }
+
+    table {
+        table-layout: fixed;
+    }
+
+    th:nth-child(1) {
+        width: 10%;
+    }
+
+    /* ID */
+    th:nth-child(2) {
+        width: 30%;
+    }
+
+    /* Supplier */
+    th:nth-child(3) {
+        width: 20%;
+    }
+
+    /* Order Date */
+    th:nth-child(4) {
+        width: 20%;
+    }
+
+    /* Status */
+    th:nth-child(5) {
+        width: 20%;
+    }
+
+    /* Actions */
+
+    .actions-cell {
+        display: flex;
+        gap: 10px;
+        align-items: center;
+    }
+
     /* Style link as a button */
     .details-btn {
         font-size: 0.9em;
@@ -26,6 +60,7 @@
         cursor: pointer;
         transition: background-color 0.2s ease;
     }
+
     .details-btn:hover {
         background-color: #0056b3;
     }
@@ -34,17 +69,22 @@
         width: 100%;
         margin-bottom: 20px;
     }
+
     .search-container input[type="text"] {
         width: 100%;
         margin-bottom: 0;
         font-size: 1.1em;
         padding: 12px 15px;
     }
-    .form-container{
+
+    .form-container {
         align-self: start;
     }
+
     @media screen and (max-width: 1100px) {
-    .form-container { order: -1; }
+        .form-container {
+            order: -1;
+        }
     }
 </style>
 
@@ -52,11 +92,11 @@
 <p>Create and manage your ingredient purchase orders.</p>
 
 {% with messages = get_flashed_messages(with_categories=true) %}
-    {% if messages %}
-        {% for category, message in messages %}
-        <div class="flash-{{ category }}">{{ message }}</div>
-        {% endfor %}
-    {% endif %}
+{% if messages %}
+{% for category, message in messages %}
+<div class="flash-{{ category }}">{{ message }}</div>
+{% endfor %}
+{% endif %}
 {% endwith %}
 
 <div class="container">
@@ -104,7 +144,7 @@
                     <select id="supplier_id" name="supplier_id" class="select2-enable" required>
                         <option value="" disabled selected>-- Select a Supplier --</option>
                         {% for supplier in suppliers %}
-                            <option value="{{ supplier.id }}">{{ supplier.name }}</option>
+                        <option value="{{ supplier.id }}">{{ supplier.name }}</option>
                         {% endfor %}
                     </select>
                 </div>
@@ -122,24 +162,24 @@
     </div>
 </div>
 <script>
-document.addEventListener('DOMContentLoaded', () => {
-    const searchInput = document.getElementById('searchPOs');
-    const tableBody = document.querySelector('.list-container tbody');
-    const allRows = tableBody.querySelectorAll('tr');
+    document.addEventListener('DOMContentLoaded', () => {
+        const searchInput = document.getElementById('searchPOs');
+        const tableBody = document.querySelector('.list-container tbody');
+        const allRows = tableBody.querySelectorAll('tr');
 
-    searchInput.addEventListener('input', function(e) {
-        const searchTerm = e.target.value.toLowerCase();
-        allRows.forEach(row => {
-            const poId = row.cells[0].textContent.toLowerCase();
-            const supplier = row.cells[1].textContent.toLowerCase();
-            const status = row.cells[3].textContent.toLowerCase();
-            if (poId.includes(searchTerm) || supplier.includes(searchTerm) || status.includes(searchTerm)) {
-                row.style.display = '';
-            } else {
-                row.style.display = 'none';
-            }
+        searchInput.addEventListener('input', function (e) {
+            const searchTerm = e.target.value.toLowerCase();
+            allRows.forEach(row => {
+                const poId = row.cells[0].textContent.toLowerCase();
+                const supplier = row.cells[1].textContent.toLowerCase();
+                const status = row.cells[3].textContent.toLowerCase();
+                if (poId.includes(searchTerm) || supplier.includes(searchTerm) || status.includes(searchTerm)) {
+                    row.style.display = '';
+                } else {
+                    row.style.display = 'none';
+                }
+            });
         });
     });
-});
 </script>
 {% endblock %}

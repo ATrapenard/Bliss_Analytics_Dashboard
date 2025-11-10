@@ -1,6 +1,15 @@
 import psycopg2
 from psycopg2.extras import DictCursor
-from flask import Blueprint, flash, g, redirect, render_template, request, url_for
+from flask import (
+    Blueprint,
+    flash,
+    g,
+    redirect,
+    render_template,
+    request,
+    url_for,
+    session,
+)
 from collections import defaultdict
 import math
 from datetime import datetime
@@ -47,7 +56,6 @@ def home():
             )
             products_to_make = cur.fetchall()
 
-            # --- Use request-local cache ---
             recipe_cache = {}
 
             for prod in products_to_make:
@@ -81,20 +89,45 @@ def home():
         flash(f"Error fetching dashboard data: {e}", "error")
         print(f"DB Error fetching dashboard data: {e}")
 
-    # No conn.close() needed
     return render_template("index.html", dashboard_data=dashboard_data)
 
 
+# --- NEW ROUTE TO SET THE SESSION VARIABLE ---
+@bp.route("/set-forecast", methods=["POST"])
+def set_forecast():
+    """
+    Sets the forecast multiplier in the user's session.
+    """
+    months = request.form.get("months")
+    try:
+        # Validate and save to session
+        forecast_months = int(months)
+        if forecast_months not in [1, 2, 3, 6]:  # Only allow specific values
+            raise ValueError("Invalid forecast period")
+
+        session["forecast_months"] = forecast_months
+        flash(f"Forecast period set to {forecast_months} month(s).", "success")
+    except (ValueError, TypeError):
+        flash("Invalid forecast value selected.", "error")
+        session["forecast_months"] = 1  # Reset to default on error
+
+    # Redirect back to the requirements page, which will now use the new session value
+    return redirect(url_for("core.requirements_page"))
+
+
+# --- MODIFIED REQUIREMENTS ROUTE ---
 @bp.route("/requirements")
 def requirements_page():
     conn = get_db()
     sorted_report_data = []
 
     try:
+        # --- GET THE MULTIPLIER FROM THE SESSION (DEFAULT TO 1) ---
+        forecast_months = session.get("forecast_months", 1)
+
         inventory_levels = {}
         product_needs = defaultdict(lambda: {"min_total": 0, "stock_total": 0})
 
-        # --- Use request-local cache ---
         recipe_cache = {}
 
         with conn.cursor(cursor_factory=DictCursor) as cur:
@@ -127,7 +160,10 @@ def requirements_page():
 
             all_base_ingredients = []
             for product_id, needs in product_needs.items():
-                jars_to_produce = max(0, needs["min_total"] - needs["stock_total"])
+
+                # --- APPLY THE MULTIPLIER HERE ---
+                scaled_min_total = float(needs["min_total"]) * forecast_months
+                jars_to_produce = max(0, scaled_min_total - needs["stock_total"])
 
                 if jars_to_produce > 0:
                     cur.execute(
@@ -143,6 +179,8 @@ def requirements_page():
                     if prod_info:
                         recipe_id = prod_info["recipe_id"]
                         jars_per_batch = float(prod_info["jars_per_batch"])
+
+                        # --- THIS CALCULATION NOW USES THE SCALED VALUE ---
                         batches_needed = math.ceil(jars_to_produce / jars_per_batch)
 
                         base_ingredients_one_batch = get_base_ingredients(
@@ -200,7 +238,12 @@ def requirements_page():
         flash(f"Error generating requirements report: {e}", "error")
         print(f"DB Error requirements page: {e}")
 
-    return render_template("requirements.html", report_data=sorted_report_data)
+    # --- PASS THE CURRENT VALUE TO THE TEMPLATE ---
+    return render_template(
+        "requirements.html",
+        report_data=sorted_report_data,
+        current_months=forecast_months,
+    )
 
 
 @bp.route("/planner", methods=["GET", "POST"])
@@ -210,7 +253,6 @@ def production_planner():
     inventory_levels = {}
     sellable_products = []
 
-    # --- Use request-local cache ---
     recipe_cache = {}
 
     try:
@@ -306,7 +348,6 @@ def ingredient_totals():
     conn = get_db()
     sorted_totals = []
 
-    # --- Use request-local cache ---
     recipe_cache = {}
 
     try:

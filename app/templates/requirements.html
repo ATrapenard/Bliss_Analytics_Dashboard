@@ -2,48 +2,97 @@
 
 {% block title %}Stock Requirements{% endblock %}
 
-{% block content %}
-    <style>
-        table {
-            width: 100%;
-            border-collapse: collapse;
-            margin-top: 20px;
-            table-layout: fixed; /* Keep layout fixed */
-        }
-        th, td {
-            border: 1px solid #ddd;
-            padding: 10px 12px; /* Adjust padding slightly */
-            text-align: left;
-            vertical-align: middle;
-        }
-        th {
-            background-color: #f2f2f2;
-        }
-        /* Define column widths */
-        th:nth-child(1) { width: 30%; } /* Ingredient */
-        th:nth-child(2) { width: 10%; } /* Unit */
-        th:nth-child(3) { width: 12%; } /* Needed */
-        th:nth-child(4) { width: 12%; } /* On Hand */
-        th:nth-child(5) { width: 12%; } /* Allocated */
-        th:nth-child(6) { width: 12%; } /* Available */
-        th:nth-child(7) { width: 12%; } /* Net Needed */
-
-        td:nth-child(n+3) { text-align: right; } /* Right-align numeric columns */
-        .highlight-needed { font-weight: bold; color: var(--delete-red); } /* Highlight net needed > 0 */
-        .search-container {
-        width: 100%;
-        margin-bottom: 20px;
-        }
-        .search-container input[type="text"] {
-        width: 100%;
-        margin-bottom: 0;
+{% block page_styles %}
+<style>
+    /* Styles for the new forecast form */
+    .forecast-card {
+        padding: var(--space-md) var(--space-lg);
+        margin-bottom: var(--space-lg);
+        background-color: var(--background-light); /* Lighter background */
+    }
+    .forecast-form {
+        display: flex;
+        align-items: center;
+        gap: 15px;
+        margin: 0;
+    }
+    .forecast-form label {
         font-size: 1.1em;
-        padding: 12px 15px;
-        }
-    </style>
+        font-weight: 600;
+        color: var(--text-dark);
+        margin-bottom: 0;
+    }
+    .forecast-form select {
+        font-size: 1.1em;
+        width: auto;
+        min-width: 150px;
+        margin-bottom: 0;
+        font-weight: 600;
+    }
 
+    /* Original page styles */
+    table {
+        width: 100%;
+        border-collapse: collapse;
+        margin-top: 20px;
+        table-layout: fixed; /* Keep layout fixed */
+    }
+    th, td {
+        border: 1px solid #ddd;
+        padding: 10px 12px; /* Adjust padding slightly */
+        text-align: left;
+        vertical-align: middle;
+    }
+    th {
+        background-color: #f2f2f2;
+    }
+    /* Define column widths */
+    th:nth-child(1) { width: 30%; } /* Ingredient */
+    th:nth-child(2) { width: 10%; } /* Unit */
+    th:nth-child(3) { width: 12%; } /* Needed */
+    th:nth-child(4) { width: 12%; } /* On Hand */
+    th:nth-child(5) { width: 12%; } /* Allocated */
+    th:nth-child(6) { width: 12%; } /* Available */
+    th:nth-child(7) { width: 12%; } /* Net Needed */
+
+    td:nth-child(n+3) { text-align: right; } /* Right-align numeric columns */
+    .highlight-needed { font-weight: bold; color: var(--delete-red); } /* Highlight net needed > 0 */
+    .search-container {
+    width: 100%;
+    margin-bottom: 20px;
+    }
+    .search-container input[type="text"] {
+    width: 100%;
+    margin-bottom: 0;
+    font-size: 1.1em;
+    padding: 12px 15px;
+    }
+</style>
+{% endblock %}
+
+
+{% block content %}
     <h1>Stock Requirements Report</h1>
     <p>Master list of raw ingredients needed to meet minimum stock levels, considering current inventory.</p>
+
+    {% with messages = get_flashed_messages(with_categories=true) %}
+        {% if messages %}
+            {% for category, message in messages %}
+            <div class="flash-{{ category }}">{{ message }}</div>
+            {% endfor %}
+        {% endif %}
+    {% endwith %}
+    <div class="forecast-card content-card">
+        <form class="forecast-form" action="{{ url_for('core.set_forecast') }}" method="POST">
+            <label for="forecast_months">Show Requirements For:</label>
+            <select id="forecast_months" name="months" onchange="this.form.submit()">
+                <option value="1" {% if current_months == 1 %}selected{% endif %}>1 Month (Default)</option>
+                <option value="2" {% if current_months == 2 %}selected{% endif %}>2 Months</option>
+                <option value="3" {% if current_months == 3 %}selected{% endif %}>3 Months</option>
+                <option value="6" {% if current_months == 6 %}selected{% endif %}>6 Months</option>
+            </select>
+        </form>
+    </div>
 
     <div class="content-card">
         <div class="search-container">
@@ -83,6 +132,9 @@
             <p>No stock minimums set or no ingredients required based on current minimums.</p>
         {% endif %}
     </div>
+{% endblock %}
+
+{% block page_scripts %}
 <script>
 document.addEventListener('DOMContentLoaded', () => {
     const searchInput = document.getElementById('searchRequirements');

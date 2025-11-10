@@ -491,10 +491,8 @@ def wip_batch_detail(batch_id):
     conn = get_db()
     batch = None
     ingredient_summary = []
-    available_inventory_items = []
     yield_label = "Actual Yield"
 
-    # --- Use request-local cache ---
     recipe_cache = {}
 
     try:
@@ -561,9 +559,22 @@ def wip_batch_detail(batch_id):
                 for alloc in allocations_raw
             }
 
+            # --- NEW: Get all available inventory in one go ---
+            cur.execute(
+                "SELECT id, (quantity_on_hand - quantity_allocated) as available FROM inventory_items;"
+            )
+            available_stock_raw = cur.fetchall()
+            available_stock_map = {
+                item["id"]: float(item["available"]) for item in available_stock_raw
+            }
+
             for inv_id, req in required_ingredients.items():
                 allocated = float(current_allocations.get(inv_id, 0))
                 remaining = float(req["total_needed"]) - allocated
+
+                # --- NEW: Find the available stock for this item ---
+                available = available_stock_map.get(inv_id, 0)
+
                 ingredient_summary.append(
                     {
                         "inventory_item_id": inv_id,
@@ -572,14 +583,10 @@ def wip_batch_detail(batch_id):
                         "needed": round(float(req["total_needed"]), 2),
                         "allocated": round(allocated, 2),
                         "remaining": round(remaining, 2),
+                        "available": round(available, 2),  # --- NEWLY ADDED ---
                     }
                 )
             ingredient_summary.sort(key=lambda x: x["name"])
-
-            cur.execute(
-                "SELECT id, name, unit, (quantity_on_hand - quantity_allocated) as available FROM inventory_items WHERE (quantity_on_hand - quantity_allocated) > 0 ORDER BY name;"
-            )
-            available_inventory_items = cur.fetchall()
 
     except psycopg2.Error as e:
         flash(f"Error fetching batch details: {e}", "error")
@@ -590,58 +597,69 @@ def wip_batch_detail(batch_id):
         "wip_batch_detail.html",
         batch=batch,
         ingredient_summary=ingredient_summary,
-        inventory_items=available_inventory_items,
         yield_label=yield_label,
     )
 
 
-@bp.route("/wip/<int:batch_id>/allocate", methods=["POST"])
-def allocate_ingredient(batch_id):
-    inventory_item_id = request.form.get("inventory_item_id")
-    quantity_str = request.form.get("quantity_allocated")
+@bp.route("/wip/<int:batch_id>/allocate-bulk", methods=["POST"])
+def allocate_bulk(batch_id):
     conn = get_db()
-    if not inventory_item_id or not quantity_str:
-        flash("Missing ingredient or quantity.", "error")
-        return redirect(url_for("ops.wip_batch_detail", batch_id=batch_id))
-    try:
-        quantity = float(quantity_str)
-        if quantity <= 0:
-            raise ValueError("Quantity must be positive.")
-    except ValueError:
-        flash("Invalid quantity entered.", "error")
+
+    # 1. Parse the form into a list of tasks
+    allocations_to_make = []
+    for key, value in request.form.items():
+        if key.startswith("alloc-"):
+            try:
+                item_id = int(key.split("-")[-1])
+                quantity = float(value)
+                if quantity > 0:
+                    allocations_to_make.append({"id": item_id, "qty": quantity})
+            except (ValueError, TypeError):
+                flash(f"Invalid quantity '{value}' submitted.", "error")
+                return redirect(url_for("ops.wip_batch_detail", batch_id=batch_id))
+
+    if not allocations_to_make:
+        flash("No quantities specified to allocate.", "warning")
         return redirect(url_for("ops.wip_batch_detail", batch_id=batch_id))
 
     try:
         with conn.cursor(cursor_factory=DictCursor) as cur:
-            cur.execute(
-                "SELECT quantity_on_hand, quantity_allocated, (quantity_on_hand - quantity_allocated) as available FROM inventory_items WHERE id = %s FOR UPDATE;",
-                (inventory_item_id,),
-            )
-            result = cur.fetchone()
-            if result is None:
-                flash("Item not found.", "error")
-                conn.rollback()
-            elif result["available"] < quantity:
-                flash(
-                    f"Not enough stock (Available: {result['available']:.2f}). Failed.",
-                    "error",
+            # 2. Check all items for stock within a single transaction
+            for task in allocations_to_make:
+                cur.execute(
+                    "SELECT name, (quantity_on_hand - quantity_allocated) as available FROM inventory_items WHERE id = %s FOR UPDATE;",
+                    (task["id"],),
                 )
-                conn.rollback()
-            else:
+                item = cur.fetchone()
+                if not item:
+                    raise Exception(f"Item ID {task['id']} not found.")
+                if item["available"] < task["qty"]:
+                    raise Exception(
+                        f"Not enough stock for '{item['name']}'. Available: {item['available']}, Tried to allocate: {task['qty']}"
+                    )
+
+            # 3. If all checks passed, perform all allocations
+            for task in allocations_to_make:
+                # Add to allocation table
                 cur.execute(
                     "INSERT INTO wip_allocations (wip_batch_id, inventory_item_id, quantity_allocated) VALUES (%s, %s, %s);",
-                    (batch_id, inventory_item_id, quantity),
+                    (batch_id, task["id"], task["qty"]),
                 )
+                # Update inventory allocated quantity
                 cur.execute(
                     "UPDATE inventory_items SET quantity_allocated = quantity_allocated + %s WHERE id = %s;",
-                    (quantity, inventory_item_id),
+                    (task["qty"], task["id"]),
                 )
-                conn.commit()
-                flash("Allocated.", "success")
-    except psycopg2.Error as e:
+
+            conn.commit()
+            flash(
+                f"Successfully allocated {len(allocations_to_make)} item(s).", "success"
+            )
+
+    except Exception as e:
         conn.rollback()
-        flash(f"DB error: {e}", "error")
-        print(f"DB Error allocate batch {batch_id}: {e}")
+        flash(f"Allocation failed: {e}", "error")
+        print(f"DB Error bulk allocate batch {batch_id}: {e}")
 
     return redirect(url_for("ops.wip_batch_detail", batch_id=batch_id))
 

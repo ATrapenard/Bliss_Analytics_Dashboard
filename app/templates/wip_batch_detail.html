@@ -1,35 +1,55 @@
 {% extends "_layout.html" %}
 
-{% block title %}WIP Batch Details{% endblock %}
+{% block title %}WIP Batch #{{ batch.id }} Details{% endblock %}
 
-{% block content %}
+{% block page_styles %}
 <style>
     .detail-grid {
         display: grid;
-        grid-template-columns: repeat(auto-fit, minmax(300px, 1fr)); /* Responsive columns */
+        grid-template-columns: 1fr; /* Simplified to one column */
         gap: 30px;
     }
     .info-card p { margin: 5px 0 15px; }
     .info-card strong { color: var(--text-medium); margin-right: 8px;}
 
     table { table-layout: fixed; }
-    .ingredients-card th:nth-child(1) { width: 40%; } /* Name */
+    .ingredients-card th:nth-child(1) { width: 30%; } /* Name */
     .ingredients-card th:nth-child(2) { width: 10%; } /* Unit */
-    .ingredients-card th:nth-child(3) { width: 15%; } /* Needed */
-    .ingredients-card th:nth-child(4) { width: 15%; } /* Allocated */
-    .ingredients-card th:nth-child(5) { width: 20%; } /* Remaining */
-
-    .allocation-form div { margin-bottom: 15px; }
-    .allocation-form select, .allocation-form input { margin-bottom: 0; }
-
+    .ingredients-card th:nth-child(3) { width: 10%; } /* Needed */
+    .ingredients-card th:nth-child(4) { width: 10%; } /* Allocated */
+    .ingredients-card th:nth-child(5) { width: 10%; } /* Remaining */
+    .ingredients-card th:nth-child(6) { width: 10%; } /* Available */
+    .ingredients-card th:nth-child(7) { width: 20%; } /* Allocate Qty */
+    
+    td:nth-child(n+3) { text-align: right; } /* Right-align numeric columns */
+    .allocate-input { 
+        width: 100%; 
+        text-align: right; 
+        padding: 8px; 
+        font-size: 0.9em;
+        margin-bottom: 0; /* Override global form margin */
+    }
+    .allocation-actions {
+        display: flex;
+        gap: 10px;
+        margin-bottom: 20px;
+        align-items: center;
+    }
+    .allocation-actions .submit-btn {
+        margin-left: auto; /* Pushes submit button to the right */
+    }
+    
     .complete-form { margin-top: 20px; }
     .complete-form label { font-size: 1.1em; font-weight: 600; }
     .complete-form input { text-align: right; }
 
 </style>
+{% endblock %}
 
+
+{% block content %}
 <div style="margin-bottom: 20px;">
-    <a href="{{ url_for('wip_batches_page') }}">&larr; Back to WIP List</a>
+    <a href="{{ url_for('ops.wip_batches_page') }}">&larr; Back to WIP List</a>
 </div>
 
 <h1>WIP Batch #{{ batch.id }} Details</h1>
@@ -44,6 +64,7 @@
 
 
 <div class="detail-grid">
+
     <div class="info-card content-card">
         <h2>Batch Information</h2>
         
@@ -57,7 +78,62 @@
         <p><strong>Recipe:</strong> <small>{{ batch.recipe_name }}</small></p>
         <p><strong>Status:</strong> {{ batch.status }}</p>
         <p><strong>Started:</strong> {{ batch.created_at.strftime('%Y-%m-%d %H:%M') if batch.created_at else 'N/A' }}</p>
-        
+    </div>
+
+    <div class="ingredients-card content-card">
+        <form id="allocation-form" method="POST" action="{{ url_for('ops.allocate_bulk', batch_id=batch.id) }}">
+            
+            <h2>Step 1: Allocate Ingredients</h2>
+            
+            {% if batch.status == 'In Progress' %}
+            <div class="allocation-actions">
+                <button type="button" class="button-link edit-btn" onclick="fillInputs('max')">Allocate Max Available</button>
+                <button type="button" class="button-link" style="background-color: var(--text-medium);" onclick="fillInputs('zero')">Clear All</button>
+                <button type="submit" class="submit-btn">Submit Allocations</button>
+            </div>
+            
+            <div class="table-responsive">
+                <table>
+                    <thead>
+                        <tr>
+                            <th>Ingredient</th>
+                            <th>Unit</th>
+                            <th>Needed</th>
+                            <th>Allocated</th>
+                            <th>Remaining</th>
+                            <th>Available</th>
+                            <th>Qty to Allocate</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        {% for ing in ingredient_summary %}
+                        <tr data-remaining="{{ ing.remaining }}" data-available="{{ ing.available }}">
+                            <td>{{ ing.name }}</td>
+                            <td>{{ ing.unit }}</td>
+                            <td>{{ ing.needed }}</td>
+                            <td>{{ ing.allocated }}</td>
+                            <td>{{ ing.remaining }}</td>
+                            <td>{{ ing.available }}</td>
+                            <td>
+                                {% set alloc_qty = [ing.remaining, ing.available] | min | round(2) %}
+                                <input type="number" step="any" min="0" 
+                                       class="allocate-input"
+                                       name="alloc-{{ ing.inventory_item_id }}" 
+                                       value="{{ alloc_qty if alloc_qty > 0 else '0' }}">
+                            </td>
+                        </tr>
+                        {% endfor %}
+                    </tbody>
+                </table>
+            </div>
+            {% else %}
+                <p>This batch is already completed. No further allocations possible.</p>
+            {% endif %}
+        </form>
+    </div>
+
+    <div class="complete-card content-card">
+        <h2>Step 2: Complete Batch</h2>
         {% if batch.status == 'In Progress' %}
             <form class="complete-form" method="POST" action="{{ url_for('ops.complete_wip_batch', batch_id=batch.id) }}" onsubmit="return confirm('Are you sure you want to mark this batch as complete? This will finalize inventory changes.');">
                 <div>
@@ -66,63 +142,34 @@
                 </div>
                 <button type="submit" class="submit-btn" style="width: 100%;">Mark Batch as Complete</button>
             </form>
-        {% endif %}
-    </div>
-
-    <div class="allocation-card content-card">
-        <h2>Allocate Ingredient</h2>
-        {% if batch.status == 'In Progress' %}
-        <form class="allocation-form" method="POST" action="{{ url_for('ops.allocate_ingredient', batch_id=batch.id) }}">
-            <div>
-                <label for="inventory_item_id">Ingredient</label>
-                <select id="inventory_item_id" name="inventory_item_id" class="select2-enable" required>
-                    <option value="" disabled selected>-- Select ingredient --</option>
-                    {% for item in inventory_items %}
-                        {% set needed_item = ingredient_summary | selectattr('inventory_item_id', 'equalto', item.id) | first %}
-                        {% if needed_item %}
-                            <option value="{{ item.id }}">{{ item.name }} ({{ item.unit }})</option>
-                        {% endif %}
-                    {% endfor %}
-                </select>
-            </div>
-            <div>
-                <label for="quantity_allocated">Quantity to Allocate</label>
-                <input type="number" step="any" id="quantity_allocated" name="quantity_allocated" min="0.01" required placeholder="e.g., 200.5">
-            </div>
-            <button type="submit" class="add-btn">Allocate Stock</button>
-        </form>
         {% else %}
-            <p>This batch is already completed. No further allocations possible.</p>
-        {% endif %}
-    </div>
-
-    <div class="ingredients-card content-card" style="grid-column: 1 / -1;"> <h2>Ingredient Requirements & Allocations</h2>
-        {% if ingredient_summary %}
-            <table>
-                <thead>
-                    <tr>
-                        <th>Ingredient</th>
-                        <th>Unit</th>
-                        <th>Total Needed</th>
-                        <th>Allocated</th>
-                        <th>Remaining</th>
-                    </tr>
-                </thead>
-                <tbody>
-                    {% for ing in ingredient_summary %}
-                    <tr>
-                        <td>{{ ing.name }}</td>
-                        <td>{{ ing.unit }}</td>
-                        <td>{{ ing.needed }}</td>
-                        <td>{{ ing.allocated }}</td>
-                        <td>{{ ing.remaining }}</td>
-                    </tr>
-                    {% endfor %}
-                </tbody>
-            </table>
-        {% else %}
-            <p>Could not calculate ingredient requirements for this batch.</p>
+             <p>This batch was completed on {{ batch.completed_at.strftime('%Y-%m-%d %H:%M') if batch.completed_at else 'N/A' }}</p>
+             <p><strong>Actual Yield:</strong> {{ batch.actual_yield }} {{ batch.actual_yield_unit }}</p>
         {% endif %}
     </div>
 </div>
+{% endblock %}
+
+{% block page_scripts %}
+<script>
+function fillInputs(mode) {
+    const form = document.getElementById('allocation-form');
+    // Find all rows in the table
+    form.querySelectorAll('tbody tr').forEach(row => {
+        const input = row.querySelector('.allocate-input');
+        if (input) {
+            if (mode === 'zero') {
+                input.value = '0';
+            } else if (mode === 'max') {
+                // Read from the data attributes we set
+                const remaining = parseFloat(row.dataset.remaining);
+                const available = parseFloat(row.dataset.available);
+                let maxAlloc = Math.min(remaining, available);
+                if (maxAlloc < 0) maxAlloc = 0;
+                input.value = maxAlloc.toFixed(2); // Set to 2 decimal places
+            }
+        }
+    });
+}
+</script>
 {% endblock %}

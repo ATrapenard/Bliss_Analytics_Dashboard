@@ -25,9 +25,9 @@
         display: inline-block; color: white; border: none;
         border-radius: 5px; cursor: pointer; transition: background-color 0.2s ease;
     }
-     .actions-cell a { background-color: var(--edit-blue); }
-     .actions-cell a:hover { background-color: #0056b3; }
-     .delete-form { margin: 0; display: flex; }
+    .actions-cell a { background-color: var(--edit-blue); }
+    .actions-cell a:hover { background-color: #0056b3; }
+    .delete-form { margin: 0; display: flex; }
 
     .form-container { align-self: start; }
     
@@ -76,11 +76,11 @@
 
 <div class="container">
     <div class="list-container content-card">
-         <div class="search-container">
+        <div class="search-container">
             <input type="text" id="searchWIP" placeholder="Search by Batch ID or Product...">
         </div>
         <h2>Ongoing Batches</h2>
-         {% with messages = get_flashed_messages(with_categories=true) %}
+        {% with messages = get_flashed_messages(with_categories=true) %}
             {% if messages %}
                 {% for category, message in messages %}
                 <div class="flash-{{ category }}">{{ message }}</div>
@@ -115,8 +115,8 @@
                         </td>
                         <td>{{ batch.created_at.strftime('%Y-%m-%d %H:%M') if batch.created_at else 'N/A' }}</td>
                         <td class="actions-cell">
-                            <a href="{{ url_for('wip_batch_detail', batch_id=batch.id) }}">Details</a>
-                            <form class="delete-form" method="POST" action="{{ url_for('delete_wip_batch', batch_id=batch.id) }}" onsubmit="return confirm('Are you sure you want to delete this WIP batch? This will reverse any allocations made.');">
+                            <a href="{{ url_for('ops.wip_batch_detail', batch_id=batch.id) }}">Details</a>
+                            <form class="delete-form" method="POST" action="{{ url_for('ops.delete_wip_batch', batch_id=batch.id) }}" onsubmit="return confirm('Are you sure you want to delete this WIP batch? This will reverse any allocations made.');">
                                 <button type="submit" class="delete-btn">Delete</button>
                             </form>
                         </td>
@@ -136,7 +136,7 @@
             </div>
 
             <div id="produceProduct" class="tab-content active">
-                <form method="POST" action="{{ url_for('wip_batches_page') }}">
+                <form method="POST" action="{{ url_for('ops.wip_batches_page') }}">
                     <input type="hidden" name="batch_type" value="PRODUCT">
                     <div>
                         <label for="product_id">Select Product</label>
@@ -161,7 +161,7 @@
             </div>
 
             <div id="produceIntermediate" class="tab-content">
-                <form method="POST" action="{{ url_for('wip_batches_page') }}">
+                <form method="POST" action="{{ url_for('ops.wip_batches_page') }}">
                     <input type="hidden" name="batch_type" value="INTERMEDIATE">
                     <div>
                         <label for="inventory_item_id">Select Intermediate to Produce</label>

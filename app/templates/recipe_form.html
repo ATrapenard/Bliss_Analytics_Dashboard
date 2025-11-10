@@ -1,9 +1,10 @@
 {% extends "_layout.html" %}
 
-{% block title %}Edit Recipe{% endblock %}
+{% block title %}{% if recipe %}Edit Recipe{% else %}Add New Recipe{% endif %}{% endblock %}
 
-{% block content %}
+{% block page_styles %}
     <style>
+        /* ... (styles are all correct, no changes here) ... */
         .form-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 20px; align-items: flex-end; margin-bottom: 20px; max-width: 800px;}
         .ingredient-row { display: grid; grid-template-columns: 3fr 1fr 2fr 0.5fr; gap: 10px; margin-bottom: 10px; align-items: center; }
         input[type="checkbox"] { width: auto; margin-right: 10px; }
@@ -12,18 +13,17 @@
         .remove-btn { padding: 6px 10px; font-size: 0.9em; }
         .ingredient-row label { display: none; }
         .ingredient-row .select2-container { width: 100% !important; }
-        /* Flash message styles */
-        .flash-error { background-color: #f8d7da; color: #721c24; padding: 10px; border: 1px solid #f5c6cb; border-radius: 5px; margin-bottom: 15px; }
-        .flash-success { background-color: #d4edda; color: #155724; padding: 10px; border: 1px solid #c3e6cb; border-radius: 5px; margin-bottom: 15px; }
-        .flash-warning { background-color: #fff3cd; color: #856404; padding: 10px; border: 1px solid #ffeeba; border-radius: 5px; margin-bottom: 15px; }
+        
         @media screen and (max-width: 768px) {
             .form-grid {
                 grid-template-columns: 1fr;
             }
         }
     </style>
+{% endblock %}
 
-    <h1>Edit Recipe</h1>
+{% block content %}
+    <h1>{% if recipe %}Edit Recipe{% else %}Add a New Recipe{% endif %}</h1>
 
     {% with messages = get_flashed_messages(with_categories=true) %}
         {% if messages %}
@@ -33,14 +33,18 @@
         {% endif %}
     {% endwith %}
 
-    <form action="{{ url_for('update_recipe', recipe_id=recipe['id']) }}" method="post">
+    <form id="recipe-form" 
+        action="{{ url_for('data.update_recipe', recipe_id=recipe['id']) if recipe else url_for('data.create_recipe') }}" 
+        method="post" 
+        data-is-new-recipe="{% if recipe is none %}true{% else %}false{% endif %}">
+        
         <div>
             <label for="recipe_name">Recipe Name</label>
-            <input type="text" id="recipe_name" name="recipe_name" required value="{{ recipe.name }}" style="max-width: 400px; margin-bottom: 20px;">
+            <input type="text" id="recipe_name" name="recipe_name" required value="{{ recipe.name or '' }}" style="max-width: 400px; margin-bottom: 20px;">
         </div>
-
+        
         <div class="checkbox-container">
-            <input type="checkbox" id="is_sold_product" name="is_sold_product" value="true" {% if recipe.is_sold_product %}checked{% endif %}>
+            <input type="checkbox" id="is_sold_product" name="is_sold_product" value="true" {% if recipe is none or recipe.is_sold_product %}checked{% endif %}>
             <label for="is_sold_product">This recipe is a final product sold in jars</label>
         </div>
 
@@ -53,13 +57,13 @@
             <div class="yield-section">
                 <label for="yield_unit">Yield Unit</label>
                 <select id="yield_unit" name="yield_unit">
-                    <option value="grams" {% if recipe.yield_unit == 'grams' %}selected{% endif %}>
+                    <option value="grams" {% if recipe and recipe.yield_unit == 'grams' %}selected{% endif %}>
                         grams (Weight-based scaling)
                     </option>
-                    <option value="mLs" {% if recipe.yield_unit == 'mLs' %}selected{% endif %}>
+                    <option value="mLs" {% if recipe and recipe.yield_unit == 'mLs' %}selected{% endif %}>
                         mLs (Volume-based scaling)
                     </option>
-                    <option value="batches" {% if recipe.yield_unit == 'batches' %}selected{% endif %}>
+                    <option value="batches" {% if recipe and recipe.yield_unit == 'batches' %}selected{% endif %}>
                         batches (Batch-based scaling)
                     </option>
                 </select>
@@ -105,11 +109,13 @@
 
         <button type="button" class="add-btn" onclick="addIngredient()">＋ Add Ingredient</button>
         <br>
-        <button type="submit" class="submit-btn">Save Changes</button>
+        <button type="submit" class="submit-btn">{% if recipe %}Save Changes{% else %}Save Recipe{% endif %}</button>
     </form>
+{% endblock %}
 
+
+{% block page_scripts %}
     <script>
-        // Function to add a new ingredient row
         function addIngredient() {
             const container = document.getElementById('ingredients-container');
             const newRow = document.createElement('div');
@@ -140,7 +146,8 @@
                 <button type="button" class="remove-btn" onclick="removeIngredientRow(this)">X</button>
             `;
             container.appendChild(newRow);
-            $(newRow).find('.select2-enable').select2({ theme: "default" }); // Init Select2
+            // Use the global initializeSelect2 function
+            initializeSelect2($(newRow).find('.select2-enable')); 
             addDropdownLogic(newRow); // Attach logic
         }
 
@@ -149,34 +156,39 @@
             button.parentElement.remove();
         }
 
-        // Corrected logic: only clears the other dropdown, NEVER disables
         function addDropdownLogic(row) {
             const invSelect = row.querySelector('.ingredient-select');
             const subSelect = row.querySelector('.subrecipe-select');
 
             $(invSelect).on('change', function(e) {
-                if ($(this).val()) {
-                     // If raw material is selected, clear sub-recipe
-                    $(subSelect).val('').trigger('change');
-                }
+                if ($(this).val()) { $(subSelect).val('').trigger('change'); }
             });
 
             $(subSelect).on('change', function(e) {
-                if ($(this).val()) {
-                     // If sub-recipe is selected, clear raw material
-                    $(invSelect).val('').trigger('change');
-                }
+                if ($(this).val()) { $(invSelect).val('').trigger('change'); }
             });
         }
 
         document.addEventListener('DOMContentLoaded', () => {
-             // Initialize Select2 on dropdowns loaded with the page
-            $('.select2-enable').select2({ theme: "default" });
-
-            // Attach logic to existing rows
+            // Attach logic to existing rows on page load (for edit page)
             document.querySelectorAll('.ingredient-row').forEach(row => {
                 addDropdownLogic(row);
             });
+            
+            // --- THIS IS THE FIX ---
+            // 1. Find the form element
+            const recipeForm = document.getElementById('recipe-form');
+            
+            // 2. Read the 'data-' attribute we set in the HTML
+            // Note: .dataset.isNewRecipe converts 'data-is-new-recipe'
+            // It will be the string "true" or "false"
+            const isNewRecipe = recipeForm.dataset.isNewRecipe === 'true';
+
+            // 3. Now we use that pure JavaScript boolean
+            if (isNewRecipe) {
+                addIngredient();
+            }
+            // --- END OF FIX ---
         });
     </script>
 {% endblock %}

@@ -32,7 +32,7 @@
         <strong>Current Quantity On Hand:</strong> {{ item.quantity_on_hand | round(2) }}
     </div>
 
-    <form method="POST" action="{{ url_for('process_adjustment', id=item.id) }}">
+    <form method="POST" action="{{ url_for('ops.process_adjustment', id=item.id) }}">
         <div>
             <label for="adjustment_quantity">Adjustment Quantity</label>
             <input type="number" step="any" id="adjustment_quantity" name="adjustment_quantity" required placeholder="e.g., 500 or -100">
@@ -49,7 +49,7 @@
     {% endif %}
 
     <div style="margin-top: 20px;">
-        <a href="{{ url_for('inventory_items_page') }}">&larr; Back to Inventory List</a>
+        <a href="{{ url_for('data.inventory_items_page') }}">&larr; Back to Inventory List</a>
     </div>
 </div>
 {% endblock %}

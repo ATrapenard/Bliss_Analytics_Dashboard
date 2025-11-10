@@ -12,7 +12,7 @@
 
 <div class="form-container content-card">
     <h1>Edit Product</h1>
-    <form method="POST" action="{{ url_for('update_product', id=product.id) }}">
+    <form method="POST" action="{{ url_for('data.update_product', id=product.id) }}">
         <div>
             <label for="sku">SKU</label>
             <input type="text" id="sku" name="sku" required value="{{ product.sku }}">

@@ -68,7 +68,7 @@
     <div class="form-container content-card">
         <h2 class="collapsible-toggle">New Transfer</h2>
         <div class="form-content">
-            <form method="POST" action="{{ url_for('stock_transfer') }}">
+            <form method="POST" action="{{ url_for('ops.stock_transfer') }}">
                 <div>
                     <label for="product_id">Product to Transfer</label>
                     <select id="product_id" name="product_id" required>

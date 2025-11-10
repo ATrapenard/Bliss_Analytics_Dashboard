@@ -1,0 +1,82 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale:1.0">
+    <title>{% block title %}{% endblock %}</title>
+
+    <link rel="icon" href="{{ url_for('static', filename='bliss_logo.jpg') }}" type="image/jpeg">
+
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Lato:wght@400;700&family=Montserrat:wght@600;700&display=swap" rel="stylesheet">
+
+    <link href="https://cdn.jsdelivr.net/npm/select2@4.1.0-rc.0/dist/css/select2.min.css" rel="stylesheet" />
+
+    <link rel="stylesheet" href="{{ url_for('static', filename='style.css') }}">
+
+    {% block page_styles %}{% endblock %}
+</head>
+<body>
+    <nav class="navbar">
+        <a href="{{ url_for('core.home') }}" class="logo">
+            <img src="{{ url_for('static', filename='bliss_logo.jpg') }}" alt="Bliss Energetics Logo" class="logo-img">
+            <span>Bliss Energetics</span>
+        </a>
+        <div class="hamburger">
+            <span class="bar"></span>
+            <span class="bar"></span>
+            <span class="bar"></span>
+        </div>
+        <div class="nav-links">
+            <div class="dropdown">
+                <button class="dropbtn">Core Data</button>
+                <div class="dropdown-content">
+                    <a href="{{ url_for('data.recipe_dashboard') }}">Recipes</a>
+                    <a href="{{ url_for('data.products_page') }}">Products</a>
+                    <a href="{{ url_for('data.suppliers_page') }}">Suppliers</a>
+                    <a href="{{ url_for('data.locations_page') }}">Locations</a>
+                </div>
+            </div>
+
+            <div class="dropdown">
+                <button class="dropbtn">Operations</button>
+                <div class="dropdown-content">
+                    <a href="{{ url_for('data.inventory_items_page') }}">Raw Ingredient Stock</a>
+                    <a href="{{ url_for('ops.location_stock_page') }}">Fulfillment Stock</a>
+                    <a href="{{ url_for('ops.stock_transfer') }}">Stock Transfer</a>
+                    <a href="{{ url_for('ops.wip_batches_page') }}">WIP Batches</a>
+                    <a href="{{ url_for('ops.inventory_log') }}">Ingredient Adjustment Log</a>
+                </div>
+            </div>
+
+            <div class="dropdown">
+                <button class="dropbtn">Planning & Procurement</button>
+                <div class="dropdown-content">
+                    <a href="{{ url_for('core.production_planner') }}">Production Planner</a>
+                    <a href="{{ url_for('ops.purchase_orders_page') }}">Purchase Orders</a>
+                    <a href="{{ url_for('core.requirements_page') }}">Ingredient Requirements</a>
+                    <a href="{{ url_for('ops.stock_minimums_page') }}">Fulfillment Stock Minimums</a>
+                </div>
+            </div>
+
+            <div class="dropdown">
+                <button class="dropbtn">Reports</button>
+                <div class="dropdown-content">
+                    <a href="{{ url_for('core.ingredient_totals') }}">Recipe Ingredient Totals</a>
+                </div>
+            </div>
+
+        </div>
+    </nav>
+    <div class="content-container">
+        {% block content %}{% endblock %}
+    </div>
+
+    <script src="https://code.jquery.com/jquery-3.6.0.min.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/select2@4.1.0-rc.0/dist/js/select2.min.js"></script>
+    <script src="{{ url_for('static', filename='app.js') }}"></script>
+
+    {% block page_scripts %}{% endblock %}
+</body>
+</html>

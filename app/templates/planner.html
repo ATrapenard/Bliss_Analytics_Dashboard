@@ -28,7 +28,7 @@
 <div class="planner-container">
     <div class="planner-form-card content-card">
         <h2>Plan Production Run</h2>
-        <form method="POST" action="{{ url_for('production_planner') }}">
+        <form method="POST" action="{{ url_for('core.production_planner') }}">
             {% for product in products %}
             <div class="product-input-row">
                 <label for="jars_product_{{ product.id }}">{{ product.product_name }} ({{ product.sku }})</label>

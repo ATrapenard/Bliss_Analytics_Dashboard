@@ -59,7 +59,7 @@
         <p><strong>Started:</strong> {{ batch.created_at.strftime('%Y-%m-%d %H:%M') if batch.created_at else 'N/A' }}</p>
         
         {% if batch.status == 'In Progress' %}
-            <form class="complete-form" method="POST" action="{{ url_for('complete_wip_batch', batch_id=batch.id) }}" onsubmit="return confirm('Are you sure you want to mark this batch as complete? This will finalize inventory changes.');">
+            <form class="complete-form" method="POST" action="{{ url_for('ops.complete_wip_batch', batch_id=batch.id) }}" onsubmit="return confirm('Are you sure you want to mark this batch as complete? This will finalize inventory changes.');">
                 <div>
                     <label for="actual_yield">{{ yield_label }}</label>
                     <input type="number" step="any" id="actual_yield" name="actual_yield" min="0" required placeholder="0.0">
@@ -72,7 +72,7 @@
     <div class="allocation-card content-card">
         <h2>Allocate Ingredient</h2>
         {% if batch.status == 'In Progress' %}
-        <form class="allocation-form" method="POST" action="{{ url_for('allocate_ingredient', batch_id=batch.id) }}">
+        <form class="allocation-form" method="POST" action="{{ url_for('ops.allocate_ingredient', batch_id=batch.id) }}">
             <div>
                 <label for="inventory_item_id">Ingredient</label>
                 <select id="inventory_item_id" name="inventory_item_id" class="select2-enable" required>

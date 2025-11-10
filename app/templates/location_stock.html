@@ -1,6 +1,6 @@
 {% extends "_layout.html" %}
 
-{% block title %}Stock Minimums{% endblock %}
+{% block title %}Finished Product Stock{% endblock %}
 
 {% block content %}
 <style>
@@ -9,24 +9,10 @@
         grid-template-columns: 2fr 1fr;
         gap: 40px;
     }
-
-    table {
-        width: 100%;
-        border-collapse: collapse;
-        margin-top: 20px;
-    }
-    th, td {
-        border: 1px solid #ddd;
-        padding: 12px;
-        text-align: left;
-        vertical-align: middle;
-    }
-    th {
-        background-color: #f2f2f2;
-    }
-    /* Action button styling */
-    .delete-form { margin: 0; }
-    .delete-btn { font-size: 0.9em; padding: 6px 12px; width: auto; }
+    table { table-layout: fixed; }
+    th:nth-child(1) { width: 30%; } /* Location */
+    th:nth-child(2) { width: 45%; } /* Product */
+    th:nth-child(3) { width: 25%; } /* Quantity */
     .search-container {
         width: 100%;
         margin-bottom: 20px;
@@ -40,39 +26,50 @@
     .form-container{
         align-self: start;
     }
+
     @media screen and (max-width: 1100px) {
-    .form-container { order: -1; }
+        .container {
+            grid-template-columns: 1fr;
+        }
+        .form-container { order: -1; }
     }
 </style>
 
-<h1>Manage Stock Minimums</h1>
-<p>Set the minimum number of jars to keep in stock at each fulfillment location.</p>
+<h1>Manage Finished Product Stock</h1>
+<p>Set the exact number of finished jars you have in stock at each fulfillment location.</p>
+
+{% with messages = get_flashed_messages(with_categories=true) %}
+    {% if messages %}
+        {% for category, message in messages %}
+        <div class="flash-{{ category }}">{{ message }}</div>
+        {% endfor %}
+    {% endif %}
+{% endwith %}
 
 <div class="container">
     <div class="list-container content-card">
         <div class="search-container">
-            <input type="text" id="searchMinimums" placeholder="Search by Location or Product...">
+            <input type="text" id="searchStock" placeholder="Search by Location or Product...">
         </div>
-        <h2>Existing Minimums</h2>
+        <h2>Current Finished Stock</h2>
         <table>
             <thead>
                 <tr>
                     <th>Location</th>
-                    <th>Product</th>
-                    <th>Min. Jars</th>
-                    <th>Actions</th> </tr>
+                    <th>Product (SKU)</th>
+                    <th>Quantity On Hand</th>
+                </tr>
             </thead>
             <tbody>
-                {% for item in minimums %}
+                {% for item in current_stock %}
                 <tr>
                     <td>{{ item.location_name }}</td>
-                    <td>{{ item.product_name or 'N/A' }} ({{ item.sku }})<br><small>Recipe: {{ item.recipe_name }}</small></td>
-                    <td>{{ item.min_jars }}</td>
-                    <td>
-                        <form class="delete-form" method="POST" action="{{ url_for('delete_stock_minimum', id=item.id) }}" onsubmit="return confirm('Are you sure you want to delete this minimum setting?');">
-                            <button type="submit" class="delete-btn">Delete</button>
-                        </form>
-                    </td>
+                    <td>{{ item.product_name }} ({{ item.sku }})</td>
+                    <td>{{ item.quantity }}</td>
+                </tr>
+                {% else %}
+                <tr>
+                    <td colspan="3" style="text-align: center;">No finished stock levels set.</td>
                 </tr>
                 {% endfor %}
             </tbody>
@@ -80,9 +77,9 @@
     </div>
 
     <div class="form-container content-card">
-        <h2 class="collapsible-toggle">Set Minimum</h2>
+        <h2 class="collapsible-toggle">Set / Update Stock</h2>
         <div class="form-content">
-            <form method="POST" action="{{ url_for('stock_minimums_page') }}">
+            <form method="POST" action="{{ url_for('ops.location_stock_page') }}">
                 <div>
                     <label for="location_id">Select Location</label>
                     <select id="location_id" name="location_id" required>
@@ -102,17 +99,17 @@
                     </select>
                 </div>
                 <div>
-                    <label for="min_jars">Minimum Jars</label>
-                    <input type="number" id="min_jars" name="min_jars" required>
+                    <label for="quantity">Quantity</label>
+                    <input type="number" id="quantity" name="quantity" min="0" required value="0">
                 </div>
-                <button type="submit" class="submit-btn">Set / Update Minimum</button>
+                <button type="submit" class="submit-btn">Set / Update Quantity</button>
             </form>
         </div>
     </div>
 </div>
 <script>
 document.addEventListener('DOMContentLoaded', () => {
-    const searchInput = document.getElementById('searchMinimums');
+    const searchInput = document.getElementById('searchStock');
     const tableBody = document.querySelector('.list-container tbody');
     const allRows = tableBody.querySelectorAll('tr');
 
@@ -120,7 +117,7 @@ document.addEventListener('DOMContentLoaded', () => {
         const searchTerm = e.target.value.toLowerCase();
         allRows.forEach(row => {
             const locationName = row.cells[0].textContent.toLowerCase();
-            const productName = row.cells[1].textContent.toLowerCase(); // Per your request
+            const productName = row.cells[1].textContent.toLowerCase();
             if (locationName.includes(searchTerm) || productName.includes(searchTerm)) {
                 row.style.display = '';
             } else {

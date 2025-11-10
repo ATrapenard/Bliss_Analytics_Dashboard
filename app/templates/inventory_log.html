@@ -86,7 +86,7 @@
 {% endwith %}
 
 <div class="filter-card content-card">
-    <form method="GET" action="{{ url_for('inventory_log') }}" class="filter-form">
+    <form method="GET" action="{{ url_for('ops.inventory_log') }}" class="filter-form">
         <div>
             <label for="inventory_item_id">Filter by Ingredient</label>
             <select id="inventory_item_id" name="inventory_item_id" class="select2-enable">
@@ -100,7 +100,7 @@
         </div>
         
         <button type="submit" class="button-link">Filter</button>
-        <a href="{{ url_for('inventory_log') }}" class="clear-btn">Clear</a>
+        <a href="{{ url_for('ops.inventory_log') }}" class="clear-btn">Clear</a>
     </form>
 </div>
 

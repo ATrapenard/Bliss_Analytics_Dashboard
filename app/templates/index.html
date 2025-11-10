@@ -73,7 +73,7 @@
 {% endwith %}
 
 <div class="dashboard-grid">
-    <a href="{{ url_for('requirements_page') }}" class="stat-card {% if dashboard_data.low_stock_count > 0 %}low-stock{% else %}ok-stock{% endif %}">
+    <a href="{{ url_for('core.requirements_page') }}" class="stat-card {% if dashboard_data.low_stock_count > 0 %}low-stock{% else %}ok-stock{% endif %}">
         {% if dashboard_data.low_stock_count > 0 %}
             <h2>{{ dashboard_data.low_stock_count }}</h2>
             <p>Items Low on Stock</p>
@@ -83,12 +83,12 @@
         {% endif %}
     </a>
 
-    <a href="{{ url_for('wip_batches_page') }}" class="stat-card">
+    <a href="{{ url_for('ops.wip_batches_page') }}" class="stat-card">
         <h2>{{ dashboard_data.wip_batches_count }}</h2>
         <p>Active WIP Batches</p>
     </a>
     
-    <a href="{{ url_for('purchase_orders_page') }}" class="stat-card">
+    <a href="{{ url_for('ops.purchase_orders_page') }}" class="stat-card">
         <h2>{{ dashboard_data.open_pos_count }}</h2>
         <p>Open Purchase Orders</p>
     </a>
@@ -97,10 +97,10 @@
 <div class="quick-links-card content-card">
     <h2>Quick Actions</h2>
     <div class="quick-links-container">
-        <a href="{{ url_for('production_planner') }}" class="button-link submit-btn">Run Planner</a>
-        <a href="{{ url_for('wip_batches_page') }}" class="button-link add-btn">Start New WIP Batch</a>
-        <a href="{{ url_for('purchase_orders_page') }}" class="button-link" style="background-color: var(--secondary-color);">Create Purchase Order</a>
-        <a href="{{ url_for('new_recipe_form') }}" class="button-link" style="background-color: var(--text-medium);">Add New Recipe</a>
+        <a href="{{ url_for('core.production_planner') }}" class="button-link submit-btn">Run Planner</a>
+        <a href="{{ url_for('ops.wip_batches_page') }}" class="button-link add-btn">Start New WIP Batch</a>
+        <a href="{{ url_for('ops.purchase_orders_page') }}" class="button-link" style="background-color: var(--secondary-color);">Create Purchase Order</a>
+        <a href="{{ url_for('data.new_recipe_form') }}" class="button-link" style="background-color: var(--text-medium);">Add New Recipe</a>
     </div>
 </div>
 

@@ -84,7 +84,7 @@
                     <td>{{ po.order_date.strftime('%Y-%m-%d') if po.order_date else 'N/A' }}</td>
                     <td>{{ po.status }}</td>
                     <td class="actions-cell">
-                        <a href="{{ url_for('po_detail', po_id=po.id) }}" class="details-btn">Details</a>
+                        <a href="{{ url_for('ops.po_detail', po_id=po.id) }}" class="details-btn">Details</a>
                     </td>
                 </tr>
                 {% endfor %}
@@ -98,7 +98,7 @@
     <div class="form-container content-card">
         <h2 class="collapsible-toggle">Create New Purchase Order</h2>
         <div class="form-content">
-            <form method="POST" action="{{ url_for('purchase_orders_page') }}">
+            <form method="POST" action="{{ url_for('ops.purchase_orders_page') }}">
                 <div>
                     <label for="supplier_id">Supplier</label>
                     <select id="supplier_id" name="supplier_id" class="select2-enable" required>

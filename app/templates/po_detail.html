@@ -20,7 +20,7 @@
         font-weight: 600;
         margin-bottom: 0;
     }
-     .summary-grid input, .summary-grid select {
+    .summary-grid input, .summary-grid select {
         margin-bottom: 0;
     }
     .cost-grid {
@@ -40,13 +40,13 @@
         color: var(--text-dark);
     }
     .total-cost {
-         font-size: 1.5em;
-         font-weight: 700;
-         color: var(--primary-color);
-         text-align: right;
-         margin-top: 15px;
-         border-top: 2px solid var(--border-color);
-         padding-top: 10px;
+        font-size: 1.5em;
+        font-weight: 700;
+        color: var(--primary-color);
+        text-align: right;
+        margin-top: 15px;
+        border-top: 2px solid var(--border-color);
+        padding-top: 10px;
     }
     .add-item-form {
         display: grid;
@@ -74,7 +74,7 @@
 </style>
 
 <div style="margin-bottom: 20px;">
-    <a href="{{ url_for('purchase_orders_page') }}">&larr; Back to Purchase Orders</a>
+    <a href="{{ url_for('ops.purchase_orders_page') }}">&larr; Back to Purchase Orders</a>
 </div>
 
 {% with messages = get_flashed_messages(with_categories=true) %}
@@ -90,7 +90,7 @@
         <h2>PO #{{ po.id }} - Items</h2>
         
         {% if po.status != 'Received' %}
-        <form class="add-item-form" method="POST" action="{{ url_for('po_add_item', po_id=po.id) }}">
+        <form class="add-item-form" method="POST" action="{{ url_for('ops.po_add_item', po_id=po.id) }}">
             <div>
                 <label for="inventory_item_id">Ingredient</label>
                 <select id="inventory_item_id" name="inventory_item_id" class="select2-enable" required>
@@ -135,7 +135,7 @@
                         <td class="line-total">${{ "%.2f"|format((item.quantity_ordered or 0) * (item.unit_cost or 0)) }}</td>
                         <td class="actions-cell">
                             {% if po.status != 'Received' %}
-                            <form class="action-form" method="POST" action="{{ url_for('po_remove_item', item_id=item.id) }}" onsubmit="return confirm('Remove this item?');">
+                            <form class="action-form" method="POST" action="{{ url_for('ops.po_remove_item', item_id=item.id) }}" onsubmit="return confirm('Remove this item?');">
                                 <input type="hidden" name="po_id" value="{{ po.id }}">
                                 <button type="submit" class="delete-btn" style="padding: 4px 8px; font-size: 0.8em;">X</button>
                             </form>
@@ -153,7 +153,7 @@
 
     <div class="summary-card content-card">
         <h2>Order Details</h2>
-        <form method="POST" action="{{ url_for('po_update_header', po_id=po.id) }}">
+        <form method="POST" action="{{ url_for('ops.po_update_header', po_id=po.id) }}">
             <div class="summary-grid">
                 <label>Supplier:</label>
                 <span>{{ po.supplier_name }}</span> <input type="hidden" name="supplier_id" value="{{ po.supplier_id }}">
@@ -208,7 +208,7 @@
         </div>
 
         <div style="border-top: 1px solid var(--border-color); margin-top: 20px; padding-top: 20px;">
-            <form class="action-form" method="POST" action="{{ url_for('po_delete', po_id=po.id) }}" onsubmit="return confirm('Are you sure? This will delete the PO and reverse inventory changes if it was received.');">
+            <form class="action-form" method="POST" action="{{ url_for('ops.po_delete', po_id=po.id) }}" onsubmit="return confirm('Are you sure? This will delete the PO and reverse inventory changes if it was received.');">
                 <button type="submit" class="delete-btn" style="width: 100%;">Delete Purchase Order</button>
             </form>
         </div>

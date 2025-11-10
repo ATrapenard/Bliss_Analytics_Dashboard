@@ -128,12 +128,12 @@
                     <td>{{ item.quantity_available | round(2) }}</td>
                     <td class="actions-cell">
                         <div class="actions-wrapper">
-                            <form class="action-form" method="GET" action="{{ url_for('edit_inventory_item', id=item.id) }}">
+                            <form class="action-form" method="GET" action="{{ url_for('data.edit_inventory_item', id=item.id) }}">
                                 <button type="submit" class="edit-btn">Edit</button>
                             </form>
-                            <a href="{{ url_for('adjust_inventory_item', id=item.id) }}" class="adjust-btn">Adjust</a>
+                            <a href="{{ url_for('ops.adjust_inventory_item', id=item.id) }}" class="adjust-btn">Adjust</a>
                             
-                            <form class="action-form" method="POST" action="{{ url_for('delete_inventory_item', id=item.id) }}" onsubmit="return confirm('Are you sure? Deleting may fail if item is used in recipes or allocated.');">
+                            <form class="action-form" method="POST" action="{{ url_for('data.delete_inventory_item', id=item.id) }}" onsubmit="return confirm('Are you sure? Deleting may fail if item is used in recipes or allocated.');">
                                 <button type="submit" class="delete-btn">Delete</button>
                             </form>
                         </div>
@@ -147,7 +147,7 @@
     <div class="form-container content-card">
         <h2 class="collapsible-toggle">Add New Item</h2>
         <div class="form-content">
-            <form method="POST" action="{{ url_for('inventory_items_page') }}">
+            <form method="POST" action="{{ url_for('data.inventory_items_page') }}">
                 <div>
                     <label for="name">Item Name</label>
                     <input type="text" id="name" name="name" required placeholder="e.g., Arjuna">

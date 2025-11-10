@@ -2,79 +2,153 @@
 
 {% block title %}Recipe Dashboard{% endblock %}
 
-{% block content %}
-    <style>
-        .recipe-card { margin-top: 1.5rem; }
-        .card-header-clickable {
-            cursor: pointer;
-            padding: 5px;
-            display: flex;
-            justify-content: space-between;
-            align-items: center;
-            width: 100%;
-            transition: background-color 0.2s ease-in-out;
-            gap: 15px;
-        }
-        .card-header-clickable:hover { background-color: var(--background-light); }
-        .card-header-clickable.active { border-bottom: 1px solid var(--border-color); }
-        .recipe-info { display: flex; flex-direction: column; min-width: 0; }
-        .recipe-name {
-            font-size: 1.25em;
-            font-weight: 600;
-            color: var(--text-dark);
-            white-space: nowrap;
-            overflow: hidden;
-            text-overflow: ellipsis;
-        }
-        .recipe-totals { font-size: 0.8em; color: var(--text-medium); margin-top: 4px; }
-        .card-actions { display: flex; align-items: center; gap: 10px; flex-shrink: 0; }
-        .action-form { margin: 0; display: flex; align-items: center; }
-        .edit-btn, .delete-btn { font-size: 0.9em; padding: 6px 12px; }
-
-        .content {
-            padding: 0 15px;
-            max-height: 0;
-            overflow: hidden;
-            transition: max-height 0.3s ease-out;
-        }
-        .content table { width: 100%; border-collapse: collapse; margin: 15px 0; }
-        .content th, .content td {
-            border-bottom: 1px solid var(--border-color); /* Apply bottom border to ALL cells */
-            padding: 10px 15px;
-            text-align: left;
-        }
-        .content th { background-color: var(--background-light); font-size: 0.75rem; text-transform: uppercase; color: var(--text-medium); }
-        /* REMOVED: .content tr:last-child td { border-bottom: none; } */
-        .search-container {
-            width: 100%;
-            margin-top: 20px;
-            margin-bottom: 20px;
-        }
-        .search-container input[type="text"] {
-            width: 100%;
-            margin-bottom: 0;
-            font-size: 1.1em;
-            padding: 12px 15px;
-        }
-        @media screen and (max-width: 500px) {
-        .card-actions {
-            flex-direction: column;
-            align-items: stretch;
-            gap: 4px;
-            width: 100%;
-            margin-top: 10px;
-        }
-        .card-actions .action-form {
-            width: 100%;
-            margin: 0;
-        }
-        .card-actions .action-form button {
-            width: 100%;
-        }
+{% block page_styles %}
+<style>
+    /* New Grid Layout */
+    .recipe-grid {
+        display: grid;
+        /* Creates 2-3 responsive columns */
+        grid-template-columns: repeat(auto-fit, minmax(350px, 1fr));
+        gap: var(--space-lg);
     }
-    </style>
+    
+    /* The New Recipe Card */
+    .recipe-item-card {
+        background: var(--white);
+        border-radius: 12px;
+        box-shadow: 0 4px 15px rgba(0,0,0,0.07);
+        display: flex;
+        flex-direction: column;
+        overflow: hidden; /* Clips the child elements */
+        transition: all 0.2s ease-out;
+    }
+    .recipe-item-card:hover {
+        transform: translateY(-5px);
+        box-shadow: 0 8px 25px rgba(0,0,0,0.1);
+    }
+    
+    /* === MODIFIED === */
+    /* Card Header is now the toggle */
+    .recipe-card-toggle {
+        padding: var(--space-md) var(--space-lg);
+        cursor: pointer;
+        transition: background-color 0.2s ease;
+        display: flex; /* Added */
+        justify-content: space-between; /* Added */
+        align-items: center; /* Added */
+    }
+    .recipe-card-toggle:hover {
+        background-color: rgba(0,0,0,0.03);
+    }
+    /* === NEW: Toggle Icon === */
+    .recipe-card-toggle::after {
+        content: '▼';
+        font-size: 0.8em;
+        color: var(--text-medium);
+        transition: transform 0.3s ease-out;
+        transform: rotate(180deg); /* Start in the "up" (closed) position */
+    }
+    .recipe-card-toggle.active::after {
+        transform: rotate(0deg); /* "Down" (open) position */
+    }
 
+    .recipe-card-header-content h3 {
+        font-family: var(--font-heading);
+        font-size: 1.3rem;
+        color: var(--text-dark);
+        margin: 0 0 5px 0;
+        /* Gradient text to match H1 */
+        background-image: linear-gradient(45deg, var(--primary-color), var(--accent-purple));
+        background-clip: text;
+        -webkit-background-clip: text;
+        color: transparent;
+    }
+    .recipe-card-header-content small {
+        color: var(--text-medium);
+        font-weight: 600;
+        font-size: 0.85em;
+    }
+    
+    /* === NEW === */
+    /* This is now the collapsible part */
+    .recipe-card-collapsible-content {
+        max-height: 0;
+        overflow: hidden;
+        transition: max-height 0.3s ease-out;
+    }
+    
+    /* Card Content (Ingredients) */
+    .recipe-card-content {
+        padding: 0 var(--space-lg) var(--space-md);
+        flex-grow: 1;
+        border-top: 1px solid var(--border-color); /* Separator */
+    }
+    .recipe-card-content ul {
+        list-style: none;
+        padding: 0;
+        margin: 0;
+    }
+    .recipe-card-content li {
+        display: flex;
+        justify-content: space-between;
+        padding: 10px 0;
+        border-bottom: 1px solid var(--border-color);
+        font-size: 0.9em;
+    }
+    .recipe-card-content li:first-child {
+        padding-top: var(--space-md); /* Add padding to top of list */
+    }
+    .recipe-card-content li:last-child {
+        border-bottom: none;
+    }
+    .recipe-card-content li .ing-name {
+        font-weight: 600;
+        color: var(--text-medium);
+    }
+    .recipe-card-content li .ing-qty {
+        font-weight: 600;
+        color: var(--text-dark);
+    }
+    
+    /* Card Footer (Actions) */
+    .recipe-card-footer {
+        display: flex;
+        gap: 10px;
+        padding: var(--space-md) var(--space-lg);
+        background: var(--background-light); /* Slight contrast */
+        border-top: 1px solid var(--border-color);
+    }
+    .recipe-card-footer .action-form {
+        margin: 0;
+        display: flex;
+        flex-grow: 1; /* Makes buttons fill the space */
+    }
+    .recipe-card-footer .action-form button {
+        margin: 0;
+        width: 100%;
+    }
+    
+    /* Search Bar */
+    .search-container {
+        width: 100%;
+        margin-bottom: var(--space-lg);
+    }
+    .search-container input[type="text"] {
+        font-size: 1.1em;
+        padding: 12px 15px;
+        border-radius: 8px;
+    }
+    
+    /* "Add New" Button */
+    .add-recipe-btn {
+        margin-bottom: var(--space-lg);
+    }
+</style>
+{% endblock %}
+
+{% block content %}
     <h1>Recipe Dashboard</h1>
+    
     {% with messages = get_flashed_messages(with_categories=true) %}
         {% if messages %}
             {% for category, message in messages %}
@@ -82,88 +156,99 @@
             {% endfor %}
         {% endif %}
     {% endwith %}
-    <a href="{{ url_for('data.new_recipe_form') }}" class="button-link submit-btn">＋ Add New Recipe</a>
+    
+    <a href="{{ url_for('data.new_recipe_form') }}" class="button-link submit-btn add-recipe-btn">＋ Add New Recipe</a>
+    
     <div class="search-container">
         <input type="text" id="recipeSearch" placeholder="Search for recipes by name...">
     </div>
+
     <h2>Existing Recipes</h2>
 
-    {% for recipe in recipes %}
-        <div class="recipe-card">
-            <div class="card-header-clickable">
-                <div class="recipe-info">
-                    <span class="recipe-name">{{ recipe['name'] }}</span>
-                    <span class="recipe-totals">
-                        Grams: {{ recipe.totals.grams }}g, mLs: {{ recipe.totals.mLs }}mL
-                    </span>
+    <div class="recipe-grid">
+        {% for recipe in recipes %}
+        <div class="recipe-item-card" data-recipe-name="{{ recipe['name'] | lower }}">
+            
+            <div class="recipe-card-toggle">
+                <div class="recipe-card-header-content">
+                    <h3>{{ recipe['name'] }}</h3>
+                    <small>Grams: {{ recipe.totals.grams }}g, mLs: {{ recipe.totals.mLs }}mL</small>
                 </div>
-                <div class="card-actions">
-                    <form class="action-form" method="GET" action="{{ url_for('data.edit_recipe_form', recipe_id=recipe['id']) }}">
-                        <button type="submit" class="edit-btn">Edit</button>
-                    </form>
-                    <form class="action-form" method="POST" action="{{ url_for('data.delete_recipe', recipe_id=recipe['id']) }}" onsubmit="return confirm('Are you sure you want to delete this recipe?');">
-                        <button type="submit" class="delete-btn">Delete</button>
-                    </form>
+                </div>
+            
+            <div class="recipe-card-collapsible-content">
+                <div class="recipe-card-content">
+                    <ul>
+                        {% for ingredient in recipe['ingredients'] %}
+                        <li>
+                            <span class="ing-name">{{ ingredient['name'] }}</span>
+                            <span class="ing-qty">{{ ingredient['quantity'] }} {{ ingredient['unit'] }}</span>
+                        </li>
+                        {% else %}
+                        <li><span class="ing-name">No ingredients added.</span></li>
+                        {% endfor %}
+                    </ul>
                 </div>
             </div>
-            <div class="content">
-                <table>
-                    <thead>
-                        <tr>
-                            <th>Ingredient</th>
-                            <th>Quantity</th>
-                            <th>Unit</th>
-                        </tr>
-                    </thead>
-                    <tbody>
-                        {% for ingredient in recipe['ingredients'] %}
-                        <tr>
-                            <td>{{ ingredient['name'] }}</td>
-                            <td>{{ ingredient['quantity'] }}</td>
-                            <td>{{ ingredient['unit'] }}</td>
-                        </tr>
-                        {% endfor %}
-                    </tbody>
-                </table>
+            
+            <div class="recipe-card-footer">
+                <form class="action-form" method="GET" action="{{ url_for('data.edit_recipe_form', recipe_id=recipe['id']) }}">
+                    <button type="submit" class="edit-btn">Edit</button>
+                </form>
+                <form class="action-form" method="POST" action="{{ url_for('data.delete_recipe', recipe_id=recipe['id']) }}" onsubmit="return confirm('Are you sure you want to delete this recipe?');">
+                    <button type="submit" class="delete-btn">Delete</button>
+                </form>
             </div>
         </div>
-    {% else %}
-        <p>No recipes found. Add one!</p>
-    {% endfor %}
+        {% else %}
+            <div class="content-card">
+                <h2>No Recipes Found</h2>
+                <p>No recipes found. Click the "Add New Recipe" button to get started!</p>
+            </div>
+        {% endfor %}
+    </div>
 
+{% endblock %}
+
+{% block page_scripts %}
     <script>
         document.addEventListener('DOMContentLoaded', () => {
-            const headers = document.querySelectorAll(".card-header-clickable");
-            headers.forEach(header => {
-                header.addEventListener("click", event => {
-                    if (event.target.closest('.card-actions')) { return; }
-                    header.classList.toggle("active");
-                    const content = header.nextElementSibling;
-                    if (content.style.maxHeight) {
-                        content.style.maxHeight = null;
-                    } else {
-                        content.style.maxHeight = content.scrollHeight + "px";
-                    }
-                });
-            });
+            // --- Search Bar Logic ---
             const searchInput = document.getElementById('recipeSearch');
-            // Select all the recipe-card divs
-            const allCards = document.querySelectorAll('.recipe-card'); 
+            const allCards = document.querySelectorAll('.recipe-item-card'); 
 
             searchInput.addEventListener('input', function(e) {
                 const searchTerm = e.target.value.toLowerCase();
-
                 allCards.forEach(card => {
-                    // Find the recipe name within this card
-                    const recipeName = card.querySelector('.recipe-name').textContent.toLowerCase();
-                    
+                    const recipeName = card.dataset.recipeName;
                     if (recipeName.includes(searchTerm)) {
-                        card.style.display = ''; // Show the card
+                        card.style.display = 'flex';
                     } else {
-                        card.style.display = 'none'; // Hide the card
+                        card.style.display = 'none';
                     }
                 });
             });
+
+            // --- NEW Collapsible Card Logic ---
+            const allToggles = document.querySelectorAll('.recipe-card-toggle');
+            allToggles.forEach(toggle => {
+                toggle.addEventListener('click', () => {
+                    // Toggle the 'active' class on the button itself
+                    toggle.classList.toggle('active');
+                    
+                    // Find the content body
+                    const content = toggle.nextElementSibling;
+                    
+                    if (content.style.maxHeight) {
+                        // It's open, so close it
+                        content.style.maxHeight = null;
+                    } else {
+                        // It's closed, so open it
+                        content.style.maxHeight = content.scrollHeight + 'px';
+                    }
+                });
+            });
+
         });
     </script>
 {% endblock %}

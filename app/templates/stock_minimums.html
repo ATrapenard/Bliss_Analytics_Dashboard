@@ -3,47 +3,6 @@
 {% block title %}Stock Minimums{% endblock %}
 
 {% block content %}
-<style>
-    .container {
-        display: grid;
-        grid-template-columns: 2fr 1fr;
-        gap: 40px;
-    }
-
-    table {
-        width: 100%;
-        border-collapse: collapse;
-        margin-top: 20px;
-    }
-    th, td {
-        border: 1px solid #ddd;
-        padding: 12px;
-        text-align: left;
-        vertical-align: middle;
-    }
-    th {
-        background-color: #f2f2f2;
-    }
-    /* Action button styling */
-    .delete-form { margin: 0; }
-    .delete-btn { font-size: 0.9em; padding: 6px 12px; width: auto; }
-    .search-container {
-        width: 100%;
-        margin-bottom: 20px;
-    }
-    .search-container input[type="text"] {
-        width: 100%;
-        margin-bottom: 0;
-        font-size: 1.1em;
-        padding: 12px 15px;
-    }
-    .form-container{
-        align-self: start;
-    }
-    @media screen and (max-width: 1100px) {
-    .form-container { order: -1; }
-    }
-</style>
 
 <h1>Manage Stock Minimums</h1>
 <p>Set the minimum number of jars to keep in stock at each fulfillment location.</p>

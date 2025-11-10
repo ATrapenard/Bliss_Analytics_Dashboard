@@ -31,31 +31,6 @@
     }
 
     /* Original page styles */
-    table {
-        width: 100%;
-        border-collapse: collapse;
-        margin-top: 20px;
-        table-layout: fixed; /* Keep layout fixed */
-    }
-    th, td {
-        border: 1px solid #ddd;
-        padding: 10px 12px; /* Adjust padding slightly */
-        text-align: left;
-        vertical-align: middle;
-    }
-    th {
-        background-color: #f2f2f2;
-    }
-    /* Define column widths */
-    th:nth-child(1) { width: 30%; } /* Ingredient */
-    th:nth-child(2) { width: 10%; } /* Unit */
-    th:nth-child(3) { width: 12%; } /* Needed */
-    th:nth-child(4) { width: 12%; } /* On Hand */
-    th:nth-child(5) { width: 12%; } /* Allocated */
-    th:nth-child(6) { width: 12%; } /* Available */
-    th:nth-child(7) { width: 12%; } /* Net Needed */
-
-    td:nth-child(n+3) { text-align: right; } /* Right-align numeric columns */
     .highlight-needed { font-weight: bold; color: var(--delete-red); } /* Highlight net needed > 0 */
     .search-container {
     width: 100%;

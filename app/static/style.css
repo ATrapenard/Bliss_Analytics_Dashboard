@@ -459,20 +459,36 @@ table {
   width: 100%;
   border-collapse: collapse;
   margin-top: var(--space-sm);
+
+  /* === FIX for #3 (Table Bleed) === */
   /* This makes the table "bleed" to the edges of the card */
   margin-left: calc(var(--space-lg) * -1);
   margin-right: calc(var(--space-lg) * -1);
   width: calc(100% + (var(--space-lg) * 2));
   border-radius: 16px; /* Match card radius */
-  overflow: hidden; /* Cips the table to the radius */
+  overflow: hidden; /* Clips the table to the radius */
+
+  /* === NEW: Added for consistency === */
+  table-layout: fixed;
 }
 th,
 td {
   padding: var(--space-sm);
   text-align: left;
   vertical-align: middle;
+  /* This border is the one we want */
   border-bottom: 1px solid var(--border-color);
 }
+
+th:first-child,
+td:first-child {
+  padding-left: var(--space-lg);
+}
+th:last-child,
+td:last-child {
+  padding-right: var(--space-lg);
+}
+
 /* Strong, branded header */
 th {
   background-color: var(--secondary-color);
@@ -480,17 +496,32 @@ th {
   font-size: 0.8rem;
   text-transform: uppercase;
   font-family: var(--font-heading);
-  border-bottom: 0px;
+  border-bottom: 0px; /* Header has no bottom border */
 }
 /* Clean, striped rows */
 tr {
   background-color: var(--white);
+  /* DELETED the border-bottom from here. Let the TD handle it. */
 }
 tbody tr:nth-child(even) {
-  background-color: var(--background-light); /* Subtle striping */
+  background-color: var(--background-light);
 }
 tbody tr:hover {
-  background-color: #e6e6f0; /* Hover color */
+  background-color: #e6e6f0;
+}
+
+/* === NEW: Fix for #5 (Line Spacing) === */
+/* This correctly removes the border from the *cells* of the last row */
+tbody tr:last-child td {
+  border-bottom: none;
+}
+
+/* === NEW: Fix for #5 (WIP Batches alignment) === */
+/* Standardizes all table action cells */
+td.actions-cell {
+  display: flex;
+  gap: 10px;
+  align-items: center;
 }
 
 /* --- Flash Messages (Unchanged) --- */

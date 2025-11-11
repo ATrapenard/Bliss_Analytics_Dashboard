@@ -157,18 +157,21 @@ def new_recipe_form():
 def create_recipe():
     conn = get_db()
     recipe_id = None
+    # --- FIX: Define variables in outer scope for error handling ---
+    recipe_data_on_fail = None
+    ingredients_on_fail = []
+    recipes = []
+    inventory_items = []
+
     try:
         with conn.cursor() as cur:
             recipe_name = request.form["recipe_name"]
             yield_quantity = request.form.get("yield_quantity") or None
             yield_unit = request.form.get("yield_unit") or None
             is_sold_product = "is_sold_product" in request.form
-
-            # --- NEW: Get tools and instructions ---
             tools_text = request.form.get("tools", "")
             instructions_text = request.form.get("instructions", "")
 
-            # Convert text-area-per-line to a clean list
             tools_list = [
                 tool.strip() for tool in tools_text.split("\n") if tool.strip()
             ]
@@ -184,13 +187,12 @@ def create_recipe():
                     yield_quantity,
                     yield_unit,
                     is_sold_product,
-                    json.dumps(tools_list),  # --- NEW
-                    json.dumps(instructions_list),  # --- NEW
+                    json.dumps(tools_list),
+                    json.dumps(instructions_list),
                 ),
             )
             recipe_id = cur.fetchone()[0]
 
-            # --- Use the new helper function ---
             _process_and_save_ingredients(cur, recipe_id)
 
         conn.commit()
@@ -203,10 +205,55 @@ def create_recipe():
         flash(f"Error creating recipe: {e}", "error")
         print(f"Error creating recipe: {e}")
 
-        # --- On failure, re-render the form with the same data ---
-        recipes = []
-        inventory_items = []
+        # --- FIX: Repopulate form data on failure ---
+        recipe_data_on_fail = {
+            "name": request.form.get("recipe_name", ""),
+            "yield_quantity": request.form.get("yield_quantity", ""),
+            "yield_unit": request.form.get("yield_unit", "grams"),
+            "is_sold_product": "is_sold_product" in request.form,
+            "tools": json.loads(
+                json.dumps(
+                    [
+                        tool.strip()
+                        for tool in request.form.get("tools", "").split("\n")
+                        if tool.strip()
+                    ]
+                )
+            ),
+            "instructions": json.loads(
+                json.dumps(
+                    [
+                        inst.strip()
+                        for inst in request.form.get("instructions", "").split("\n")
+                        if inst.strip()
+                    ]
+                )
+            ),
+        }
+
+        # Repopulate ingredients
+        inventory_item_ids = request.form.getlist("inventory_item_id")
+        quantities = request.form.getlist("quantity")
+        sub_recipe_ids = request.form.getlist("sub_recipe_id")
+
+        for i in range(len(quantities)):
+            if inventory_item_ids[i] or sub_recipe_ids[i] or quantities[i]:
+                ingredients_on_fail.append(
+                    {
+                        "inventory_item_id": (
+                            int(inventory_item_ids[i])
+                            if inventory_item_ids[i]
+                            else None
+                        ),
+                        "quantity": quantities[i],
+                        "sub_recipe_id": (
+                            int(sub_recipe_ids[i]) if sub_recipe_ids[i] else None
+                        ),
+                    }
+                )
+
         try:
+            # Still need to fetch these for the dropdowns
             with conn.cursor(cursor_factory=DictCursor) as cur_err:
                 cur_err.execute("SELECT id, name FROM recipes ORDER BY name;")
                 recipes = cur_err.fetchall()
@@ -219,11 +266,12 @@ def create_recipe():
 
         return render_template(
             "recipe_form.html",
-            recipe=None,
-            ingredients=[],
+            recipe=recipe_data_on_fail,
+            ingredients=ingredients_on_fail,
             recipes=recipes,
             inventory_items=inventory_items,
         )
+        # --- END FIX ---
 
 
 @bp.route("/recipes/edit/<int:recipe_id>")
@@ -272,11 +320,9 @@ def update_recipe(recipe_id):
             yield_unit = request.form.get("yield_unit") or None
             is_sold_product = "is_sold_product" in request.form
 
-            # --- NEW: Get tools and instructions ---
             tools_text = request.form.get("tools", "")
             instructions_text = request.form.get("instructions", "")
 
-            # Convert text-area-per-line to a clean list
             tools_list = [
                 tool.strip() for tool in tools_text.split("\n") if tool.strip()
             ]
@@ -294,13 +340,12 @@ def update_recipe(recipe_id):
                     yield_quantity,
                     yield_unit,
                     is_sold_product,
-                    json.dumps(tools_list),  # --- NEW
-                    json.dumps(instructions_list),  # --- NEW
+                    json.dumps(tools_list),
+                    json.dumps(instructions_list),
                     recipe_id,
                 ),
             )
 
-            # --- Re-use the same ingredient logic ---
             cur.execute("DELETE FROM ingredients WHERE recipe_id = %s;", (recipe_id,))
             _process_and_save_ingredients(cur, recipe_id)
 
@@ -321,12 +366,39 @@ def delete_recipe(recipe_id):
     conn = get_db()
     try:
         with conn.cursor() as cur:
+            # --- FIX: Check for usages before deleting ---
+            cur.execute(
+                "SELECT id FROM products WHERE recipe_id = %s LIMIT 1;", (recipe_id,)
+            )
+            if cur.fetchone():
+                flash(
+                    "Cannot delete recipe: It is linked to one or more products.",
+                    "error",
+                )
+                return redirect(url_for("data.recipe_dashboard"))
+
+            cur.execute(
+                "SELECT id FROM inventory_items WHERE linked_recipe_id = %s LIMIT 1;",
+                (recipe_id,),
+            )
+            if cur.fetchone():
+                flash(
+                    "Cannot delete recipe: It is linked to one or more producible inventory items.",
+                    "error",
+                )
+                return redirect(url_for("data.recipe_dashboard"))
+
+            # It's safe to delete. Delete ingredients first.
+            cur.execute("DELETE FROM ingredients WHERE recipe_id = %s;", (recipe_id,))
             cur.execute("DELETE FROM recipes WHERE id = %s;", (recipe_id,))
+            # --- END FIX ---
+
             conn.commit()
             flash("Recipe deleted.", "success")
     except psycopg2.Error as e:
         if conn:
             conn.rollback()
+        # This will now catch other foreign key errors (e.g., ingredients, wip_batches)
         flash(f"Error deleting recipe: {e.diag.message_primary}", "error")
         print(f"DB Error delete recipe {recipe_id}: {e}")
 

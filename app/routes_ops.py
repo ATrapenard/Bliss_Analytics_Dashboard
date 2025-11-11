@@ -468,12 +468,15 @@ def wip_batches_page():
             cur.execute("SELECT id, name FROM locations ORDER BY name;")
             locations = cur.fetchall()
 
-    except Exception as e:
+    except (psycopg2.Error, ValueError) as e:
         if conn:
             conn.rollback()
-        if "not found" in str(e) or "required" in str(e) or "producible" in str(e):
+        # --- FIX: Replaced string matching with explicit catch ---
+        if isinstance(e, ValueError):
+            # These are validation errors, just flash them
             pass
         else:
+            # These are unexpected DB errors
             flash(f"Error accessing WIP batches: {e}", "error")
             print(f"DB Error WIP page: {e}")
 
@@ -796,6 +799,13 @@ def delete_wip_batch(batch_id):
                         "UPDATE inventory_items SET quantity_allocated = quantity_allocated - %s WHERE id = %s;",
                         (alloc["total_allocated"], alloc["inventory_item_id"]),
                     )
+
+                # --- FIX: Delete child records first ---
+                cur.execute(
+                    "DELETE FROM wip_allocations WHERE wip_batch_id = %s;", (batch_id,)
+                )
+                # --- END FIX ---
+
                 cur.execute("DELETE FROM wip_batches WHERE id = %s;", (batch_id,))
                 conn.commit()
                 flash(f"WIP Batch {batch_id} deleted.", "success")
@@ -1179,6 +1189,14 @@ def po_delete(po_id):
                     flash_msg = "PO deleted. Inventory updates have been reversed."
                 else:
                     flash_msg = "PO deleted."
+
+                # --- FIX: Delete child records first ---
+                cur.execute(
+                    "DELETE FROM purchase_order_items WHERE purchase_order_id = %s;",
+                    (po_id,),
+                )
+                # --- END FIX ---
+
                 cur.execute("DELETE FROM purchase_orders WHERE id = %s;", (po_id,))
                 conn.commit()
                 flash(flash_msg, "success")

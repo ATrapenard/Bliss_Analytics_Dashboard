@@ -245,28 +245,24 @@
                 </div>
             </div>
         </div>
+
+        <div class="recipe-card-footer">
+            <form class="action-form" method="GET"
+                action="{{ url_for('data.edit_recipe_form', recipe_id=recipe['id']) }}">
+                <button type="submit" class="edit-btn">Edit</button>
+            </form>
+            <form class="action-form" method="POST" action="{{ url_for('data.delete_recipe', recipe_id=recipe['id']) }}"
+                onsubmit="return confirm('Are you sure you want to delete this recipe?');">
+                <button type="submit" class="delete-btn">Delete</button>
+            </form>
+        </div>
+    </div> {% else %}
+    <div class="content-card">
+        <h2>No Recipes Found</h2>
+        <p>No recipes found. Click the "Add New Recipe" button to get started!</p>
     </div>
-</div>
-
-<div class="recipe-card-footer">
-    <form class="action-form" method="GET" action="{{ url_for('data.edit_recipe_form', recipe_id=recipe['id']) }}">
-        <button type="submit" class="edit-btn">Edit</button>
-    </form>
-    <form class="action-form" method="POST" action="{{ url_for('data.delete_recipe', recipe_id=recipe['id']) }}"
-        onsubmit="return confirm('Are you sure you want to delete this recipe?');">
-        <button type="submit" class="delete-btn">Delete</button>
-    </form>
-</div>
-</div>
-{% else %}
-<div class="content-card">
-    <h2>No Recipes Found</h2>
-    <p>No recipes found. Click the "Add New Recipe" button to get started!</p>
-</div>
-{% endfor %}
-</div>
-
-{% endblock %}
+    {% endfor %}
+</div> {% endblock %}
 
 {% block page_scripts %}
 <script>
@@ -287,19 +283,26 @@
             });
         });
 
-        // --- NEW Collapsible Card Logic ---
+        // --- *** NEW ACCORDION LOGIC *** ---
         const allToggles = document.querySelectorAll('.recipe-card-toggle');
-        allToggles.forEach(toggle => {
-            toggle.addEventListener('click', () => {
-                // Toggle the 'active' class on the button itself
-                toggle.classList.toggle('active');
 
-                // Find the content body
-                const content = toggle.nextElementSibling;
+        allToggles.forEach(clickedToggle => {
+            clickedToggle.addEventListener('click', () => {
+                // Check if the one we clicked is already active
+                const isAlreadyActive = clickedToggle.classList.contains('active');
 
-                // NEW: Just toggle the 'active' class on the content body
-                // The CSS will handle the animation and max-height.
-                content.classList.toggle('active');
+                // First, loop through ALL toggles and close them
+                allToggles.forEach(toggle => {
+                    toggle.classList.remove('active');
+                    toggle.nextElementSibling.classList.remove('active');
+                });
+
+                // If the one we clicked WASN'T active, open it.
+                // This prevents it from just staying closed if we click it again.
+                if (!isAlreadyActive) {
+                    clickedToggle.classList.add('active');
+                    clickedToggle.nextElementSibling.classList.add('active');
+                }
             });
         });
 

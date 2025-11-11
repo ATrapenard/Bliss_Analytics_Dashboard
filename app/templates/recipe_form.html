@@ -148,8 +148,24 @@
         </div>
         {% endfor %}
     </div>
-
     <button type="button" class="add-btn" onclick="addIngredient()">＋ Add Ingredient</button>
+
+    <hr style="margin: 30px 0;">
+
+    <div class="form-grid">
+        <div>
+            <label for="tools">Tools Required</label>
+            <textarea id="tools" name="tools" rows="5"
+                placeholder="e.g., Mixing Bowl&#10;Scale&#10;Spatula">{{ (recipe.tools or []) | join('\n') }}</textarea>
+            <small>Enter one tool per line.</small>
+        </div>
+        <div>
+            <label for="instructions">Preparation Instructions</label>
+            <textarea id="instructions" name="instructions" rows="5"
+                placeholder="e.g., Step 1: Weigh all ingredients.&#10;Step 2: Combine herbs in bowl.&#10;Step 3: ...">{{ (recipe.instructions or []) | join('\n') }}</textarea>
+            <small>Enter one step per line.</small>
+        </div>
+    </div>
     <br>
     <button type="submit" class="submit-btn">{% if recipe %}Save Changes{% else %}Save Recipe{% endif %}</button>
 </form>

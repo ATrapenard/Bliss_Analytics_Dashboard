@@ -2,6 +2,7 @@ import psycopg2
 from psycopg2.extras import DictCursor, RealDictCursor
 from flask import Blueprint, flash, g, redirect, render_template, request, url_for
 from collections import defaultdict
+import json
 
 from app.db import get_db
 from app.models import get_base_ingredients, _log_inventory_adjustment
@@ -163,9 +164,29 @@ def create_recipe():
             yield_unit = request.form.get("yield_unit") or None
             is_sold_product = "is_sold_product" in request.form
 
+            # --- NEW: Get tools and instructions ---
+            tools_text = request.form.get("tools", "")
+            instructions_text = request.form.get("instructions", "")
+
+            # Convert text-area-per-line to a clean list
+            tools_list = [
+                tool.strip() for tool in tools_text.split("\n") if tool.strip()
+            ]
+            instructions_list = [
+                inst.strip() for inst in instructions_text.split("\n") if inst.strip()
+            ]
+
             cur.execute(
-                "INSERT INTO recipes (name, yield_quantity, yield_unit, is_sold_product) VALUES (%s, %s, %s, %s) RETURNING id;",
-                (recipe_name, yield_quantity, yield_unit, is_sold_product),
+                """INSERT INTO recipes (name, yield_quantity, yield_unit, is_sold_product, tools, instructions) 
+                   VALUES (%s, %s, %s, %s, %s, %s) RETURNING id;""",
+                (
+                    recipe_name,
+                    yield_quantity,
+                    yield_unit,
+                    is_sold_product,
+                    json.dumps(tools_list),  # --- NEW
+                    json.dumps(instructions_list),  # --- NEW
+                ),
             )
             recipe_id = cur.fetchone()[0]
 
@@ -251,9 +272,32 @@ def update_recipe(recipe_id):
             yield_unit = request.form.get("yield_unit") or None
             is_sold_product = "is_sold_product" in request.form
 
+            # --- NEW: Get tools and instructions ---
+            tools_text = request.form.get("tools", "")
+            instructions_text = request.form.get("instructions", "")
+
+            # Convert text-area-per-line to a clean list
+            tools_list = [
+                tool.strip() for tool in tools_text.split("\n") if tool.strip()
+            ]
+            instructions_list = [
+                inst.strip() for inst in instructions_text.split("\n") if inst.strip()
+            ]
+
             cur.execute(
-                "UPDATE recipes SET name = %s, yield_quantity = %s, yield_unit = %s, is_sold_product = %s WHERE id = %s;",
-                (new_name, yield_quantity, yield_unit, is_sold_product, recipe_id),
+                """UPDATE recipes 
+                   SET name = %s, yield_quantity = %s, yield_unit = %s, 
+                       is_sold_product = %s, tools = %s, instructions = %s 
+                   WHERE id = %s;""",
+                (
+                    new_name,
+                    yield_quantity,
+                    yield_unit,
+                    is_sold_product,
+                    json.dumps(tools_list),  # --- NEW
+                    json.dumps(instructions_list),  # --- NEW
+                    recipe_id,
+                ),
             )
 
             # --- Re-use the same ingredient logic ---

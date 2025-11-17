@@ -8,6 +8,9 @@ from psycopg2.extras import DictCursor, RealDictCursor
 def get_db_connection():
     """Gets the raw psycopg2 connection."""
     conn_string = os.getenv("DATABASE_URL")
+
+    print(f"--- DEBUG: Trying to connect with URL: {conn_string} ---")
+
     conn = psycopg2.connect(conn_string)
     return conn
 

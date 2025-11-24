@@ -1,5 +1,6 @@
 # Python
 __pycache__/
+*.log
 *.pyc
 *.pyo
 *.pyd
@@ -8,8 +9,20 @@ env/
 venv/
 pip-selfcheck.json
 pip-log.txt
+.pytest_cache/
+.mypy_cache/
+.coverage
+htmlcov/
 
 # VSCode
 .vscode/
 # Environment variables
 .env
+
+# Flask instance folder & local DBs
+instance/
+*.sqlite3
+*.db
+
+# macOS
+.DS_Store

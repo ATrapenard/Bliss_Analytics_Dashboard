@@ -133,6 +133,12 @@ body::before {
   cursor: pointer;
   font-weight: 700; /* Bolder text */
 }
+.navbar a:focus-visible,
+.navbar .dropdown .dropbtn:focus-visible {
+  outline: 2px solid var(--accent-blue);
+  outline-offset: 2px;
+  border-radius: 8px;
+}
 .navbar a:hover,
 .navbar .dropdown:hover .dropbtn {
   background-color: rgba(255, 255, 255, 0.1);
@@ -190,6 +196,9 @@ body::before {
 .dropdown:hover .dropdown-content {
   display: block;
 }
+.dropdown:focus-within .dropdown-content {
+  display: block;
+}
 .dropbtn::after {
   content: " ▼";
   font-size: 0.7em;
@@ -207,6 +216,19 @@ body::before {
   height: 3px;
   margin: 5px auto;
   background-color: var(--white);
+}
+
+/* Fallbacks when backdrop blur is not supported */
+@supports not (
+  (backdrop-filter: blur(0)) or (-webkit-backdrop-filter: blur(0))
+) {
+  .navbar,
+  .nav-links {
+    background-color: rgba(0, 0, 0, 0.35);
+  }
+  .dropdown-content {
+    background-color: rgba(0, 0, 0, 0.45);
+  }
 }
 
 /* --- Main Content & Cards (Frosted Glass) --- */
@@ -325,6 +347,13 @@ input[type="submit"] {
   font-weight: 700; /* Bolder text */
   margin-top: var(--space-xs);
   box-shadow: 0 2px 5px rgba(0, 0, 0, 0.1);
+}
+button:focus-visible,
+.button-link:focus-visible,
+input[type="submit"]:focus-visible {
+  outline: 2px solid var(--accent-blue);
+  outline-offset: 2px;
+  box-shadow: 0 0 0 3px rgba(85, 134, 255, 0.2);
 }
 /* Pop effect on hover */
 button:hover,
@@ -455,6 +484,11 @@ label {
 }
 
 /* Tables */
+.table-wrapper {
+  width: 100%;
+  overflow-x: auto;
+}
+
 table {
   width: 100%;
   border-collapse: collapse;
@@ -469,7 +503,7 @@ table {
   overflow: hidden; /* Clips the table to the radius */
 
   /* === NEW: Added for consistency === */
-  table-layout: fixed;
+  table-layout: auto;
 }
 th,
 td {
@@ -478,6 +512,7 @@ td {
   vertical-align: middle;
   /* This border is the one we want */
   border-bottom: 1px solid var(--border-color);
+  word-break: break-word;
 }
 
 th:first-child,
@@ -590,7 +625,8 @@ td.actions-cell {
     width: 100%;
     position: absolute;
     top: 58px;
-    left: 0;
+    left: 12px;
+    right: 12px;
     /* Match the smoked glass effect */
     background-color: rgba(0, 0, 0, 0.3);
     backdrop-filter: blur(5px);
@@ -598,6 +634,10 @@ td.actions-cell {
     z-index: 10;
     align-items: flex-start;
     border-top: 1px solid rgba(255, 255, 255, 0.1);
+    border-radius: 12px;
+    padding: var(--space-sm);
+    max-height: 80vh;
+    overflow-y: auto;
   }
   .nav-links.active {
     display: flex;
@@ -614,7 +654,7 @@ td.actions-cell {
   .dropdown-content {
     position: static;
     box-shadow: none;
-    border-radius: 0;
+    border-radius: 8px;
     background-color: rgba(0, 0, 0, 0.2); /* Darker nested glass */
     width: 100%;
   }
@@ -655,7 +695,7 @@ td.actions-cell {
   }
   .navbar a,
   .navbar .dropdown .dropbtn {
-    padding: 10px 6px;
+    padding: 12px 8px;
     font-size: 0.8em;
   }
 

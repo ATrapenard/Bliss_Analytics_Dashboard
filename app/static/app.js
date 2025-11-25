@@ -88,6 +88,16 @@ document.addEventListener("DOMContentLoaded", () => {
       });
     }
   });
+
+  // --- Ensure tables can scroll horizontally on small screens ---
+  document.querySelectorAll("table").forEach((table) => {
+    if (!table.parentElement.classList.contains("table-wrapper")) {
+      const wrapper = document.createElement("div");
+      wrapper.className = "table-wrapper";
+      table.parentElement.insertBefore(wrapper, table);
+      wrapper.appendChild(table);
+    }
+  });
 });
 
 // Make Select2 init globally available for dynamic rows
